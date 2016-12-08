@@ -162,6 +162,12 @@ private[spark] class UnifiedMemoryManager private[memory] (
         offHeapStorageMemoryPool,
         maxOffHeapMemory)
     }
+    logInfo(s"onHeapExecutionMemoryPool.poolSize: ${onHeapExecutionMemoryPool.poolSize}, " +
+      s"onHeapStorageMemoryPool.poolSize: ${onHeapStorageMemoryPool.poolSize}")
+    logInfo(s"executionMemoryUsed: ${executionMemoryUsed}, storageMemoryUsed: ${storageMemoryUsed}")
+    logInfo(s"executionPool.memoryFree: ${executionPool.memoryFree}, " +
+      s"storagePool.memoryFree: ${storagePool.memoryFree}")
+    logInfo(s"maxHeapMemory: ${maxHeapMemory}, numBytes: ${numBytes}, maxMemory: ${maxMemory}")
     if (numBytes > maxMemory) {
       // Fail fast if the block simply won't fit
       logInfo(s"Will not store $blockId as the required space ($numBytes bytes) exceeds our " +
