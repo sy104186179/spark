@@ -303,4 +303,39 @@ class UnifiedMemoryManagerSuite extends MemoryManagerSuite with PrivateMethodTes
     mm.invokePrivate[Unit](assertInvariants())
   }
 
+  test("small heap2") {
+    val conf = new SparkConf()
+      .set("spark.memory.fraction", "1")
+      .set("spark.memory.storageFraction", "0.5")
+      .set("spark.testing.memory", "1000")
+      .set("spark.memory.reservedStorageFraction", "0.1")
+    val mm = UnifiedMemoryManager(conf, numCores = 1)
+    val ms = makeMemoryStore(mm)
+    val memoryMode = MemoryMode.ON_HEAP
+    assert(mm.maxHeapMemory === 1000)
+
+    // reserved = 1000 * 1 * 0.5 * 0.1 = 50
+    assert(mm.acquireExecutionMemory(1000L, 0, memoryMode) === 950L)
+    assert(mm.executionMemoryUsed === 950L)
+    assert(mm.storageMemoryUsed === 0L)
+    mm.releaseAllStorageMemory()
+    mm.releaseExecutionMemory(950L, 0, memoryMode)
+
+    assert(mm.acquireStorageMemory(dummyBlock, 1000L, memoryMode))
+    mm.releaseAllStorageMemory()
+
+    mm.acquireStorageMemory(dummyBlock, 100L, memoryMode)
+    assert(mm.acquireExecutionMemory(1000L, 0, memoryMode) === 850L)
+    mm.releaseAllStorageMemory()
+    mm.releaseExecutionMemory(850L, 0, memoryMode)
+
+    assert(mm.acquireExecutionMemory(1000L, 0, memoryMode) === 950L)
+    assert(!mm.acquireStorageMemory(dummyBlock, 70L, memoryMode))
+    assert(mm.acquireStorageMemory(dummyBlock, 50L, memoryMode))
+    assert(mm.executionMemoryUsed === 950L)
+    assert(mm.storageMemoryUsed === 50L)
+    mm.releaseAllStorageMemory()
+    mm.releaseExecutionMemory(950L, 0, memoryMode)
+  }
+
 }
