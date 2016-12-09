@@ -178,10 +178,11 @@ private[spark] class UnifiedMemoryManager private[memory] (
     if (numBytes > maxMemory) {
       // Fail fast if the block simply won't fit
       if (blockId.isBroadcast) {
-        val leastReservedFraction = numBytes / ((executionPool.poolSize + storagePool.poolSize) *
+        val reservedFraction = numBytes / ((executionPool.poolSize + storagePool.poolSize) *
           conf.getDouble("spark.memory.storageFraction", 0.5))
-        logInfo(s"Please increase spark.memory.reservedStorageFraction " +
-          s"at least ${leastReservedFraction}")
+        logInfo(s"Please increase spark.memory.reservedStorageFraction to at least" +
+          s"${BigDecimal.apply(reservedFraction).setScale(4,
+            BigDecimal.RoundingMode.UP).doubleValue()}")
       }
       logInfo(s"Will not store $blockId as the required space ($numBytes bytes) exceeds our " +
         s"memory limit ($maxMemory bytes)")
