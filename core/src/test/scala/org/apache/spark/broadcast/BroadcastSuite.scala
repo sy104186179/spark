@@ -179,6 +179,23 @@ class BroadcastSuite extends SparkFunSuite with LocalSparkContext {
     assert(thrown.getMessage.toLowerCase.contains("stopped"))
   }
 
+  test("Not enough space to cache broadcast in memory") {
+    val conf = new SparkConf()
+      .setAppName("java.util.NoSuchElementException")
+      .setMaster("local")
+      .set("spark.memory.useLegacyMode", "true")
+      .set("spark.storage.memoryFraction", "0.0")
+    sc = new SparkContext(conf)
+    val list = List[Int](1, 2, 3, 4)
+    val broadcast = sc.broadcast(list)
+    // scalastyle:off
+    println(broadcast.value.sum)
+//    val e = intercept[IOException] {
+//      broadcast.value.sum
+//    }
+//    assert(e.getMessage.contains("java.util.NoSuchElementException"))
+  }
+
   /**
    * Verify the persistence of state associated with an HttpBroadcast in either local mode or
    * local-cluster mode (when distributed = true).
