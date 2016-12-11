@@ -313,7 +313,7 @@ class UnifiedMemoryManagerSuite extends MemoryManagerSuite with PrivateMethodTes
     val memoryMode = MemoryMode.ON_HEAP
     assert(mm.maxHeapMemory === 1000)
 
-    // Reserved storage memory = 1000 * 1 * 0.5 * 0.1 = 50
+    // Reserved storage memory = 1000 * 1 * 0.5 * 0.1
     assert(mm.acquireExecutionMemory(1000L, 0, memoryMode) === 950L)
     assert(mm.executionMemoryUsed === 950L)
     assert(mm.storageMemoryUsed === 0L)

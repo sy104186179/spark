@@ -89,22 +89,21 @@ private[spark] class UnifiedMemoryManager private[memory] (
       memoryMode: MemoryMode): Long = synchronized {
     assertInvariants()
     assert(numBytes >= 0)
-    val (executionPool, storagePool, storageRegionSize, maxMemory, isOnHeap) = memoryMode match {
+    val (executionPool, storagePool, storageRegionSize, maxMemory, reservedStorageMemory) =
+      memoryMode match {
       case MemoryMode.ON_HEAP => (
         onHeapExecutionMemoryPool,
         onHeapStorageMemoryPool,
         onHeapStorageRegionSize,
         maxHeapMemory,
-        true)
+        reservedOnHeapStorageMemory)
       case MemoryMode.OFF_HEAP => (
         offHeapExecutionMemoryPool,
         offHeapStorageMemoryPool,
         offHeapStorageMemory,
         maxOffHeapMemory,
-        false)
+        0L)
     }
-
-    val reservedStorageMemory = if (isOnHeap) reservedOnHeapStorageMemory else 0L
 
     /**
      * Grow the execution pool by evicting cached blocks, thereby shrinking the storage pool.
@@ -121,7 +120,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
         // the memory that storage has borrowed from execution.
         logInfo(s"storagePool.memoryFree:${storagePool.memoryFree}, storagePool.poolSize:" +
           s"${storagePool.poolSize}, storageRegionSize:${storageRegionSize}, " +
-          s"reservedStorageMemory:${reservedOnHeapStorageMemory}")
+          s"reservedStorageMemory:${reservedStorageMemory}")
 
         val memoryReclaimableFromStorage = math.max(
           storagePool.memoryFree - reservedStorageMemory,
@@ -184,7 +183,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
       if (blockId.isBroadcast) {
         val reservedFraction = (numBytes + onHeapStorageMemoryPool.memoryUsed).toDouble /
           onHeapStorageRegionSize
-        logInfo(s"Please increase spark.memory.reservedStorageFraction to at least " +
+        logWarning(s"Please increase spark.memory.reservedStorageFraction to at least " +
           s"${BigDecimal.apply(reservedFraction).setScale(4, BigDecimal.RoundingMode.UP).toString}")
       }
       logInfo(s"Will not store $blockId as the required space ($numBytes bytes) exceeds our " +
