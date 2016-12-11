@@ -17,6 +17,8 @@
 
 package org.apache.spark.broadcast
 
+import java.io.IOException
+
 import scala.util.Random
 
 import org.scalatest.Assertions
@@ -135,6 +137,21 @@ class BroadcastSuite extends SparkFunSuite with LocalSparkContext {
     val rdd = sc.parallelize(1 to 4)
     intercept[IllegalArgumentException] { sc.broadcast(rdd) }
     sc.stop()
+  }
+
+  test("Not enough space to cache broadcast in memory") {
+    val conf = new SparkConf()
+      .setAppName("java.util.NoSuchElementException")
+      .setMaster("local")
+      .set("spark.memory.useLegacyMode", "true")
+      .set("spark.storage.memoryFraction", "0.0")
+    sc = new SparkContext(conf)
+    val list = List[Int](1, 2, 3, 4)
+    val broadcast = sc.broadcast(list)
+    val e = intercept[IOException] {
+      broadcast.value.sum
+    }
+    assert(e.getMessage.contains("java.util.NoSuchElementException"))
   }
 
   /**

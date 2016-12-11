@@ -71,6 +71,9 @@ private[spark] class UnifiedMemoryManager private[memory] (
     maxOffHeapMemory - offHeapExecutionMemoryPool.memoryUsed
   }
 
+  val reservedOnHeapStorageMemory = (onHeapStorageRegionSize *
+    conf.getDouble("spark.memory.reservedStorageFraction", 0)).toLong
+
   /**
    * Try to acquire up to `numBytes` of execution memory for the current task and return the
    * number of bytes obtained, or 0 if none can be allocated.
@@ -86,21 +89,22 @@ private[spark] class UnifiedMemoryManager private[memory] (
       memoryMode: MemoryMode): Long = synchronized {
     assertInvariants()
     assert(numBytes >= 0)
-    val (executionPool, storagePool, storageRegionSize, maxMemory) = memoryMode match {
+    val (executionPool, storagePool, storageRegionSize, maxMemory, isOnHeap) = memoryMode match {
       case MemoryMode.ON_HEAP => (
         onHeapExecutionMemoryPool,
         onHeapStorageMemoryPool,
         onHeapStorageRegionSize,
-        maxHeapMemory)
+        maxHeapMemory,
+        true)
       case MemoryMode.OFF_HEAP => (
         offHeapExecutionMemoryPool,
         offHeapStorageMemoryPool,
         offHeapStorageMemory,
-        maxOffHeapMemory)
+        maxOffHeapMemory,
+        false)
     }
 
-    val reservedStorageMemory = (storageRegionSize *
-      conf.getDouble("spark.memory.reservedStorageFraction", 0)).toLong
+    val reservedStorageMemory = if (isOnHeap) reservedOnHeapStorageMemory else 0L
 
     /**
      * Grow the execution pool by evicting cached blocks, thereby shrinking the storage pool.
@@ -117,7 +121,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
         // the memory that storage has borrowed from execution.
         logInfo(s"storagePool.memoryFree:${storagePool.memoryFree}, storagePool.poolSize:" +
           s"${storagePool.poolSize}, storageRegionSize:${storageRegionSize}, " +
-          s"reservedStorageMemory:${reservedStorageMemory}")
+          s"reservedStorageMemory:${reservedOnHeapStorageMemory}")
 
         val memoryReclaimableFromStorage = math.max(
           storagePool.memoryFree - reservedStorageMemory,
@@ -146,7 +150,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
      * the portion of storage memory that cannot be evicted.
      */
     def computeMaxExecutionPoolSize(): Long = {
-      maxMemory - math.min(storagePool.memoryUsed, storageRegionSize)
+      maxMemory - math.min(storagePool.memoryUsed + reservedStorageMemory, storageRegionSize)
     }
 
     executionPool.acquireMemory(
@@ -178,11 +182,10 @@ private[spark] class UnifiedMemoryManager private[memory] (
     if (numBytes > maxMemory) {
       // Fail fast if the block simply won't fit
       if (blockId.isBroadcast) {
-        val reservedFraction = numBytes / ((executionPool.poolSize + storagePool.poolSize) *
-          conf.getDouble("spark.memory.storageFraction", 0.5))
-        logInfo(s"Please increase spark.memory.reservedStorageFraction to at least" +
-          s"${BigDecimal.apply(reservedFraction).setScale(4,
-            BigDecimal.RoundingMode.UP).doubleValue()}")
+        val reservedFraction = (numBytes + onHeapStorageMemoryPool.memoryUsed).toDouble /
+          onHeapStorageRegionSize
+        logInfo(s"Please increase spark.memory.reservedStorageFraction to at least " +
+          s"${BigDecimal.apply(reservedFraction).setScale(4, BigDecimal.RoundingMode.UP).toString}")
       }
       logInfo(s"Will not store $blockId as the required space ($numBytes bytes) exceeds our " +
         s"memory limit ($maxMemory bytes)")

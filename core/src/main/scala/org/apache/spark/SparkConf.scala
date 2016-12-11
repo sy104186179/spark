@@ -494,7 +494,8 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
       "spark.storage.safetyFraction")
     val memoryKeys = Seq(
       "spark.memory.fraction",
-      "spark.memory.storageFraction") ++
+      "spark.memory.storageFraction",
+      "spark.memory.reservedStorageFraction") ++
       deprecatedMemoryKeys
     for (key <- memoryKeys) {
       val value = getDouble(key, 0.5)
