@@ -1202,12 +1202,14 @@ private[spark] class Client(
    */
   def setMaxNumExecutors(): Unit = {
     if (Utils.isDynamicAllocationEnabled(sparkConf)) {
-      val vCoresTotal = yarnClient.getNodeReports().asScala.
-        filter(_.getNodeState == NodeState.RUNNING).map(_.getCapability.getVirtualCores).sum
-      val executorCores = sparkConf.getInt("spark.executor.cores", 1)
+
       val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
       if (defaultMaxNumExecutors == sparkConf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
-        val maxNumExecutors = math.min(vCoresTotal / executorCores, defaultMaxNumExecutors)
+        val executorCores = sparkConf.getInt("spark.executor.cores", 1)
+        val maxNumExecutors = yarnClient.getNodeReports().asScala.
+          filter(_.getNodeState == NodeState.RUNNING).
+          map(_.getCapability.getVirtualCores / executorCores).sum
+
         sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors)
       }
     }
