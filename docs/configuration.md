@@ -1541,9 +1541,10 @@ Apart from these, the following properties are also available, and may be useful
 </tr>
 <tr>
   <td><code>spark.dynamicAllocation.maxExecutors</code></td>
-  <td>infinity</td>
+  <td>Depends on yarn cluster VCores Total for YARN;
+      infinity for standalone mode and Mesos mode</td>
   <td>
-    Upper bound for the number of executors if dynamic allocation is enabled.
+    Upper bound for the number of executors if dynamic allocation is enabled. 
   </td>
 </tr>
 <tr>
