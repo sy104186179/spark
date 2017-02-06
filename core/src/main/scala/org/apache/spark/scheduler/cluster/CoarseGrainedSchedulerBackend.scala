@@ -500,7 +500,9 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
       numPendingExecutors =
         math.max(numExecutors - numExistingExecutors + executorsPendingToRemove.size, 0)
-
+      logInfo(s"numExecutors: ${numExecutors}, " +
+        s"numExistingExecutors: ${numExistingExecutors}, " +
+        s"executorsPendingToRemove.size: ${executorsPendingToRemove.size}")
       doRequestTotalExecutors(numExecutors)
     }
 
