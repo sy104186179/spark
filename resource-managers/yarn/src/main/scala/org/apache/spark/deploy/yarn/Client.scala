@@ -151,7 +151,7 @@ private[spark] class Client(
       yarnClient.init(yarnConf)
       yarnClient.start()
 
-      // setMaxNumExecutors()
+      setMaxNumExecutors()
 
       logInfo("Requesting a new application from cluster with %d NodeManagers"
         .format(yarnClient.getYarnClusterMetrics.getNumNodeManagers))
