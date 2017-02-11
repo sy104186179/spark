@@ -461,7 +461,7 @@ private[spark] class ApplicationMaster(
             }
             failureCount = 0
           } catch {
-            case i: InterruptedException => // do nothing
+            case i: InterruptedException => logWarning(i.getMessage) // do nothing
             case e: ApplicationAttemptNotFoundException =>
               failureCount += 1
               logError("Exception from Reporter thread.", e)
@@ -515,6 +515,7 @@ private[spark] class ApplicationMaster(
             }
           } catch {
             case e: InterruptedException =>
+              logWarning(e.getMessage)
           }
         }
       }
