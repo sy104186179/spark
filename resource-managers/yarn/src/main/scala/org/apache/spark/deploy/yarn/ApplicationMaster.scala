@@ -461,6 +461,7 @@ private[spark] class ApplicationMaster(
             failureCount = 0
           } catch {
             case i: InterruptedException =>
+              logWarning(i.getMessage)
             case e: Throwable =>
               failureCount += 1
               // this exception was introduced in hadoop 2.4 and this code would not compile
@@ -516,6 +517,7 @@ private[spark] class ApplicationMaster(
             }
           } catch {
             case e: InterruptedException =>
+              logWarning(e.getMessage)
           }
         }
       }

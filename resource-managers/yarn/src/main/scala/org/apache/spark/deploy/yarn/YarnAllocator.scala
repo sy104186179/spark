@@ -276,7 +276,9 @@ private[yarn] class YarnAllocator(
    * This must be synchronized because variables read in this method are mutated by other methods.
    */
   def allocateResources(): Unit = synchronized {
+    val start = System.currentTimeMillis()
     updateResourceRequests()
+    logInfo(s"updateResourceRequests time: ${System.currentTimeMillis() - start}")
 
     val progressIndicator = 0.1f
     // Poll the ResourceManager. This doubles as a heartbeat if there are no pending container
