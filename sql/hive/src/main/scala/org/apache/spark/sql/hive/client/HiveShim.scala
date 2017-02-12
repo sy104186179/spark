@@ -719,6 +719,7 @@ private[client] class Shim_v0_14 extends Shim_v0_13 {
       replace: Boolean,
       holdDDLTime: Boolean,
       isSrcLocal: Boolean): Unit = {
+    logInfo(s"loadPath: ${loadPath}")
     loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, holdDDLTime: JBoolean,
       isSrcLocal: JBoolean, JBoolean.FALSE, JBoolean.FALSE)
   }
