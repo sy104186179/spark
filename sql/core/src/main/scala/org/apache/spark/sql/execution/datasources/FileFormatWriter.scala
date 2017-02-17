@@ -150,6 +150,7 @@ object FileFormatWriter extends Logging {
         val updatedPartitions = ret.flatMap(_._2).distinct.map(PartitioningUtils.parsePathFragment)
 
         committer.commitJob(job, commitMsgs)
+        logInfo(s"wangyuming-FileFormatWriter.committer ${committer.getClass.getName}.")
         logInfo(s"Job ${job.getJobID} committed.")
         refreshFunction(updatedPartitions)
       } catch { case cause: Throwable =>
