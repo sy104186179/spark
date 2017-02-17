@@ -67,7 +67,9 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
       case c: Configurable => c.setConf(context.getConfiguration)
       case _ => ()
     }
-    format.getOutputCommitter(context)
+    val committer = format.getOutputCommitter(context)
+    logInfo(s"committer.getClass.getName: ${committer.getClass.getName}")
+    committer
   }
 
   override def newTaskTempFile(
