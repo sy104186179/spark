@@ -45,6 +45,13 @@ class SQLHadoopMapReduceCommitProtocol(jobId: String, path: String, isAppend: Bo
       val clazz =
         configuration.getClass(SQLConf.OUTPUT_COMMITTER_CLASS.key, null, classOf[OutputCommitter])
 
+      logInfo(s"wangyuming_success1" +
+        s": ${context.getConfiguration.get("mapreduce.fileoutputcommitter.marksuccessfuljobs")}")
+      context.getConfiguration.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "true")
+
+      logInfo(s"wangyuming_success1" +
+        s": ${context.getConfiguration.get("mapreduce.fileoutputcommitter.marksuccessfuljobs")}")
+
       if (clazz != null) {
         logInfo(s"Using user defined output committer class ${clazz.getCanonicalName}")
 
