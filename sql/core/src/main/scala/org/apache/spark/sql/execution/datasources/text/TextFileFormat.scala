@@ -19,9 +19,12 @@ package org.apache.spark.sql.execution.datasources.text
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import org.apache.parquet.hadoop.ParquetOutputCommitter
 
 import org.apache.spark.TaskContext
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
@@ -67,6 +70,19 @@ class TextFileFormat extends TextBasedFileFormat with DataSourceRegister {
 
     val textOptions = new TextOptions(options)
     val conf = job.getConfiguration
+
+    // scalastyle:off
+    println(s"SQLConf.OUTPUT_COMMITTER_CLASS.key: ${conf.get(SQLConf.OUTPUT_COMMITTER_CLASS.key)}")
+    // scalastyle:on
+    val committerClass =
+      conf.getClass(
+        SQLConf.OUTPUT_COMMITTER_CLASS.key,
+        classOf[FileOutputCommitter],
+        classOf[FileOutputCommitter])
+    conf.setClass(
+      SQLConf.OUTPUT_COMMITTER_CLASS.key,
+      committerClass,
+      classOf[FileOutputCommitter])
 
     textOptions.compressionCodec.foreach { codec =>
       CompressionCodecs.setCodecConfiguration(conf, codec)
