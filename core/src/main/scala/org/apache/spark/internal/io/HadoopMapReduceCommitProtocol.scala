@@ -22,7 +22,7 @@ import java.util.{Date, UUID}
 import scala.collection.mutable
 
 import org.apache.hadoop.conf.Configurable
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
@@ -43,6 +43,9 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
 
   /** OutputCommitter from Hadoop is not serializable so marking it transient. */
   @transient private var committer: OutputCommitter = _
+
+  private val SUCCEEDED_FILE_NAME = "_SUCCESS"
+  private val SUCCESSFUL_JOB_OUTPUT_DIR_MARKER = "mapreduce.fileoutputcommitter.marksuccessfuljobs"
 
   /**
    * Tracks files staged by this task for absolute output paths. These outputs are not managed by
@@ -133,7 +136,9 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
     logDebug(s"Committing files staged for absolute locations $filesToMove")
     val fs = absPathStagingDir.getFileSystem(jobContext.getConfiguration)
     for ((src, dst) <- filesToMove) {
+      logInfo(s"wangyuming, scr: ${src}, dst: ${dst}")
       fs.rename(new Path(src), new Path(dst))
+      createSuccessFile(fs, new Path(dst))
     }
     fs.delete(absPathStagingDir, true)
   }
@@ -163,6 +168,17 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
     for ((src, _) <- addedAbsPathFiles) {
       val tmp = new Path(src)
       tmp.getFileSystem(taskContext.getConfiguration).delete(tmp, false)
+    }
+  }
+
+  private def createSuccessFile(fs: FileSystem, path: Path) : Unit = {
+    if (true) {
+      if (fs.exists(path)) {
+        val filePath = new Path(path, SUCCEEDED_FILE_NAME)
+        if (!fs.exists(filePath)) {
+          fs.create(filePath).close()
+        }
+      }
     }
   }
 }
