@@ -128,6 +128,7 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
 
     val taskAttemptContext = new TaskAttemptContextImpl(jobContext.getConfiguration, taskAttemptId)
     committer = setupCommitter(taskAttemptContext)
+    logInfo(s"setupCommitter: ${committer.getClass.getName}")
     committer.setupJob(jobContext)
   }
 
