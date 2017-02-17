@@ -118,6 +118,8 @@ class HadoopMapReduceCommitProtocol(jobId: String, path: String)
     jobContext.getConfiguration.set("mapred.task.id", taskAttemptId.toString)
     jobContext.getConfiguration.setBoolean("mapred.task.is.map", true)
     jobContext.getConfiguration.setInt("mapred.task.partition", 0)
+    logInfo(s"mapreduce.fileoutputcommitter.marksuccessfuljobs:" +
+      s"${jobContext.getConfiguration.get("mapreduce.fileoutputcommitter.marksuccessfuljobs")}")
 
     val taskAttemptContext = new TaskAttemptContextImpl(jobContext.getConfiguration, taskAttemptId)
     committer = setupCommitter(taskAttemptContext)
