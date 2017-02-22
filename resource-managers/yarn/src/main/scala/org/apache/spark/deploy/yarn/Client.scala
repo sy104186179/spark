@@ -144,14 +144,8 @@ private[spark] class Client(
   def submitApplication(): ApplicationId = {
     var appId: ApplicationId = null
     try {
-      launcherBackend.connect()
-      // Setup the credentials before doing anything else,
-      // so we have don't have issues at any point.
-      setupCredentials()
-      yarnClient.init(yarnConf)
-      yarnClient.start()
 
-      setMaxNumExecutors()
+      init()
 
       logInfo("Requesting a new application from cluster with %d NodeManagers"
         .format(yarnClient.getYarnClusterMetrics.getNumNodeManagers))
@@ -1195,24 +1189,65 @@ private[spark] class Client(
       }
   }
 
+
+  def init(): Unit = {
+    launcherBackend.connect()
+    // Setup the credentials before doing anything else,
+    // so we have don't have issues at any point.
+    setupCredentials()
+    yarnClient.init(yarnConf)
+    yarnClient.start()
+
+    setMaxNumExecutors()
+  }
+
   /**
    * If using dynamic allocation and user doesn't set spark.dynamicAllocation.maxExecutors
    * then set the max number of executors depends on yarn cluster VCores Total.
    * If not using dynamic allocation don't set it.
    */
-  def setMaxNumExecutors(): Unit = {
+  private def setMaxNumExecutors(): Unit = {
     if (Utils.isDynamicAllocationEnabled(sparkConf)) {
 
       val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
       if (defaultMaxNumExecutors == sparkConf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
-        val executorCores = sparkConf.getInt("spark.executor.cores", 1)
-        val maxNumExecutors = yarnClient.getNodeReports().asScala.
-          filter(_.getNodeState == NodeState.RUNNING).
-          map(_.getCapability.getVirtualCores / executorCores).sum
+        val executorCores = sparkConf.get(EXECUTOR_CORES)
+        val runningNodes = yarnClient.getNodeReports().asScala
+          .filter(_.getNodeState == NodeState.RUNNING)
+        val absMaxCapacity = getAbsMaxCapacity(yarnClient, sparkConf.get(QUEUE_NAME))
 
-        sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors)
+        val queueMaxNum = runningNodes.map(_.getCapability.getVirtualCores)
+          .sum * absMaxCapacity / executorCores
+        val maxNum = runningNodes.map(_.getCapability.getVirtualCores / executorCores).sum
+
+        sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, math.min(queueMaxNum.toInt, maxNum))
       }
     }
+  }
+
+  /**
+   * Get the absolute max capacity for a given queue.
+   */
+  private def getAbsMaxCapacity(yarnClient: YarnClient, queueName: String): Float = {
+    var maxCapacity = 1F
+    for (queue <- yarnClient.getRootQueueInfos.asScala) {
+      getQueueInfo(queue, queue.getMaximumCapacity)
+    }
+
+    def getQueueInfo(queueInfo: QueueInfo, capacity: Float, level: Int = 0): Unit = {
+      if (queueInfo.getQueueName.equals(queueName)) {
+        maxCapacity = if (level == 0) {
+          queueInfo.getMaximumCapacity
+        } else {
+          queueInfo.getMaximumCapacity * capacity
+        }
+      } else {
+        for (child <- queueInfo.getChildQueues.asScala) {
+          getQueueInfo(child, child.getMaximumCapacity * capacity, level + 1)
+        }
+      }
+    }
+    maxCapacity
   }
 
 }
