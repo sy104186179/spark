@@ -1235,11 +1235,7 @@ private[spark] class Client(
 
     def getQueueInfo(queueInfo: QueueInfo, capacity: Float, level: Int = 0): Unit = {
       if (queueInfo.getQueueName.equals(queueName)) {
-        maxCapacity = if (level == 0) {
-          queueInfo.getMaximumCapacity
-        } else {
-          queueInfo.getMaximumCapacity * capacity
-        }
+        maxCapacity = capacity
       } else {
         for (child <- queueInfo.getChildQueues.asScala) {
           getQueueInfo(child, child.getMaximumCapacity * capacity, level + 1)
