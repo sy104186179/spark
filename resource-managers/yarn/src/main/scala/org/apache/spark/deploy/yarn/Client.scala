@@ -1212,15 +1212,14 @@ private[spark] class Client(
       val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
       if (defaultMaxNumExecutors == sparkConf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
         val executorCores = sparkConf.get(EXECUTOR_CORES)
-        val runningNodes = yarnClient.getNodeReports().asScala
-          .filter(_.getNodeState == NodeState.RUNNING)
+        val runningNodes = yarnClient.getNodeReports().asScala.
+          filter(_.getNodeState == NodeState.RUNNING)
         val absMaxCapacity = getAbsMaxCapacity(yarnClient, sparkConf.get(QUEUE_NAME))
 
-        val queueMaxNum = runningNodes.map(_.getCapability.getVirtualCores)
-          .sum * absMaxCapacity / executorCores
-        val maxNum = runningNodes.map(_.getCapability.getVirtualCores / executorCores).sum
+        val maxNumExecutors = runningNodes.map(_.getCapability.getVirtualCores).
+          sum * absMaxCapacity / executorCores
 
-        sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, math.min(queueMaxNum.toInt, maxNum))
+        sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors.toInt)
       }
     }
   }
