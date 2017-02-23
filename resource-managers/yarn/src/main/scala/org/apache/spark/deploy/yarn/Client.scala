@@ -1220,8 +1220,8 @@ private[spark] class Client(
           s"currentCapacity: ${queueCapacity._3}, appSize:${queueCapacity._4}")
 
         val maxCapacity = queueCapacity._1 - (queueCapacity._1 - (queueCapacity._2 -
-          queueCapacity._3) / queueCapacity._4 + 1) *
-          (sparkConf.getInt("spark.dynamicAllocation.maxExecutorsFraction", 0) / 100)
+          queueCapacity._3) / (queueCapacity._4 + 1)) *
+          sparkConf.getDouble("spark.dynamicAllocation.maxExecutorsFraction", 0.0)
 
         logInfo(s"maxCapacity:${maxCapacity}")
 
