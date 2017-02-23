@@ -1214,10 +1214,19 @@ private[spark] class Client(
         val executorCores = sparkConf.get(EXECUTOR_CORES)
         val runningNodes = yarnClient.getNodeReports().asScala.
           filter(_.getNodeState == NodeState.RUNNING)
-        val absMaxCapacity = getAbsMaxCapacity(yarnClient, sparkConf.get(QUEUE_NAME))
+        val queueCapacity = getQueueCapacity(yarnClient, sparkConf.get(QUEUE_NAME))
+
+        logInfo(s"maxCapacity:${queueCapacity._1}, capacity: ${queueCapacity._2}, " +
+          s"currentCapacity: ${queueCapacity._3}, appSize:${queueCapacity._4}")
+
+        val maxCapacity = queueCapacity._1 - (queueCapacity._1 - (queueCapacity._2 -
+          queueCapacity._3) / queueCapacity._4) *
+          (sparkConf.getInt("spark.dynamicAllocation.maxExecutorsFraction", 0) / 100)
+
+        logInfo(s"maxCapacity:${maxCapacity}")
 
         val maxNumExecutors = runningNodes.map(_.getCapability.getVirtualCores).
-          sum * absMaxCapacity / executorCores
+          sum * maxCapacity / executorCores
 
         sparkConf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors.toInt)
       }
@@ -1227,22 +1236,27 @@ private[spark] class Client(
   /**
    * Get the absolute max capacity for a given queue.
    */
-  private def getAbsMaxCapacity(yarnClient: YarnClient, queueName: String): Float = {
+  private def getQueueCapacity(yarnClient: YarnClient, queueName: String) = {
     var maxCapacity = 1F
+    var capacity = 1F
+    val currentCapacity = yarnClient.getQueueInfo(queueName).getCurrentCapacity
+    val appSize = yarnClient.getQueueInfo(queueName).getApplications.size()
+
     for (queue <- yarnClient.getRootQueueInfos.asScala) {
-      getQueueInfo(queue, queue.getMaximumCapacity)
+      getQueueCap(queue, queue.getMaximumCapacity, queue.getCapacity)
     }
 
-    def getQueueInfo(queueInfo: QueueInfo, capacity: Float, level: Int = 0): Unit = {
+    def getQueueCap(queueInfo: QueueInfo, maxCap: Float, cap: Float): Unit = {
       if (queueInfo.getQueueName.equals(queueName)) {
-        maxCapacity = capacity
+        maxCapacity = maxCap
+        capacity = cap
       } else {
         for (child <- queueInfo.getChildQueues.asScala) {
-          getQueueInfo(child, child.getMaximumCapacity * capacity, level + 1)
+          getQueueCap(child, child.getMaximumCapacity * maxCap, child.getCapacity * cap)
         }
       }
     }
-    maxCapacity
+    (maxCapacity, capacity, currentCapacity, appSize)
   }
 
 }
