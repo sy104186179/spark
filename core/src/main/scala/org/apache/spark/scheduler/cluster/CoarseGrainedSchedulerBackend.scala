@@ -455,7 +455,8 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         "Attempted to request a negative number of additional executor(s) " +
         s"$numAdditionalExecutors from the cluster manager. Please specify a positive number!")
     }
-    logInfo(s"Requesting $numAdditionalExecutors additional executor(s) from the cluster manager")
+    logWarning("requestTotalExecutors:458")
+    logWarning(s"Requesting $numAdditionalExecutors additional executor(s) from the cluster manager")
 
     val response = synchronized {
       numPendingExecutors += numAdditionalExecutors
@@ -493,7 +494,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         "Attempted to request a negative number of executor(s) " +
           s"$numExecutors from the cluster manager. Please specify a positive number!")
     }
-
+    logWarning("requestTotalExecutors:496")
     val response = synchronized {
       this.localityAwareTasks = localityAwareTasks
       this.hostToLocalTaskCount = hostToLocalTaskCount
@@ -557,6 +558,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
       unknownExecutors.foreach { id =>
         logWarning(s"Executor to kill $id does not exist!")
       }
+      logWarning("requestTotalExecutors:561")
 
       // If an executor is already pending to be removed, do not kill it again (SPARK-9795)
       // If this executor is busy, do not kill it unless we are told to force kill it (SPARK-9552)

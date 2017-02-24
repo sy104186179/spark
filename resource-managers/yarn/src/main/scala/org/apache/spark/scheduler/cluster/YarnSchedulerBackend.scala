@@ -57,9 +57,9 @@ private[spark] abstract class YarnSchedulerBackend(
   protected var totalExpectedExecutors = 0
 
   private val yarnSchedulerEndpoint = new YarnSchedulerEndpoint(rpcEnv)
-  private val yarnClient = YarnClient.createYarnClient
+  protected var yarnClient = YarnClient.createYarnClient
 
-  protected var isUserSetMaxExecutors = false
+  private var isUserSetMaxExecutors = false
 
   private val yarnSchedulerEndpointRef = rpcEnv.setupEndpoint(
     YarnSchedulerBackend.ENDPOINT_NAME, yarnSchedulerEndpoint)
@@ -181,7 +181,6 @@ private[spark] abstract class YarnSchedulerBackend(
     val maxNumExecutors = (runningNodes.map(_.getCapability.getVirtualCores).
       sum * absMaxCapacity / executorCores).toInt
     conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors)
-    maxNumExecutors
   }
 
   /**
