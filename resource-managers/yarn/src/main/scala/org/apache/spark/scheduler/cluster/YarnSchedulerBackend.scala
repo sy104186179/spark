@@ -17,6 +17,8 @@
 
 package org.apache.spark.scheduler.cluster
 
+import org.apache.hadoop.service.ServiceStateModel
+
 import scala.concurrent.Future
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
@@ -55,6 +57,7 @@ private[spark] abstract class YarnSchedulerBackend(
   protected var totalExpectedExecutors = 0
 
   private val yarnSchedulerEndpoint = new YarnSchedulerEndpoint(rpcEnv)
+  private val yarnClient = YarnClient.createYarnClient
 
   private val yarnSchedulerEndpointRef = rpcEnv.setupEndpoint(
     YarnSchedulerBackend.ENDPOINT_NAME, yarnSchedulerEndpoint)
@@ -88,6 +91,9 @@ private[spark] abstract class YarnSchedulerBackend(
     require(appId.isDefined, "application ID unset")
     val binding = SchedulerExtensionServiceBinding(sc, appId.get, attemptId)
     services.start(binding)
+    val yarnConf = new YarnConfiguration()
+    yarnClient.init(yarnConf)
+    yarnClient.start()
     super.start()
   }
 
@@ -96,6 +102,7 @@ private[spark] abstract class YarnSchedulerBackend(
       // SPARK-12009: To prevent Yarn allocator from requesting backup for the executors which
       // was Stopped by SchedulerBackend.
       requestTotalExecutors(0, 0, Map.empty)
+      yarnClient.stop()
       super.stop()
     } finally {
       services.stop()
@@ -161,10 +168,6 @@ private[spark] abstract class YarnSchedulerBackend(
   }
 
   private def setMaxNumExecutors(): Unit = {
-    val yarnConf = new YarnConfiguration()
-    val yarnClient = YarnClient.createYarnClient
-    yarnClient.init(yarnConf)
-    yarnClient.start()
 
     if (Utils.isDynamicAllocationEnabled(conf)) {
 
@@ -173,7 +176,7 @@ private[spark] abstract class YarnSchedulerBackend(
         val executorCores = conf.get(EXECUTOR_CORES)
         val runningNodes = yarnClient.getNodeReports().asScala.
           filter(_.getNodeState == NodeState.RUNNING)
-        val absMaxCapacity = getAbsMaxCapacity(yarnClient, conf.get(QUEUE_NAME))
+        val absMaxCapacity = getAbsMaxCapacity(conf.get(QUEUE_NAME))
 
         val maxNumExecutors = runningNodes.map(_.getCapability.getVirtualCores).
           sum * absMaxCapacity / executorCores
@@ -185,7 +188,7 @@ private[spark] abstract class YarnSchedulerBackend(
   /**
    * Get the absolute max capacity for a given queue.
    */
-  private def getAbsMaxCapacity(yarnClient: YarnClient, queueName: String): Float = {
+  private def getAbsMaxCapacity(queueName: String): Float = {
     var maxCapacity = 1F
     for (queue <- yarnClient.getRootQueueInfos.asScala) {
       getQueueInfo(queue, queue.getMaximumCapacity)
