@@ -155,7 +155,7 @@ private[spark] abstract class YarnSchedulerBackend(
       conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
       val max = setMaxNumExecutors()
       if (requestedTotal > max * 2) {
-        return Future.apply(true)
+        return Future.successful(true)
       }
     }
     logWarning(s"defaultMaxExecutor: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
