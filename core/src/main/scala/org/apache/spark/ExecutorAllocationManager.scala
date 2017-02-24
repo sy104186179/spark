@@ -309,6 +309,8 @@ private[spark] class ExecutorAllocationManager(
   private def updateAndSyncNumExecutorsTarget(now: Long): Int = synchronized {
     val maxNeeded = maxNumExecutorsNeeded
 
+    logWarning("ExecutorAllocationManager.updateAndSyncNumExecutorsTarget")
+
     if (initializing) {
       // Do not change our target while we are still initializing,
       // Otherwise the first job may have to ramp up unnecessarily
@@ -349,6 +351,9 @@ private[spark] class ExecutorAllocationManager(
    */
   private def addExecutors(maxNumExecutorsNeeded: Int): Int = {
     // Do not request more executors if it would put our target over the upper bound
+
+    logWarning("ExecutorAllocationManager.addExecutors")
+
     if (numExecutorsTarget >= maxNumExecutors) {
       logWarning(s"Not adding executors because our current target total " +
         s"is already $numExecutorsTarget (limit $maxNumExecutors)")
