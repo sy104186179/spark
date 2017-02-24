@@ -18,19 +18,23 @@
 package org.apache.spark.scheduler.cluster
 
 import scala.concurrent.Future
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
-import org.apache.hadoop.yarn.api.records.{ApplicationAttemptId, ApplicationId}
+import org.apache.hadoop.yarn.api.records.{QueueInfo, NodeState, ApplicationAttemptId, ApplicationId}
+import org.apache.hadoop.yarn.client.api.YarnClient
+import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 import org.apache.spark.SparkContext
+import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.config._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
 import org.apache.spark.scheduler._
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
 import org.apache.spark.ui.JettyUtils
-import org.apache.spark.util.{RpcUtils, ThreadUtils}
+import org.apache.spark.util.{Utils, RpcUtils, ThreadUtils}
 
 /**
  * Abstract Yarn scheduler backend that contains common logic
@@ -140,7 +144,7 @@ private[spark] abstract class YarnSchedulerBackend(
     logWarning(s"doRequestTotalExecutors: ${requestedTotal}")
     val defaultMaxExecutor = this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
     logWarning(s"defaultMaxExecutor: ${defaultMaxExecutor}")
-    this.conf.set(DYN_ALLOCATION_MAX_EXECUTORS, 1000)
+    setMaxNumExecutors()
     logWarning(s"defaultMaxExecutor: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     yarnSchedulerEndpointRef.ask[Boolean](prepareRequestExecutors(requestedTotal))
   }
@@ -155,6 +159,50 @@ private[spark] abstract class YarnSchedulerBackend(
   override def sufficientResourcesRegistered(): Boolean = {
     totalRegisteredExecutors.get() >= totalExpectedExecutors * minRegisteredRatio
   }
+
+  private def setMaxNumExecutors(): Unit = {
+    val yarnConf = new YarnConfiguration()
+    val yarnClient = YarnClient.createYarnClient
+    yarnClient.init(yarnConf)
+    yarnClient.start()
+
+    if (Utils.isDynamicAllocationEnabled(conf)) {
+
+      val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
+      if (defaultMaxNumExecutors == conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
+        val executorCores = conf.get(EXECUTOR_CORES)
+        val runningNodes = yarnClient.getNodeReports().asScala.
+          filter(_.getNodeState == NodeState.RUNNING)
+        val absMaxCapacity = getAbsMaxCapacity(yarnClient, conf.get(QUEUE_NAME))
+
+        val maxNumExecutors = runningNodes.map(_.getCapability.getVirtualCores).
+          sum * absMaxCapacity / executorCores
+        conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors.toInt)
+      }
+    }
+  }
+
+  /**
+   * Get the absolute max capacity for a given queue.
+   */
+  private def getAbsMaxCapacity(yarnClient: YarnClient, queueName: String): Float = {
+    var maxCapacity = 1F
+    for (queue <- yarnClient.getRootQueueInfos.asScala) {
+      getQueueInfo(queue, queue.getMaximumCapacity)
+    }
+
+    def getQueueInfo(queueInfo: QueueInfo, capacity: Float): Unit = {
+      if (queueInfo.getQueueName.equals(queueName)) {
+        maxCapacity = capacity
+      } else {
+        for (child <- queueInfo.getChildQueues.asScala) {
+          getQueueInfo(child, child.getMaximumCapacity * capacity)
+        }
+      }
+    }
+    maxCapacity
+  }
+
 
   /**
    * Add filters to the SparkUI.
