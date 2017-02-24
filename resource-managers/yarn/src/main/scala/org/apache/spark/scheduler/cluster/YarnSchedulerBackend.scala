@@ -150,7 +150,14 @@ private[spark] abstract class YarnSchedulerBackend(
     logWarning(s"doRequestTotalExecutors: ${requestedTotal}")
     val defaultMaxExecutor = this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
     logWarning(s"defaultMaxExecutor: ${defaultMaxExecutor}")
-    setMaxNumExecutors()
+    val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
+    if(Utils.isDynamicAllocationEnabled(conf) && defaultMaxNumExecutors ==
+      conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
+      val max = setMaxNumExecutors()
+      if (requestedTotal > max * 2) {
+        return Future.apply(true)
+      }
+    }
     logWarning(s"defaultMaxExecutor: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     yarnSchedulerEndpointRef.ask[Boolean](prepareRequestExecutors(requestedTotal))
   }
@@ -166,22 +173,16 @@ private[spark] abstract class YarnSchedulerBackend(
     totalRegisteredExecutors.get() >= totalExpectedExecutors * minRegisteredRatio
   }
 
-  private def setMaxNumExecutors(): Unit = {
+  private def setMaxNumExecutors(): Int = {
+    val executorCores = conf.get(EXECUTOR_CORES)
+    val runningNodes = yarnClient.getNodeReports().asScala.
+      filter(_.getNodeState == NodeState.RUNNING)
+    val absMaxCapacity = getAbsMaxCapacity(conf.get(QUEUE_NAME))
 
-    if (Utils.isDynamicAllocationEnabled(conf)) {
-
-      val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
-      if (defaultMaxNumExecutors == conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
-        val executorCores = conf.get(EXECUTOR_CORES)
-        val runningNodes = yarnClient.getNodeReports().asScala.
-          filter(_.getNodeState == NodeState.RUNNING)
-        val absMaxCapacity = getAbsMaxCapacity(conf.get(QUEUE_NAME))
-
-        val maxNumExecutors = runningNodes.map(_.getCapability.getVirtualCores).
-          sum * absMaxCapacity / executorCores
-        conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors.toInt)
-      }
-    }
+    val maxNumExecutors = (runningNodes.map(_.getCapability.getVirtualCores).
+      sum * absMaxCapacity / executorCores).toInt
+    conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxNumExecutors)
+    maxNumExecutors
   }
 
   /**
