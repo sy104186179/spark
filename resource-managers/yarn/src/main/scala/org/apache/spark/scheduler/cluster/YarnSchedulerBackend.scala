@@ -91,8 +91,7 @@ private[spark] abstract class YarnSchedulerBackend(
     require(appId.isDefined, "application ID unset")
     val binding = SchedulerExtensionServiceBinding(sc, appId.get, attemptId)
     services.start(binding)
-    val yarnConf = new YarnConfiguration()
-    yarnClient.init(yarnConf)
+    yarnClient.init(new YarnConfiguration())
     yarnClient.start()
     super.start()
   }
