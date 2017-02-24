@@ -17,13 +17,14 @@
 
 package org.apache.spark.scheduler.cluster
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.yarn.api.records.{ApplicationAttemptId, ApplicationId}
 
 import org.apache.spark.SparkContext
+import org.apache.spark.internal.config._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
 import org.apache.spark.scheduler._
@@ -112,6 +113,7 @@ private[spark] abstract class YarnSchedulerBackend(
    * Get an application ID associated with the job.
    * This returns the string value of [[appId]] if set, otherwise
    * the locally-generated ID from the superclass.
+   *
    * @return The application ID
    */
   override def applicationId(): String = {
@@ -135,6 +137,11 @@ private[spark] abstract class YarnSchedulerBackend(
    * This includes executors already pending or running.
    */
   override def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean] = {
+    logWarning(s"doRequestTotalExecutors: ${requestedTotal}")
+    val defaultMaxExecutor = this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
+    logWarning(s"defaultMaxExecutor: ${defaultMaxExecutor}")
+    this.conf.set(DYN_ALLOCATION_MAX_EXECUTORS, 1000)
+    logWarning(s"defaultMaxExecutor: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     yarnSchedulerEndpointRef.ask[Boolean](prepareRequestExecutors(requestedTotal))
   }
 
