@@ -59,6 +59,8 @@ private[spark] abstract class YarnSchedulerBackend(
   private val yarnSchedulerEndpoint = new YarnSchedulerEndpoint(rpcEnv)
   private val yarnClient = YarnClient.createYarnClient
 
+  protected var isUserSetMaxExecutors = false
+
   private val yarnSchedulerEndpointRef = rpcEnv.setupEndpoint(
     YarnSchedulerBackend.ENDPOINT_NAME, yarnSchedulerEndpoint)
 
@@ -90,6 +92,8 @@ private[spark] abstract class YarnSchedulerBackend(
   override def start() {
     require(appId.isDefined, "application ID unset")
     val binding = SchedulerExtensionServiceBinding(sc, appId.get, attemptId)
+    isUserSetMaxExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get !=
+      conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
     services.start(binding)
     yarnClient.init(new YarnConfiguration())
     yarnClient.start()
@@ -148,17 +152,12 @@ private[spark] abstract class YarnSchedulerBackend(
    */
   override def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean] = {
     logWarning(s"doRequestTotalExecutors: ${requestedTotal}")
-    val defaultMaxExecutor = this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
-    logWarning(s"defaultMaxExecutor: ${defaultMaxExecutor}")
-    val defaultMaxNumExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get
-    if(Utils.isDynamicAllocationEnabled(conf) && defaultMaxNumExecutors ==
-      conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
-      val max = setMaxNumExecutors()
-      if (requestedTotal > max * 2) {
-        return Future.successful(true)
-      }
+    logWarning(s"defaultMaxExecutor1: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+    if(Utils.isDynamicAllocationEnabled(conf) && !isUserSetMaxExecutors) {
+      logWarning(s"setMaxNumExecutors: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+      setMaxNumExecutors()
     }
-    logWarning(s"defaultMaxExecutor: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+    logWarning(s"defaultMaxExecutor2: ${this.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     yarnSchedulerEndpointRef.ask[Boolean](prepareRequestExecutors(requestedTotal))
   }
 
@@ -173,7 +172,7 @@ private[spark] abstract class YarnSchedulerBackend(
     totalRegisteredExecutors.get() >= totalExpectedExecutors * minRegisteredRatio
   }
 
-  private def setMaxNumExecutors(): Int = {
+  private def setMaxNumExecutors(): Unit = {
     val executorCores = conf.get(EXECUTOR_CORES)
     val runningNodes = yarnClient.getNodeReports().asScala.
       filter(_.getNodeState == NodeState.RUNNING)
