@@ -90,7 +90,7 @@ private[spark] class ExecutorAllocationManager(
 
   // Lower and upper bounds on the number of executors.
   private val minNumExecutors = conf.get(DYN_ALLOCATION_MIN_EXECUTORS)
-  private val maxNumExecutors = conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
+  private var maxNumExecutors = conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
   private val initialNumExecutors = Utils.getDynamicAllocationInitialExecutors(conf)
 
   // How long there must be backlogged tasks for before an addition is triggered (seconds)
@@ -352,7 +352,8 @@ private[spark] class ExecutorAllocationManager(
   private def addExecutors(maxNumExecutorsNeeded: Int): Int = {
     // Do not request more executors if it would put our target over the upper bound
 
-    logWarning("ExecutorAllocationManager.addExecutors")
+    maxNumExecutors = conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
+    logWarning(s"ExecutorAllocationManager.addExecutors: ${maxNumExecutors}")
 
     if (numExecutorsTarget >= maxNumExecutors) {
       logWarning(s"Not adding executors because our current target total " +
