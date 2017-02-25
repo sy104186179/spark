@@ -48,7 +48,7 @@ import org.apache.spark.util.Utils
  * run.
  */
 @ExtendedYarnTest
-class YarnClusterSuite2 extends BaseYarnClusterSuite {
+class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   override def newYarnConfig(): YarnConfiguration = new YarnConfiguration()
 
