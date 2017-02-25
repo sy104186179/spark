@@ -114,7 +114,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
       setSparkHome(sys.props("spark.test.home")).
       setMaster("yarn").
       set("spark.dynamicAllocation.enabled", "true").
-      set(QUEUE_NAME, "a")
+      set(QUEUE_NAME, "a").setExecutorEnv("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
 
     val sc = new SparkContext(sparkConf)
 
