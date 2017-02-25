@@ -150,7 +150,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
       result = "success"
     } finally {
-      Files.write(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString,
+      Files.write("sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString",
         status, StandardCharsets.UTF_8)
       sc.stop()
     }
