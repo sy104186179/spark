@@ -17,8 +17,6 @@
 
 package org.apache.spark.scheduler.cluster
 
-import org.apache.hadoop.service.ServiceStateModel
-
 import scala.concurrent.Future
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
