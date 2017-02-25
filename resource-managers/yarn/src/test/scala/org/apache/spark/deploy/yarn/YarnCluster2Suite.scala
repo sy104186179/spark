@@ -94,8 +94,9 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
 
     var sc: SparkContext = null
     try {
-      sc = new SparkContext(new SparkConf()
-          .set("spark.dynamicAllocation.enabled", "true")
+      sc = new SparkContext(new SparkConf().setSparkHome("/root/opensource/spark")
+         .set("spark.dynamicAllocation.enabled", "true")
+          .set("spark.shuffler.service.enabled", "true")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
       Files.write(result, status, StandardCharsets.UTF_8)
