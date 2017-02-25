@@ -17,8 +17,8 @@
 
 package org.apache.spark.scheduler.cluster
 
-import scala.concurrent.Future
 import scala.collection.JavaConverters._
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
