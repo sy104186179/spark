@@ -22,14 +22,13 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.{HashMap => JHashMap}
 
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration
-
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 import com.google.common.io.{ByteStreams, Files}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration
 import org.scalatest.Matchers
 import org.scalatest.concurrent.Eventually._
 
@@ -39,7 +38,7 @@ import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.Logging
 import org.apache.spark.launcher._
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationStart,
-  SparkListenerExecutorAdded}
+SparkListenerExecutorAdded}
 import org.apache.spark.scheduler.cluster.ExecutorInfo
 import org.apache.spark.tags.ExtendedYarnTest
 import org.apache.spark.util.Utils
@@ -52,10 +51,10 @@ import org.apache.spark.util.Utils
 @ExtendedYarnTest
 class YarnClusterSuite extends BaseYarnClusterSuite {
 
-  val a = CapacitySchedulerConfiguration.ROOT + ".a"
-  val b = CapacitySchedulerConfiguration.ROOT + ".b"
-  val a1 = a + ".a1"
-  val a2 = a + ".a2"
+  val ra = CapacitySchedulerConfiguration.ROOT + ".a"
+  val rb = CapacitySchedulerConfiguration.ROOT + ".b"
+  val a1 = ra + ".a1"
+  val a2 = ra + ".a2"
 
   val aCapacity = 40F
   val aMaximumCapacity = 60F
@@ -74,15 +73,15 @@ class YarnClusterSuite extends BaseYarnClusterSuite {
   val yarnConf = new CapacitySchedulerConfiguration()
 
   // Define top-level queues
-  yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("a", "b"))
+  yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
   yarnConf.setMaximumCapacity(CapacitySchedulerConfiguration.ROOT, 100)
-  yarnConf.setCapacity(a, aCapacity)
-  yarnConf.setMaximumCapacity(a, aMaximumCapacity)
-  yarnConf.setCapacity(b, bCapacity)
-  yarnConf.setMaximumCapacity(b, bMaximumCapacity)
+  yarnConf.setCapacity(ra, aCapacity)
+  yarnConf.setMaximumCapacity(ra, aMaximumCapacity)
+  yarnConf.setCapacity(rb, bCapacity)
+  yarnConf.setMaximumCapacity(rb, bMaximumCapacity)
 
   // Define 2nd-level queues
-  yarnConf.setQueues(a, Array("a1", "a2"))
+  yarnConf.setQueues(ra, Array("a1", "a2"))
   yarnConf.setCapacity(a1, a1Capacity)
   yarnConf.setMaximumCapacity(a1, a1MaximumCapacity)
   yarnConf.setCapacity(a2, a2Capacity)
