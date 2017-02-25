@@ -98,12 +98,14 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
           .set("spark.dynamicAllocation.enabled", "true")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
+      Files.write(result, status, StandardCharsets.UTF_8)
       sc.parallelize(1 to 1000).repartition(100).count()
 
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
     } catch {
       case ex: Exception => result = ex.getMessage
+        Files.write(result, status, StandardCharsets.UTF_8)
     } finally {
       Files.write(result, status, StandardCharsets.UTF_8)
       sc.stop()
