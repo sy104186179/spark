@@ -93,7 +93,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
         .set("spark.dynamicAllocation.enabled", "true")
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
-    sc.parallelize(1 to 10).repartition(10).count()
+    sc.parallelize(1 to 10).count()
 
     val status = new File(args(1))
     var result = "failure"
