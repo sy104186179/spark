@@ -57,11 +57,12 @@ abstract class BaseYarnClusterSuite
     |log4j.logger.org.spark_project.jetty=WARN
     """.stripMargin
 
-  private var yarnCluster: MiniYARNCluster = _
+  protected var yarnCluster: MiniYARNCluster = _
   protected var tempDir: File = _
   private var fakeSparkJar: File = _
   protected var hadoopConfDir: File = _
-  private var logConfDir: File = _
+  protected var logConfDir: File = _
+  protected var fixedYarnConf: Configuration = _
 
   var oldSystemProperties: Properties = null
 
@@ -103,9 +104,9 @@ abstract class BaseYarnClusterSuite
     //
     // This hack loops for a bit waiting for the port to change, and fails the test if it hasn't
     // done so in a timely manner (defined to be 10 seconds).
-    val config = yarnCluster.getConfig()
+    fixedYarnConf = yarnCluster.getConfig()
     val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10)
-    while (config.get(YarnConfiguration.RM_ADDRESS).split(":")(1) == "0") {
+    while (fixedYarnConf.get(YarnConfiguration.RM_ADDRESS).split(":")(1) == "0") {
       if (System.currentTimeMillis() > deadline) {
         throw new IllegalStateException("Timed out waiting for RM to come up.")
       }
@@ -113,7 +114,7 @@ abstract class BaseYarnClusterSuite
       TimeUnit.MILLISECONDS.sleep(100)
     }
 
-    logInfo(s"RM address in configuration is ${config.get(YarnConfiguration.RM_ADDRESS)}")
+    logInfo(s"RM address in configuration is ${fixedYarnConf.get(YarnConfiguration.RM_ADDRESS)}")
 
     fakeSparkJar = File.createTempFile("sparkJar", null, tempDir)
     hadoopConfDir = new File(tempDir, Client.LOCALIZED_CONF_DIR)
