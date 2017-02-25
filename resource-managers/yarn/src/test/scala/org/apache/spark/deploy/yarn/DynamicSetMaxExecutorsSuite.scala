@@ -97,10 +97,11 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   override def beforeAll() {
     super.beforeAll()
-    val yarnSite = new File(hadoopConfDir, "yarn-site.xml")
+    val yarnSite = new File(tempDir, "yarn-site.xml")
     val out = new FileOutputStream(yarnSite)
     fixedYarnConf.writeXml(out)
-    File.createTempFile("token", ".txt", hadoopConfDir)
+
+    fixedYarnConf.writeXml(out)
   }
 
   override def runSpark(
