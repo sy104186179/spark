@@ -88,30 +88,16 @@ private[spark] class SaveExecutorInfo2 extends SparkListener {
 
 private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Matchers {
   def main(args: Array[String]): Unit = {
-    if (args.length != 2) {
-      // scalastyle:off println
-      System.err.println(
-        s"""
-           |Invalid command line: ${args.mkString(" ")}
-           |
-        |Usage: YarnClusterDriverUseSparkHadoopUtilConf [hadoopConfKey=value] [result file]
-        """.stripMargin)
-      // scalastyle:on println
-      System.exit(1)
-    }
 
     val sc = new SparkContext(new SparkConf()
       .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
-    val kv = args(0).split("=")
-    val status = new File(args(1))
     var result = "failure"
     try {
-      SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
+      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
     } finally {
-      Files.write(result, status, StandardCharsets.UTF_8)
       sc.stop()
     }
   }
