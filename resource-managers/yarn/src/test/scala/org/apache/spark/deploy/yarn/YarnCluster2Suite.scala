@@ -35,6 +35,7 @@ import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config._
 import org.apache.spark.launcher._
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationStart,
   SparkListenerExecutorAdded}
@@ -51,35 +52,6 @@ import org.apache.spark.util.Utils
 class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   override def newYarnConfig(): YarnConfiguration = new YarnConfiguration()
-
-  private val TEST_PYFILE = """
-    |import mod1, mod2
-    |import sys
-    |from operator import add
-    |
-    |from pyspark import SparkConf , SparkContext
-    |if __name__ == "__main__":
-    |    if len(sys.argv) != 2:
-    |        print >> sys.stderr, "Usage: test.py [result file]"
-    |        exit(-1)
-    |    sc = SparkContext(conf=SparkConf())
-    |    status = open(sys.argv[1],'w')
-    |    result = "failure"
-    |    rdd = sc.parallelize(range(10)).map(lambda x: x * mod1.func() * mod2.func())
-    |    cnt = rdd.count()
-    |    if cnt == 10:
-    |        result = "success"
-    |    status.write(result)
-    |    status.close()
-    |    sc.stop()
-    """.stripMargin
-
-  private val TEST_PYMODULE = """
-    |def func():
-    |    return 42
-    """.stripMargin
-
-
 
   test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
     testYarnAppUseSparkHadoopUtilConf2()
@@ -189,10 +161,15 @@ private object YarnClusterDriver2 extends Logging with Matchers {
       System.exit(1)
     }
 
-    val sc = new SparkContext(new SparkConf()
-      .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
-      .setAppName("yarn \"test app\" 'with quotes' and \\back\\slashes and $dollarSigns"))
-    val conf = sc.getConf
+    val conf = new SparkConf()
+      .set("spark.extraListeners", classOf[SaveExecutorInfo2].getName)
+      .set("spark.dynamicAllocation.enabled", "true")
+      .setAppName("yarn \"test app\" 'with quotes' and \\back\\slashes and $dollarSigns")
+    val sc = new SparkContext(conf)
+    val fixedConf = sc.getConf
+
+    println(s"DYN_ALLOCATION_MAX_EXECUTORS: ${fixedConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+
     val status = new File(args(0))
     var result = "failure"
     try {
