@@ -53,19 +53,19 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   override def newYarnConfig(): YarnConfiguration = new YarnConfiguration()
 
-//  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-//    testYarnAppUseSparkHadoopUtilConf2()
-//  }
-
-  test("run Spark in yarn-client mode with different configurations") {
-    testBasicYarnApp(true,
-      Map(
-        "spark.driver.memory" -> "512m",
-        "spark.executor.cores" -> "1",
-        "spark.executor.memory" -> "512m",
-        "spark.executor.instances" -> "2"
-      ))
+  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
+    testYarnAppUseSparkHadoopUtilConf2()
   }
+
+//  test("run Spark in yarn-client mode with different configurations") {
+//    testBasicYarnApp(true,
+//      Map(
+//        "spark.driver.memory" -> "512m",
+//        "spark.executor.cores" -> "1",
+//        "spark.executor.memory" -> "512m",
+//        "spark.executor.instances" -> "2"
+//      ))
+//  }
 
 //  test("monitor app using launcher library2") {
 //    val env = new JHashMap[String, String]()
