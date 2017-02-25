@@ -137,7 +137,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       status, StandardCharsets.UTF_8)
 
     val sc = new SparkContext(new SparkConf()
-      .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
+      // .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
       .setAppName("yarn test using SparkHadoopUtil's conf"))
     logWarning(s"1sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
       s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
