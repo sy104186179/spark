@@ -49,7 +49,7 @@ import org.apache.spark.util.Utils
  * run.
  */
 @ExtendedYarnTest
-class YarnClusterSuite extends BaseYarnClusterSuite {
+class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   val ra = CapacitySchedulerConfiguration.ROOT + ".a"
   val rb = CapacitySchedulerConfiguration.ROOT + ".b"
