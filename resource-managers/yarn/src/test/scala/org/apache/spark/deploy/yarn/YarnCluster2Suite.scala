@@ -65,7 +65,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
     val result = File.createTempFile("result", null, new java.io.File("/tmp/spark"))
-    val finalState = runSpark(false,
+    val finalState = runSpark(true,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
       appArgs = Seq("key=value", result.getAbsolutePath()),
       extraConf = Map("spark.hadoop.key" -> "value"))
