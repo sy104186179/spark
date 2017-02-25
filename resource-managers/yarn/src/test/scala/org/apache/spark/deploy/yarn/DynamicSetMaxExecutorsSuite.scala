@@ -100,8 +100,6 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     val yarnSite = new File(tempDir, "yarn-site.xml")
     val out = new FileOutputStream(yarnSite)
     fixedYarnConf.writeXml(out)
-
-    fixedYarnConf.writeXml(out)
   }
 
   override def runSpark(
@@ -118,7 +116,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     println(s"hadoopConfDir.getAbsolutePath: ${hadoopConfDir.getAbsolutePath}")
     val env = Map("YARN_CONF_DIR" -> hadoopConfDir.getAbsolutePath()) ++ extraEnv
 
-    println(s"sys.props(\"spark.test.home\"): ${sys.props("spark.test.home")}")
+    println(s"spark.test.home: ${sys.props("spark.test.home")}")
 
     val sparkConf = new SparkConf().
       setAppName(getClass.getName).
