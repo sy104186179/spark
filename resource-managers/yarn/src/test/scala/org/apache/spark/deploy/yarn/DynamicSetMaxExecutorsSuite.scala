@@ -38,6 +38,7 @@ import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config._
 import org.apache.spark.launcher._
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationStart,
 SparkListenerExecutorAdded}
@@ -112,7 +113,16 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     sparkConf.setSparkHome(sys.props("spark.test.home"))
     sparkConf.setMaster("yarn")
 
-    println("I'm OK")
+    val sc = new SparkContext(sparkConf)
+
+    sc.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
+
+    println(s"########DYN_ALLOCATION_MAX_EXECUTORS: ${sc.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+
+    sc.parallelize(1 to 1000).repartition(100).count()
+
+    println(s"########DYN_ALLOCATION_MAX_EXECUTORS: ${sc.conf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+
 
     SparkAppHandle.State.FAILED
   }
