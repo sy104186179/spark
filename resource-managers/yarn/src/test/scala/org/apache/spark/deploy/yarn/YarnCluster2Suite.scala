@@ -97,10 +97,11 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       sc = new SparkContext(new SparkConf().setSparkHome("/root/opensource/spark")
          .set("spark.dynamicAllocation.enabled", "true")
           .set("spark.shuffle.service.enabled", "true")
+         .set("spark.executor.memory", "10M")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
       Files.write(result, status, StandardCharsets.UTF_8)
-      sc.parallelize(1 to 1000).repartition(100).count()
+      sc.parallelize(1 to 1000).count()
 
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
