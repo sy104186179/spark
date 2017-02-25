@@ -97,40 +97,6 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   override def beforeAll() {
     super.beforeAll()
-    oldSystemProperties = SerializationUtils.clone(System.getProperties)
-
-    tempDir = Utils.createTempDir()
-    logConfDir = new File(tempDir, "log4j")
-    logConfDir.mkdir()
-    System.setProperty("SPARK_YARN_MODE", "true")
-
-    val logConfFile = new File(logConfDir, "log4j.properties")
-    Files.write(LOG4J_CONF, logConfFile, StandardCharsets.UTF_8)
-
-    // Disable the disk utilization check to avoid the test hanging when people's disks are
-    // getting full.
-    val yarnConf = newYarnConfig()
-    yarnConf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage",
-      "100.0")
-
-    yarnCluster = new MiniYARNCluster(getClass().getName(), 1, 1, 1)
-    yarnCluster.init(newYarnConfig())
-    yarnCluster.start()
-
-    val config = yarnCluster.getConfig()
-    val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10)
-    while (config.get(YarnConfiguration.RM_ADDRESS).split(":")(1) == "0") {
-      if (System.currentTimeMillis() > deadline) {
-        throw new IllegalStateException("Timed out waiting for RM to come up.")
-      }
-      logDebug("RM address still not set in configuration, waiting...")
-      TimeUnit.MILLISECONDS.sleep(100)
-    }
-
-    logInfo(s"RM address in configuration is ${config.get(YarnConfiguration.RM_ADDRESS)}")
-
-    hadoopConfDir = new File(tempDir, Client.LOCALIZED_CONF_DIR)
-    assert(hadoopConfDir.mkdir())
     val yarnSite = new File(hadoopConfDir, "yarn-site.xml")
     Files.write(config.toString, yarnSite, StandardCharsets.UTF_8)
     File.createTempFile("token", ".txt", hadoopConfDir)
