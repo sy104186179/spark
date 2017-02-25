@@ -27,6 +27,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 import com.google.common.io.{ByteStreams, Files}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration
 import org.scalatest.Matchers
@@ -89,7 +90,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   yarnConf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage",
     "100.0")
 
-  override def newYarnConfig(): YarnConfiguration = yarnConf.asInstanceOf[YarnConfiguration]
+  override def newYarnConfig(): Configuration = yarnConf
 
   private val TEST_PYFILE = """
     |import mod1, mod2
