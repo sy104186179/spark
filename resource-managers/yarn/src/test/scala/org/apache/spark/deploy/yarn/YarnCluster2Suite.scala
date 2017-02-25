@@ -128,7 +128,7 @@ class YarnClusterSuite2 extends BaseYarnClusterSuite {
 
 }
 
-private[spark] class SaveExecutorInfo extends SparkListener {
+private[spark] class SaveExecutorInfo2 extends SparkListener {
   val addedExecutorInfos = mutable.Map[String, ExecutorInfo]()
   var driverLogs: Option[collection.Map[String, String]] = None
 
