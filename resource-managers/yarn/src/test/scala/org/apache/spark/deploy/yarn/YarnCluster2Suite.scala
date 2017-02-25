@@ -138,7 +138,8 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
 
     val sc = new SparkContext(new SparkConf()
       // .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
-      .setAppName("yarn test using SparkHadoopUtil's conf"))
+      .setAppName("yarn test using SparkHadoopUtil's conf")
+        .setMaster("yarn"))
     logWarning(s"1sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
       s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     sc.parallelize(1 to 1000, 200).count()
