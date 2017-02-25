@@ -153,6 +153,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     sc.parallelize(1 to 1000, 200).count()
     println(s"2sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
       s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
+    assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === 1)
     val kv = args(0).split("=")
     val status = new File(args(1))
     var result = "failure"
