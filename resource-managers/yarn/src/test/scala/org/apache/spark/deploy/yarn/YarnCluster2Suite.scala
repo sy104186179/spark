@@ -92,6 +92,8 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     val sc = new SparkContext(new SparkConf()
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
+    sc.parallelize(1 to 1000).repartition(100).count()
+
     val status = new File(args(1))
     var result = "failure"
     try {
