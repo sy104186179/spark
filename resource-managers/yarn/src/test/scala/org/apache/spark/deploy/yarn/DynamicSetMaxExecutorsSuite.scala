@@ -17,7 +17,7 @@
 
 package org.apache.spark.deploy.yarn
 
-import java.io.File
+import java.io.{File, FileOutputStream}
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -98,7 +98,8 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   override def beforeAll() {
     super.beforeAll()
     val yarnSite = new File(hadoopConfDir, "yarn-site.xml")
-    Files.write(fixedYarnConf.toString, yarnSite, StandardCharsets.UTF_8)
+    val out = new FileOutputStream(yarnSite)
+    fixedYarnConf.writeXml(out)
     File.createTempFile("token", ".txt", hadoopConfDir)
   }
 
