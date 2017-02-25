@@ -52,8 +52,8 @@ import org.apache.spark.util.Utils
 @ExtendedYarnTest
 class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
-  val ra = CapacitySchedulerConfiguration.ROOT + ".a"
-  val rb = CapacitySchedulerConfiguration.ROOT + ".b"
+  val ra = CapacitySchedulerConfiguration.ROOT + ".ra"
+  val rb = CapacitySchedulerConfiguration.ROOT + ".rb"
   val a1 = ra + ".a1"
   val a2 = ra + ".a2"
 
