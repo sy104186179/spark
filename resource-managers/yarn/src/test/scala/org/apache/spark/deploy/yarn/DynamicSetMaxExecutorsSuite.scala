@@ -22,6 +22,7 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.{HashMap => JHashMap}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -91,6 +92,52 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     yarnConf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage",
       "100.0")
     yarnConf
+  }
+
+  override def runSpark(
+                          clientMode: Boolean,
+                          klass: String,
+                          appArgs: Seq[String] = Nil,
+                          sparkArgs: Seq[(String, String)] = Nil,
+                          extraClassPath: Seq[String] = Nil,
+                          extraJars: Seq[String] = Nil,
+                          extraConf: Map[String, String] = Map(),
+                          extraEnv: Map[String, String] = Map()): SparkAppHandle.State = {
+    val deployMode = if (clientMode) "client" else "cluster"
+    val propsFile = createConfFile(extraClassPath = extraClassPath, extraConf = extraConf)
+    println(s"hadoopConfDir.getAbsolutePath: ${hadoopConfDir.getAbsolutePath}")
+    val env = Map("YARN_CONF_DIR" -> hadoopConfDir.getAbsolutePath()) ++ extraEnv
+
+    val launcher = new SparkLauncher(env.asJava)
+    launcher.setMainClass(klass)
+    launcher.setAppResource(super.fakeSparkJar.getAbsolutePath())
+
+    launcher.setSparkHome(sys.props("spark.test.home"))
+      .setMaster("yarn")
+      .setDeployMode(deployMode)
+      .setConf("spark.executor.instances", "1")
+      .setPropertiesFile(propsFile)
+      .addAppArgs(appArgs.toArray: _*)
+
+    sparkArgs.foreach { case (name, value) =>
+      if (value != null) {
+        launcher.addSparkArg(name, value)
+      } else {
+        launcher.addSparkArg(name)
+      }
+    }
+    extraJars.foreach(launcher.addJar)
+
+    val handle = launcher.startApplication()
+    try {
+      eventually(timeout(2 minutes), interval(1 second)) {
+        assert(handle.getState().isFinal())
+      }
+    } finally {
+      handle.kill()
+    }
+
+    handle.getState()
   }
 
   test("run Spark in yarn-client mode") {
