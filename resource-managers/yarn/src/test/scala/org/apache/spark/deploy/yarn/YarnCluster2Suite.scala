@@ -53,41 +53,51 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   override def newYarnConfig(): YarnConfiguration = new YarnConfiguration()
 
-  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-    testYarnAppUseSparkHadoopUtilConf2()
+//  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
+//    testYarnAppUseSparkHadoopUtilConf2()
+//  }
+
+  test("run Spark in yarn-client mode with different configurations") {
+    testBasicYarnApp(true,
+      Map(
+        "spark.driver.memory" -> "512m",
+        "spark.executor.cores" -> "1",
+        "spark.executor.memory" -> "512m",
+        "spark.executor.instances" -> "2"
+      ))
   }
 
-  test("monitor app using launcher library2") {
-    val env = new JHashMap[String, String]()
-    env.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
-
-    val propsFile = createConfFile()
-    val handle = new SparkLauncher(env)
-      .setSparkHome(sys.props("spark.test.home"))
-      .setConf("spark.ui.enabled", "false")
-      .setPropertiesFile(propsFile)
-      .setMaster("yarn")
-      .setDeployMode("client")
-      .setAppResource(SparkLauncher.NO_RESOURCE)
-      .setMainClass(mainClassName(YarnLauncherTestApp.getClass))
-      .startApplication()
-
-    try {
-      eventually(timeout(30 seconds), interval(100 millis)) {
-        handle.getState() should be (SparkAppHandle.State.RUNNING)
-      }
-
-      handle.getAppId() should not be (null)
-      handle.getAppId() should startWith ("application_")
-      handle.stop()
-
-      eventually(timeout(30 seconds), interval(100 millis)) {
-        handle.getState() should be (SparkAppHandle.State.KILLED)
-      }
-    } finally {
-      handle.kill()
-    }
-  }
+//  test("monitor app using launcher library2") {
+//    val env = new JHashMap[String, String]()
+//    env.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
+//
+//    val propsFile = createConfFile()
+//    val handle = new SparkLauncher(env)
+//      .setSparkHome(sys.props("spark.test.home"))
+//      .setConf("spark.ui.enabled", "false")
+//      .setPropertiesFile(propsFile)
+//      .setMaster("yarn")
+//      .setDeployMode("client")
+//      .setAppResource(SparkLauncher.NO_RESOURCE)
+//      .setMainClass(mainClassName(YarnLauncherTestApp.getClass))
+//      .startApplication()
+//
+//    try {
+//      eventually(timeout(30 seconds), interval(100 millis)) {
+//        handle.getState() should be (SparkAppHandle.State.RUNNING)
+//      }
+//
+//      handle.getAppId() should not be (null)
+//      handle.getAppId() should startWith ("application_")
+//      handle.stop()
+//
+//      eventually(timeout(30 seconds), interval(100 millis)) {
+//        handle.getState() should be (SparkAppHandle.State.KILLED)
+//      }
+//    } finally {
+//      handle.kill()
+//    }
+//  }
 
   private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
     val result = File.createTempFile("result", null, tempDir)
@@ -95,6 +105,14 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
       appArgs = Seq("key=value", result.getAbsolutePath()),
       extraConf = Map("spark.hadoop.key" -> "value"))
+    checkResult(finalState, result)
+  }
+
+  private def testBasicYarnApp(clientMode: Boolean, conf: Map[String, String] = Map()): Unit = {
+    val result = File.createTempFile("result", null, tempDir)
+    val finalState = runSpark(clientMode, mainClassName(YarnClusterDriver2.getClass),
+      appArgs = Seq(result.getAbsolutePath()),
+      extraConf = conf)
     checkResult(finalState, result)
   }
 
