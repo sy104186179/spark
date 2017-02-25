@@ -109,9 +109,12 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     println(s"hadoopConfDir.getAbsolutePath: ${hadoopConfDir.getAbsolutePath}")
     val env = Map("YARN_CONF_DIR" -> hadoopConfDir.getAbsolutePath()) ++ extraEnv
 
-    val sparkConf = new SparkConf()
-    sparkConf.setSparkHome(sys.props("spark.test.home"))
-    sparkConf.setMaster("yarn")
+    val sparkConf = new SparkConf().
+      setAppName(getClass.getName).
+      setSparkHome(sys.props("spark.test.home")).
+      setMaster("yarn").
+      set("spark.dynamicAllocation.enabled", "true").
+      set(QUEUE_NAME, "a")
 
     val sc = new SparkContext(sparkConf)
 
@@ -135,98 +138,6 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     testBasicYarnApp(false)
   }
 
-  test("run Spark in yarn-client mode with different configurations") {
-    testBasicYarnApp(true,
-      Map(
-        "spark.driver.memory" -> "512m",
-        "spark.executor.cores" -> "1",
-        "spark.executor.memory" -> "512m",
-        "spark.executor.instances" -> "2"
-      ))
-  }
-
-  test("run Spark in yarn-cluster mode with different configurations") {
-    testBasicYarnApp(false,
-      Map(
-        "spark.driver.memory" -> "512m",
-        "spark.driver.cores" -> "1",
-        "spark.executor.cores" -> "1",
-        "spark.executor.memory" -> "512m",
-        "spark.executor.instances" -> "2"
-      ))
-  }
-
-  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf") {
-    testYarnAppUseSparkHadoopUtilConf()
-  }
-
-  test("run Spark in yarn-client mode with additional jar") {
-    testWithAddJar(true)
-  }
-
-  test("run Spark in yarn-cluster mode with additional jar") {
-    testWithAddJar(false)
-  }
-
-  test("run Spark in yarn-cluster mode unsuccessfully") {
-    // Don't provide arguments so the driver will fail.
-    val finalState = runSpark(false, mainClassName(YarnClusterDriver.getClass))
-    finalState should be (SparkAppHandle.State.FAILED)
-  }
-
-  test("run Spark in yarn-cluster mode failure after sc initialized") {
-    val finalState = runSpark(false, mainClassName(YarnClusterDriverWithFailure.getClass))
-    finalState should be (SparkAppHandle.State.FAILED)
-  }
-
-  test("user class path first in client mode") {
-    testUseClassPathFirst(true)
-  }
-
-  test("user class path first in cluster mode") {
-    testUseClassPathFirst(false)
-  }
-
-  test("monitor app using launcher library") {
-    val env = new JHashMap[String, String]()
-    env.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
-
-    val propsFile = createConfFile()
-    val handle = new SparkLauncher(env)
-      .setSparkHome(sys.props("spark.test.home"))
-      .setConf("spark.ui.enabled", "false")
-      .setPropertiesFile(propsFile)
-      .setMaster("yarn")
-      .setDeployMode("client")
-      .setAppResource(SparkLauncher.NO_RESOURCE)
-      .setMainClass(mainClassName(YarnLauncherTestApp.getClass))
-      .startApplication()
-
-    try {
-      eventually(timeout(30 seconds), interval(100 millis)) {
-        handle.getState() should be (SparkAppHandle.State.RUNNING)
-      }
-
-      handle.getAppId() should not be (null)
-      handle.getAppId() should startWith ("application_")
-      handle.stop()
-
-      eventually(timeout(30 seconds), interval(100 millis)) {
-        handle.getState() should be (SparkAppHandle.State.KILLED)
-      }
-    } finally {
-      handle.kill()
-    }
-  }
-
-  test("timeout to get SparkContext in cluster mode triggers failure") {
-    val timeout = 2000
-    val finalState = runSpark(false, mainClassName(SparkContextTimeoutApp.getClass),
-      appArgs = Seq((timeout * 4).toString),
-      extraConf = Map(AM_MAX_WAIT_TIME.key -> timeout.toString))
-    finalState should be (SparkAppHandle.State.FAILED)
-  }
-
   private def testBasicYarnApp(clientMode: Boolean, conf: Map[String, String] = Map()): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(clientMode, mainClassName(YarnClusterDriver.getClass),
@@ -235,42 +146,5 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     checkResult(finalState, result)
   }
 
-  private def testYarnAppUseSparkHadoopUtilConf(): Unit = {
-    val result = File.createTempFile("result", null, tempDir)
-    val finalState = runSpark(false,
-      mainClassName(YarnClusterDriverUseSparkHadoopUtilConf.getClass),
-      appArgs = Seq("key=value", result.getAbsolutePath()),
-      extraConf = Map("spark.hadoop.key" -> "value"))
-    checkResult(finalState, result)
-  }
-
-  private def testWithAddJar(clientMode: Boolean): Unit = {
-    val originalJar = TestUtils.createJarWithFiles(Map("test.resource" -> "ORIGINAL"), tempDir)
-    val driverResult = File.createTempFile("driver", null, tempDir)
-    val executorResult = File.createTempFile("executor", null, tempDir)
-    val finalState = runSpark(clientMode, mainClassName(YarnClasspathTest.getClass),
-      appArgs = Seq(driverResult.getAbsolutePath(), executorResult.getAbsolutePath()),
-      extraClassPath = Seq(originalJar.getPath()),
-      extraJars = Seq("local:" + originalJar.getPath()))
-    checkResult(finalState, driverResult, "ORIGINAL")
-    checkResult(finalState, executorResult, "ORIGINAL")
-  }
-
-  private def testUseClassPathFirst(clientMode: Boolean): Unit = {
-    // Create a jar file that contains a different version of "test.resource".
-    val originalJar = TestUtils.createJarWithFiles(Map("test.resource" -> "ORIGINAL"), tempDir)
-    val userJar = TestUtils.createJarWithFiles(Map("test.resource" -> "OVERRIDDEN"), tempDir)
-    val driverResult = File.createTempFile("driver", null, tempDir)
-    val executorResult = File.createTempFile("executor", null, tempDir)
-    val finalState = runSpark(clientMode, mainClassName(YarnClasspathTest.getClass),
-      appArgs = Seq(driverResult.getAbsolutePath(), executorResult.getAbsolutePath()),
-      extraClassPath = Seq(originalJar.getPath()),
-      extraJars = Seq("local:" + userJar.getPath()),
-      extraConf = Map(
-        "spark.driver.userClassPathFirst" -> "true",
-        "spark.executor.userClassPathFirst" -> "true"))
-    checkResult(finalState, driverResult, "OVERRIDDEN")
-    checkResult(finalState, executorResult, "OVERRIDDEN")
-  }
 
 }
