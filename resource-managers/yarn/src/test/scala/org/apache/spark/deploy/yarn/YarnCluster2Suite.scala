@@ -27,6 +27,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 import com.google.common.io.{ByteStreams, Files}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration
 import org.scalatest.Matchers
@@ -56,7 +57,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   val numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
 
-  override def newYarnConfig(): CapacitySchedulerConfiguration = {
+  override def newYarnConfig(): Configuration = {
     val ra = CapacitySchedulerConfiguration.ROOT + ".ra"
     val rb = CapacitySchedulerConfiguration.ROOT + ".rb"
     val a1 = ra + ".a1"
@@ -72,7 +73,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
 
     // Disable the disk utilization check to avoid the test hanging when people's disks are
     // getting full.
-    val yarnConf = new CapacitySchedulerConfiguration()
+    val yarnConf = new YarnConfiguration()
 
 //    // Define top-level queues
 //    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
