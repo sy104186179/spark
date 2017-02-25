@@ -98,7 +98,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   override def beforeAll() {
     super.beforeAll()
     val yarnSite = new File(hadoopConfDir, "yarn-site.xml")
-    Files.write(super.fixedYarnConf.toString, yarnSite, StandardCharsets.UTF_8)
+    Files.write(fixedYarnConf.toString, yarnSite, StandardCharsets.UTF_8)
     File.createTempFile("token", ".txt", hadoopConfDir)
   }
 
