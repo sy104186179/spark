@@ -108,36 +108,13 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     println(s"hadoopConfDir.getAbsolutePath: ${hadoopConfDir.getAbsolutePath}")
     val env = Map("YARN_CONF_DIR" -> hadoopConfDir.getAbsolutePath()) ++ extraEnv
 
-    val launcher = new SparkLauncher(env.asJava)
-    launcher.setMainClass(klass)
-    launcher.setAppResource(super.fakeSparkJar.getAbsolutePath())
+    val sparkConf = new SparkConf()
+    sparkConf.setSparkHome(sys.props("spark.test.home"))
+    sparkConf.setMaster("yarn")
 
-    launcher.setSparkHome(sys.props("spark.test.home"))
-      .setMaster("yarn")
-      .setDeployMode(deployMode)
-      .setConf("spark.executor.instances", "1")
-      .setPropertiesFile(propsFile)
-      .addAppArgs(appArgs.toArray: _*)
+    println("I'm OK")
 
-    sparkArgs.foreach { case (name, value) =>
-      if (value != null) {
-        launcher.addSparkArg(name, value)
-      } else {
-        launcher.addSparkArg(name)
-      }
-    }
-    extraJars.foreach(launcher.addJar)
-
-    val handle = launcher.startApplication()
-    try {
-      eventually(timeout(2 minutes), interval(1 second)) {
-        assert(handle.getState().isFinal())
-      }
-    } finally {
-      handle.kill()
-    }
-
-    handle.getState()
+    SparkAppHandle.State.FAILED
   }
 
   test("run Spark in yarn-client mode") {
