@@ -96,7 +96,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   }
 
   private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
-    val result = File.createTempFile("result", null, tempDir)
+    val result = File.createTempFile("result", null, new java.io.File("/tmp/spark"))
     val finalState = runSpark(false,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
       appArgs = Seq("key=value", result.getAbsolutePath()),
@@ -148,7 +148,8 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
       result = "success"
     } finally {
-      Files.write(result, status, StandardCharsets.UTF_8)
+      Files.write(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString,
+        status, StandardCharsets.UTF_8)
       sc.stop()
     }
   }
