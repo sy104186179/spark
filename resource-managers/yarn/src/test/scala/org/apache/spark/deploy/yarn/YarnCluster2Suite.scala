@@ -95,48 +95,6 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
     testYarnAppUseSparkHadoopUtilConf2()
   }
 
-//  test("run Spark in yarn-client mode with different configurations") {
-//    testBasicYarnApp(true,
-//      Map(
-//        "spark.driver.memory" -> "512m",
-//        "spark.executor.cores" -> "1",
-//        "spark.executor.memory" -> "512m",
-//        "spark.executor.instances" -> "2"
-//      ))
-//  }
-
-//  test("monitor app using launcher library2") {
-//    val env = new JHashMap[String, String]()
-//    env.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
-//
-//    val propsFile = createConfFile()
-//    val handle = new SparkLauncher(env)
-//      .setSparkHome(sys.props("spark.test.home"))
-//      .setConf("spark.ui.enabled", "false")
-//      .setPropertiesFile(propsFile)
-//      .setMaster("yarn")
-//      .setDeployMode("client")
-//      .setAppResource(SparkLauncher.NO_RESOURCE)
-//      .setMainClass(mainClassName(YarnLauncherTestApp.getClass))
-//      .startApplication()
-//
-//    try {
-//      eventually(timeout(30 seconds), interval(100 millis)) {
-//        handle.getState() should be (SparkAppHandle.State.RUNNING)
-//      }
-//
-//      handle.getAppId() should not be (null)
-//      handle.getAppId() should startWith ("application_")
-//      handle.stop()
-//
-//      eventually(timeout(30 seconds), interval(100 millis)) {
-//        handle.getState() should be (SparkAppHandle.State.KILLED)
-//      }
-//    } finally {
-//      handle.kill()
-//    }
-//  }
-
   private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(false,
@@ -145,15 +103,6 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
       extraConf = Map("spark.hadoop.key" -> "value"))
     checkResult(finalState, result)
   }
-
-  private def testBasicYarnApp(clientMode: Boolean, conf: Map[String, String] = Map()): Unit = {
-    val result = File.createTempFile("result", null, tempDir)
-    val finalState = runSpark(clientMode, mainClassName(YarnClusterDriver2.getClass),
-      appArgs = Seq(result.getAbsolutePath()),
-      extraConf = conf)
-    checkResult(finalState, result)
-  }
-
 }
 
 private[spark] class SaveExecutorInfo2 extends SparkListener {
@@ -196,7 +145,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     val status = new File(args(1))
     var result = "failure"
     try {
-      SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
+      // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
       result = "success"
     } finally {
       Files.write(result, status, StandardCharsets.UTF_8)
@@ -205,77 +154,3 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
   }
 }
 
-private object YarnClusterDriver2 extends Logging with Matchers {
-
-  val WAIT_TIMEOUT_MILLIS = 10000
-
-  def main(args: Array[String]): Unit = {
-    if (args.length != 1) {
-      // scalastyle:off println
-      System.err.println(
-        s"""
-        |Invalid command line: ${args.mkString(" ")}
-        |
-        |Usage: YarnClusterDriver [result file]
-        """.stripMargin)
-      // scalastyle:on println
-      System.exit(1)
-    }
-
-    val conf = new SparkConf()
-      .set("spark.extraListeners", classOf[SaveExecutorInfo2].getName)
-      .set("spark.dynamicAllocation.enabled", "true")
-      .setAppName("yarn \"test app\" 'with quotes' and \\back\\slashes and $dollarSigns")
-    val sc = new SparkContext(conf)
-    val fixedConf = sc.getConf
-
-    println(s"DYN_ALLOCATION_MAX_EXECUTORS: ${fixedConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
-
-    val status = new File(args(0))
-    var result = "failure"
-    try {
-      val data = sc.parallelize(1 to 4, 4).collect().toSet
-      sc.listenerBus.waitUntilEmpty(WAIT_TIMEOUT_MILLIS)
-      data should be (Set(1, 2, 3, 4))
-      result = "success"
-
-      // Verify that the config archive is correctly placed in the classpath of all containers.
-      val confFile = "/" + Client.SPARK_CONF_FILE
-      assert(getClass().getResource(confFile) != null)
-      val configFromExecutors = sc.parallelize(1 to 4, 4)
-        .map { _ => Option(getClass().getResource(confFile)).map(_.toString).orNull }
-        .collect()
-      assert(configFromExecutors.find(_ == null) === None)
-    } finally {
-      Files.write(result, status, StandardCharsets.UTF_8)
-      sc.stop()
-    }
-
-    // verify log urls are present
-    val listeners = sc.listenerBus.findListenersByClass[SaveExecutorInfo]
-    assert(listeners.size === 1)
-    val listener = listeners(0)
-    val executorInfos = listener.addedExecutorInfos.values
-    assert(executorInfos.nonEmpty)
-    executorInfos.foreach { info =>
-      assert(info.logUrlMap.nonEmpty)
-    }
-
-    // If we are running in yarn-cluster mode, verify that driver logs links and present and are
-    // in the expected format.
-    if (conf.get("spark.submit.deployMode") == "cluster") {
-      assert(listener.driverLogs.nonEmpty)
-      val driverLogs = listener.driverLogs.get
-      assert(driverLogs.size === 2)
-      assert(driverLogs.contains("stderr"))
-      assert(driverLogs.contains("stdout"))
-      val urlStr = driverLogs("stderr")
-      // Ensure that this is a valid URL, else this will throw an exception
-      new URL(urlStr)
-      val containerId = YarnSparkHadoopUtil.get.getContainerId
-      val user = Utils.getCurrentUserName()
-      assert(urlStr.endsWith(s"/node/containerlogs/$containerId/$user/stderr?start=-4096"))
-    }
-  }
-
-}
