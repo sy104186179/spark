@@ -57,6 +57,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   val numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
 
+  override def newYarnConfig(): Configuration = new YarnConfiguration()
 //  override def newYarnConfig(): Configuration = {
 //    val ra = CapacitySchedulerConfiguration.ROOT + ".ra"
 //    val rb = CapacitySchedulerConfiguration.ROOT + ".rb"
