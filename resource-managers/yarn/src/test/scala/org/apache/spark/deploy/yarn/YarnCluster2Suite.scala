@@ -74,20 +74,20 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
     // getting full.
     val yarnConf = new CapacitySchedulerConfiguration()
 
-    // Define top-level queues
-    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
-    yarnConf.setMaximumCapacity(CapacitySchedulerConfiguration.ROOT, 100)
-    yarnConf.setCapacity(ra, aCapacity)
-    yarnConf.setMaximumCapacity(ra, aMaximumCapacity)
-    yarnConf.setCapacity(rb, bCapacity)
-    yarnConf.setMaximumCapacity(rb, bMaximumCapacity)
-
-    // Define 2nd-level queues
-    yarnConf.setQueues(ra, Array("a1", "a2"))
-    yarnConf.setCapacity(a1, a1Capacity)
-    yarnConf.setMaximumCapacity(a1, a1MaximumCapacity)
-    yarnConf.setCapacity(a2, a2Capacity)
-    yarnConf.set("yarn.nodemanager.resource.cpu-vcores", cpuCores.toString)
+//    // Define top-level queues
+//    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
+//    yarnConf.setMaximumCapacity(CapacitySchedulerConfiguration.ROOT, 100)
+//    yarnConf.setCapacity(ra, aCapacity)
+//    yarnConf.setMaximumCapacity(ra, aMaximumCapacity)
+//    yarnConf.setCapacity(rb, bCapacity)
+//    yarnConf.setMaximumCapacity(rb, bMaximumCapacity)
+//
+//    // Define 2nd-level queues
+//    yarnConf.setQueues(ra, Array("a1", "a2"))
+//    yarnConf.setCapacity(a1, a1Capacity)
+//    yarnConf.setMaximumCapacity(a1, a1MaximumCapacity)
+//    yarnConf.setCapacity(a2, a2Capacity)
+//    yarnConf.set("yarn.nodemanager.resource.cpu-vcores", cpuCores.toString)
     yarnConf
   }
 
