@@ -92,35 +92,26 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       // scalastyle:off println
       System.err.println(
         s"""
-        |Invalid command line: ${args.mkString(" ")}
-        |
+           |Invalid command line: ${args.mkString(" ")}
+           |
         |Usage: YarnClusterDriverUseSparkHadoopUtilConf [hadoopConfKey=value] [result file]
         """.stripMargin)
       // scalastyle:on println
       System.exit(1)
     }
-    val status = new File("/tmp/spark")
-
-    Files.write("test",
-      status, StandardCharsets.UTF_8)
 
     val sc = new SparkContext(new SparkConf()
-      // .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
-      .setAppName("yarn test using SparkHadoopUtil's conf")
-        .setMaster("yarn"))
-    logWarning(s"1sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
-      s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
-    sc.parallelize(1 to 1000, 200).count()
-    logWarning(s"2sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
-      s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
-    // assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
+      .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
+      .setAppName("yarn test using SparkHadoopUtil's conf"))
+
+    val kv = args(0).split("=")
+    val status = new File(args(1))
     var result = "failure"
     try {
-      // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
+      SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
       result = "success"
     } finally {
-      Files.write("sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString",
-        status, StandardCharsets.UTF_8)
+      Files.write(result, status, StandardCharsets.UTF_8)
       sc.stop()
     }
   }
