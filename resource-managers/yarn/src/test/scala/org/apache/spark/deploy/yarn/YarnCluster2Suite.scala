@@ -97,7 +97,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     val status = new File(args(1))
     var result = "failure"
     try {
-      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
+      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue - 1)
       result = "success"
     } finally {
       Files.write(result, status, StandardCharsets.UTF_8)
