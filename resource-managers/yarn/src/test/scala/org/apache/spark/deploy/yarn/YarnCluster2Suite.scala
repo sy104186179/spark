@@ -90,6 +90,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
   def main(args: Array[String]): Unit = {
 
     val sc = new SparkContext(new SparkConf()
+        .set("spark.dynamicAllocation.enabled", "true")
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
     sc.parallelize(1 to 1000).repartition(100).count()
@@ -97,7 +98,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     val status = new File(args(1))
     var result = "failure"
     try {
-      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue - 1)
+      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
     } finally {
       Files.write(result, status, StandardCharsets.UTF_8)
