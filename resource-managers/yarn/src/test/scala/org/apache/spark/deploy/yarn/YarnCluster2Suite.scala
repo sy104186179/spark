@@ -93,11 +93,13 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
+    val status = new File(args(1))
     var result = "failure"
     try {
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
     } finally {
+      Files.write(result, status, StandardCharsets.UTF_8)
       sc.stop()
     }
   }
