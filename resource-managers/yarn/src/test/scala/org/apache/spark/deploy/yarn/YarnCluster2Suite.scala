@@ -65,7 +65,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
 
   private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
     val result = File.createTempFile("result", null, new java.io.File("/tmp/spark"))
-    val finalState = runSpark(true,
+    val finalState = runSpark(false,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
       appArgs = Seq("key=value", result.getAbsolutePath()),
       extraConf = Map("spark.hadoop.key" -> "value"))
@@ -90,10 +90,9 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
   def main(args: Array[String]): Unit = {
 
     val sc = new SparkContext(new SparkConf()
-        .set("spark.dynamicAllocation.enabled", "true")
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
-    sc.parallelize(1 to 10).count()
+    sc.parallelize(1 to 1000).repartition(100).count()
 
     val status = new File(args(1))
     var result = "failure"
