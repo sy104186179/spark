@@ -81,11 +81,11 @@ class YarnClusterSuite2 extends BaseYarnClusterSuite {
 
 
 
-  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf") {
+  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
     testYarnAppUseSparkHadoopUtilConf2()
   }
 
-  test("monitor app using launcher library") {
+  test("monitor app using launcher library2") {
     val env = new JHashMap[String, String]()
     env.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath())
 
