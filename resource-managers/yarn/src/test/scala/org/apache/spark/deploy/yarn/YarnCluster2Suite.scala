@@ -90,7 +90,6 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
   def main(args: Array[String]): Unit = {
 
     val sc = new SparkContext(new SparkConf()
-      .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
       .setAppName("yarn test using SparkHadoopUtil's conf"))
 
     val status = new File(args(1))
