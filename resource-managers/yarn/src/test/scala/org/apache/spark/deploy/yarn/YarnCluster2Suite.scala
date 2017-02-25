@@ -131,6 +131,10 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       // scalastyle:on println
       System.exit(1)
     }
+    val status = new File("/tmp/spark")
+
+    Files.write("test",
+      status, StandardCharsets.UTF_8)
 
     val sc = new SparkContext(new SparkConf()
       .set("spark.extraListeners", classOf[SaveExecutorInfo].getName)
@@ -141,8 +145,6 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     logWarning(s"2sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)" +
       s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     // assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
-    val kv = args(0).split("=")
-    val status = new File("/tmp/spark")
     var result = "failure"
     try {
       // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
