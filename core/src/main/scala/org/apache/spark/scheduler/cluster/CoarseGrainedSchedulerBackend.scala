@@ -456,7 +456,8 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         s"$numAdditionalExecutors from the cluster manager. Please specify a positive number!")
     }
     logWarning("requestTotalExecutors:458")
-    logWarning(s"Requesting $numAdditionalExecutors additional executor(s) from the cluster manager")
+    logWarning(s"Requesting $numAdditionalExecutors additional " +
+      s"executor(s) from the cluster manager")
 
     val response = synchronized {
       numPendingExecutors += numAdditionalExecutors
