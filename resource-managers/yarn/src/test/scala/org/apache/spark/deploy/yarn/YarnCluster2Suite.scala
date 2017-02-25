@@ -142,7 +142,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       s": ${sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS)}")
     // assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
     val kv = args(0).split("=")
-    val status = new File(args(1))
+    val status = new File("/tmp/spark")
     var result = "failure"
     try {
       // SparkHadoopUtil.get.conf.get(kv(0)) should be (kv(1))
