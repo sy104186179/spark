@@ -86,7 +86,7 @@ abstract class BaseYarnClusterSuite
     yarnConf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage",
       "100.0")
 
-    yarnCluster = new MiniYARNCluster(getClass().getName(), 1, 1, 1)
+    yarnCluster = new MiniYARNCluster(getClass().getName(), 10, 1, 1)
     yarnCluster.init(yarnConf)
     yarnCluster.start()
 
