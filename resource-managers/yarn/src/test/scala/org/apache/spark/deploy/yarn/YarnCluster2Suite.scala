@@ -57,8 +57,6 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   val numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
 
-  // override def newYarnConfig(): Configuration = new YarnConfiguration()
-
   override def newYarnConfig(): CapacitySchedulerConfiguration = {
     val queueNameRA = "ra"
     val queueNameRB = "rb"
@@ -99,24 +97,26 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   }
 
   test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-    testYarnAppUseSparkHadoopUtilConf2()
+    testYarnAppUseSparkHadoopUtilConf2(3)
   }
 
-  private def testYarnAppUseSparkHadoopUtilConf2(): Unit = {
+  private def testYarnAppUseSparkHadoopUtilConf2(expectedExecutors: Int): Unit = {
     val result = File.createTempFile("result", null, tempDir)
-    val finalState = runSpark(true,
+    runSpark(true,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
-      appArgs = Seq("key=value", result.getAbsolutePath()),
+      appArgs = Seq(result.getAbsolutePath()),
       extraConf = Map("spark.hadoop.key" -> "value"))
-    checkResult(finalState, result)
+    val resultString = Files.toString(result, StandardCharsets.UTF_8)
+    resultString should be (expectedExecutors.toString)
   }
+
 }
 
 private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Matchers {
   def main(args: Array[String]): Unit = {
 
-    var result = "failure"
-    val status = new File(args(1))
+    var result = Int.MaxValue.toString
+    val status = new File(args(0))
 
     var sc: SparkContext = null
     try {
@@ -128,7 +128,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
 
       // sc.parallelize(1 to 10).count()
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
-      result = "success"
+      result = sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString
     } catch {
       case ex: Exception => result = ex.getMessage
         Files.write(result, status, StandardCharsets.UTF_8)
