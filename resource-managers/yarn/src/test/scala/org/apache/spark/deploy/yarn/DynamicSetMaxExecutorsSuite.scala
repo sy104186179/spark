@@ -99,7 +99,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue and " +
     s"user set maxExecutors") {
-    setMaxExecutors(12, queueNameA1, isDynamicAllocation, 12)
+    setMaxExecutors(12, queueNameA1, isDynamicAllocation, "12")
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
@@ -108,17 +108,18 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue and " +
     s"user set maxExecutors") {
-    setMaxExecutors(12, queueNameA1, !isDynamicAllocation, 12)
+    setMaxExecutors(12, queueNameA1, !isDynamicAllocation, "12")
   }
 
   private def setMaxExecutors(expectedExecutors: Int,
                               queueName: String,
                               isDynamic: Boolean,
-                              maxExecutors: Int = Int.MaxValue): Unit = {
+                              maxExecutors: String = DYN_ALLOCATION_MAX_EXECUTORS.defaultValueString
+                             ): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(true,
       mainClassName(SetMaxExecutors.getClass),
-      appArgs = Seq(result.getAbsolutePath, queueName, isDynamic.toString, maxExecutors.toString))
+      appArgs = Seq(result.getAbsolutePath, queueName, isDynamic.toString, maxExecutors))
     checkResult(finalState, result, expectedExecutors.toString)
   }
 
@@ -131,8 +132,8 @@ private object SetMaxExecutors extends Logging with Matchers {
     val status = new File(args(0))
     val queueName = args(1)
     val isDynamicAllocation = args(2)
-    val maxExecutors = args(3).toInt
-    val appName = s"DynamicSetMaxExecutors-${isDynamicAllocation}-${queueName}"
+    val maxExecutors = args(3)
+    val appName = s"DynamicSetMaxExecutors-${isDynamicAllocation}-${queueName}-${maxExecutors}"
 
     var sc: SparkContext = null
     try {
@@ -143,8 +144,8 @@ private object SetMaxExecutors extends Logging with Matchers {
         .setAppName(appName)
 
       // user manual set spark.dynamicAllocation.maxExecutors
-      if (Int.MaxValue != maxExecutors) {
-        conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxExecutors)
+      if (!DYN_ALLOCATION_MAX_EXECUTORS.defaultValueString.equals(maxExecutors)) {
+        conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxExecutors.toInt)
       }
 
       sc = new SparkContext(conf)
