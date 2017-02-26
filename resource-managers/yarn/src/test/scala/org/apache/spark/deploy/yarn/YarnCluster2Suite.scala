@@ -56,24 +56,24 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   val cpuCores = 8
   val numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
+  val queueNameRA = "ra"
+  val queueNameRB = "rb"
+  val queueNameA1 = "a1"
+  val queueNameA2 = "a2"
+  val ra = CapacitySchedulerConfiguration.ROOT + "." + queueNameRA
+  val rb = CapacitySchedulerConfiguration.ROOT + "." + queueNameRB
+  val a1 = ra + "." + queueNameA1
+  val a2 = ra + "." + queueNameA2
+
+  val aCapacity = 40F
+  val aMaximumCapacity = 60F
+  val bCapacity = 60F
+  val bMaximumCapacity = 100F
+  val a1Capacity = 30F
+  val a1MaximumCapacity = 70F
+  val a2Capacity = 70F
 
   override def newYarnConfig(): CapacitySchedulerConfiguration = {
-    val queueNameRA = "ra"
-    val queueNameRB = "rb"
-    val queueNameA1 = "a1"
-    val queueNameA2 = "a2"
-    val ra = CapacitySchedulerConfiguration.ROOT + "." + queueNameRA
-    val rb = CapacitySchedulerConfiguration.ROOT + "." + queueNameRB
-    val a1 = ra + "." + queueNameA1
-    val a2 = ra + "." + queueNameA2
-
-    val aCapacity = 40F
-    val aMaximumCapacity = 60F
-    val bCapacity = 60F
-    val bMaximumCapacity = 100F
-    val a1Capacity = 30F
-    val a1MaximumCapacity = 70F
-    val a2Capacity = 70F
 
     // Disable the disk utilization check to avoid the test hanging when people's disks are
     // getting full.
@@ -97,17 +97,21 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   }
 
   test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-    testYarnAppUseSparkHadoopUtilConf2(3)
+    testYarnAppUseSparkHadoopUtilConf2(3, queueNameA1, true)
   }
 
-  private def testYarnAppUseSparkHadoopUtilConf2(expectedExecutors: Int): Unit = {
+  private def testYarnAppUseSparkHadoopUtilConf2(expectedExecutors: Int,
+                                                 queueName: String,
+                                                 isDynamicAllocation: Boolean): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     runSpark(true,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
-      appArgs = Seq(result.getAbsolutePath()),
+      appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
-    val resultString = Files.toString(result, StandardCharsets.UTF_8)
-    resultString should be (expectedExecutors.toString)
+    val resultInt = Files.toString(result, StandardCharsets.UTF_8).toInt
+    println(s"expectedExecutors:${expectedExecutors}")
+    println(s"resultInt:${resultInt}")
+    resultInt should be (expectedExecutors)
   }
 
 }
@@ -117,14 +121,17 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
 
     var result = Int.MaxValue.toString
     val status = new File(args(0))
+    val queueName = args(1)
+    val isDynamicAllocation = args(2)
+    val appName = s"DynamicSetMaxExecutors-${isDynamicAllocation}-${queueName}"
 
     var sc: SparkContext = null
     try {
       sc = new SparkContext(new SparkConf()
-         .set("spark.dynamicAllocation.enabled", "true")
+         .set("spark.dynamicAllocation.enabled", isDynamicAllocation)
           .set("spark.shuffle.service.enabled", "true")
-          .set(QUEUE_NAME, "a1")
-        .setAppName("yarn test using SparkHadoopUtil's conf"))
+          .set(QUEUE_NAME, queueName)
+        .setAppName(appName))
 
       // sc.parallelize(1 to 10).count()
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
