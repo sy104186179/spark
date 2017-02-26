@@ -128,7 +128,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
       // Files.write(result, status, StandardCharsets.UTF_8)
-      // sc.parallelize(1 to 1000).count()
+      sc.parallelize(1 to 1000).count()
 
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
