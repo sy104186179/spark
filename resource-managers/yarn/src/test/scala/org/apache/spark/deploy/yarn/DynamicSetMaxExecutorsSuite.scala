@@ -40,9 +40,9 @@ import org.apache.spark.tags.ExtendedYarnTest
 class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   numNodeManagers = 10
-
   val cpuCores = 8
-  val coresTotal = cpuCores * numNodeManagers
+  // coresTotal = cpuCores * numNodeManagers = 80
+
   val queueNameRA = "ra"
   val queueNameRB = "rb"
   val queueNameA1 = "a1"
