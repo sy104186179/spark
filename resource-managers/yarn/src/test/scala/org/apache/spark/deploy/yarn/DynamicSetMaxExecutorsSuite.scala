@@ -94,15 +94,20 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     yarnConf
   }
 
-  test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-    setMaxExecutors(3, queueNameA1, true)
+  test(s"run Spark in yarn-client mode with dynamicAllocation enabled and ${queueNameA1} queue") {
+    setMaxExecutors(3, queueNameA1, true, true)
+  }
+
+  test(s"run Spark in yarn-cluster mode with dynamicAllocation enabled and ${queueNameA1} queue") {
+    setMaxExecutors(3, queueNameA1, true, false)
   }
 
   private def setMaxExecutors(expectedExecutors: Int,
-                                                 queueName: String,
-                                                 isDynamicAllocation: Boolean): Unit = {
+                              queueName: String,
+                              isDynamicAllocation: Boolean,
+                              isClientMode: Boolean): Unit = {
     val result = File.createTempFile("result", null, tempDir)
-    val finalState = runSpark(true,
+    val finalState = runSpark(isClientMode,
       mainClassName(SetMaxExecutors.getClass),
       appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
