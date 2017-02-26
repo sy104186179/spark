@@ -53,8 +53,9 @@ import org.apache.spark.util.Utils
 @ExtendedYarnTest
 class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
-  val cpuCores = 8
   numNodeManagers = 10
+
+  val cpuCores = 8
   val coresTotal = cpuCores * numNodeManagers
   val queueNameRA = "ra"
   val queueNameRB = "rb"
@@ -95,15 +96,15 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue") {
-    setMaxExecutors(3, queueNameA1, true)
+    setMaxExecutors(33, queueNameA1, true)
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA2} queue") {
-    setMaxExecutors(4, queueNameA2, true)
+    setMaxExecutors(48, queueNameA2, true)
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameRB} queue") {
-    setMaxExecutors(8, queueNameRB, true)
+    setMaxExecutors(80, queueNameRB, true)
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
