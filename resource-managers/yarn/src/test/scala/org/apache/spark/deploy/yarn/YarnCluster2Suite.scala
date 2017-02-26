@@ -112,19 +112,6 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   }
 }
 
-private[spark] class SaveExecutorInfo2 extends SparkListener {
-  val addedExecutorInfos = mutable.Map[String, ExecutorInfo]()
-  var driverLogs: Option[collection.Map[String, String]] = None
-
-  override def onExecutorAdded(executor: SparkListenerExecutorAdded) {
-    addedExecutorInfos(executor.executorId) = executor.executorInfo
-  }
-
-  override def onApplicationStart(appStart: SparkListenerApplicationStart): Unit = {
-    driverLogs = appStart.driverLogs
-  }
-}
-
 private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Matchers {
   def main(args: Array[String]): Unit = {
 
@@ -133,15 +120,14 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
 
     var sc: SparkContext = null
     try {
-      sc = new SparkContext(new SparkConf().setSparkHome("/root/opensource/spark")
+      sc = new SparkContext(new SparkConf()
          .set("spark.dynamicAllocation.enabled", "true")
           .set("spark.shuffle.service.enabled", "true")
           .set(QUEUE_NAME, "a1")
-         .set("spark.executor.memory", "10M").set("spark.yarn.am.memory", "10M")
+         // .set("spark.executor.memory", "10M").set("spark.yarn.am.memory", "10M")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
-      Files.write(result, status, StandardCharsets.UTF_8)
-      // sc.parallelize(1 to 1000).count()
+      sc.parallelize(1 to 1000).count()
 
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
