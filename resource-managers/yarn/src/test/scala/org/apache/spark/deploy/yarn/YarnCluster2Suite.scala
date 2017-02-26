@@ -109,17 +109,8 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
       appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
     println(s"expectedExecutors:${expectedExecutors}")
-    println(s"resultInt:${Files.toString(result, StandardCharsets.UTF_8).toInt}")
+    // println(s"resultInt:${Files.toString(result, StandardCharsets.UTF_8).toInt}")
     checkResult(finalState, result, expectedExecutors.toString)
-  }
-
-  override def checkResult(
-                             finalState: SparkAppHandle.State,
-                             result: File,
-                             expected: String): Unit = {
-    finalState should be (SparkAppHandle.State.FINISHED)
-    val resultString = Files.toString(result, StandardCharsets.UTF_8)
-    resultString should be (expected)
   }
 
 }
