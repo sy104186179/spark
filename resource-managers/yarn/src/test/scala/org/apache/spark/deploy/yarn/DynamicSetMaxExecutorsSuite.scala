@@ -18,37 +18,23 @@
 package org.apache.spark.deploy.yarn
 
 import java.io.File
-import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.util.{HashMap => JHashMap}
 
-import scala.collection.mutable
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
-import com.google.common.io.{ByteStreams, Files}
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.yarn.conf.YarnConfiguration
+import com.google.common.io.Files
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration
 import org.scalatest.Matchers
-import org.scalatest.concurrent.Eventually._
 
 import org.apache.spark._
-import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
-import org.apache.spark.launcher._
-import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationStart,
-  SparkListenerExecutorAdded}
-import org.apache.spark.scheduler.cluster.ExecutorInfo
 import org.apache.spark.tags.ExtendedYarnTest
-import org.apache.spark.util.Utils
 
 /**
- * Integration tests for YARN; these tests use a mini Yarn cluster to run Spark-on-YARN
- * applications, and require the Spark assembly to be built before they can be successfully
- * run.
+ * Integration test for the dynamic set spark.dynamicAllocation.maxExecutors
+ * depends on queue's maxResources use a mini Yarn cluster.
  */
 @ExtendedYarnTest
 class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
@@ -145,9 +131,6 @@ private object SetMaxExecutors extends Logging with Matchers {
         .setAppName(appName))
 
       result = sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString
-    } catch {
-      case ex: Exception => result = ex.getMessage
-        Files.write(result, status, StandardCharsets.UTF_8)
     } finally {
       Files.write(result, status, StandardCharsets.UTF_8)
       sc.stop()
