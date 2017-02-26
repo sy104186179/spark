@@ -82,31 +82,31 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     yarnConf
   }
 
-  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue") {
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA1 } queue") {
     // a1's cores: 80 * 0.6 * 0.7 = 33
     setMaxExecutors(33, queueNameA1, isDynamicAllocation)
   }
 
-  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA2} queue") {
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA2 } queue") {
     // a2's cores: 80 * 0.6 * 1 = 48
     setMaxExecutors(48, queueNameA2, isDynamicAllocation)
   }
 
-  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameRB} queue") {
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameRB } queue") {
     // b's cores: 80 * 1 = 80
     setMaxExecutors(80, queueNameRB, isDynamicAllocation)
   }
 
-  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue and " +
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA1 } queue and " +
     s"user set maxExecutors") {
     setMaxExecutors(12, queueNameA1, isDynamicAllocation, "12")
   }
 
-  test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
+  test(s"run Spark on YARN with dynamicAllocation disabled and ${ queueNameA1 } queue") {
     setMaxExecutors(Int.MaxValue, queueNameA1, !isDynamicAllocation)
   }
 
-  test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue and " +
+  test(s"run Spark on YARN with dynamicAllocation disabled and ${ queueNameA1 } queue and " +
     s"user set maxExecutors") {
     setMaxExecutors(12, queueNameA1, !isDynamicAllocation, "12")
   }
@@ -133,7 +133,8 @@ private object SetMaxExecutors extends Logging with Matchers {
     val queueName = args(1)
     val isDynamicAllocation = args(2)
     val maxExecutors = args(3)
-    val appName = s"DynamicSetMaxExecutors-${isDynamicAllocation}-${queueName}-${maxExecutors}"
+    val appName =
+      s"DynamicSetMaxExecutors-${ isDynamicAllocation }-${ queueName }-${ maxExecutors }"
 
     var sc: SparkContext = null
     try {
