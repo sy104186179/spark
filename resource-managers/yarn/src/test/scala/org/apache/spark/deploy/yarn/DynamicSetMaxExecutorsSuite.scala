@@ -113,7 +113,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${ queueNameA1 } queue") {
-    setMaxExecutors(Int.MaxValue, queueNameA1,
+    setMaxExecutors(DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get, queueNameA1,
       s"spark.dynamicAllocation.enabled=${ !isDynamicAllocation }" +
         s",spark.shuffle.service.enabled=${ !isDynamicAllocation }")
   }
