@@ -75,8 +75,6 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   override def newYarnConfig(): CapacitySchedulerConfiguration = {
 
-    // Disable the disk utilization check to avoid the test hanging when people's disks are
-    // getting full.
     val yarnConf = new CapacitySchedulerConfiguration()
 
     // Define top-level queues
@@ -97,15 +95,15 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   }
 
   test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
-    testYarnAppUseSparkHadoopUtilConf2(3, queueNameA1, true)
+    setMaxExecutors(3, queueNameA1, true)
   }
 
-  private def testYarnAppUseSparkHadoopUtilConf2(expectedExecutors: Int,
+  private def setMaxExecutors(expectedExecutors: Int,
                                                  queueName: String,
                                                  isDynamicAllocation: Boolean): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(true,
-      mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
+      mainClassName(SetMaxExecutors.getClass),
       appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
     checkResult(finalState, result, expectedExecutors.toString)
@@ -113,7 +111,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
 }
 
-private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Matchers {
+private object SetMaxExecutors extends Logging with Matchers {
   def main(args: Array[String]): Unit = {
 
     var result = Int.MaxValue.toString
@@ -130,8 +128,6 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
         .set(QUEUE_NAME, queueName)
         .setAppName(appName))
 
-      // sc.parallelize(1 to 10).count()
-      // assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString
     } catch {
       case ex: Exception => result = ex.getMessage
