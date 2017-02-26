@@ -57,7 +57,42 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   val numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
 
-  override def newYarnConfig(): Configuration = new YarnConfiguration()
+  // override def newYarnConfig(): Configuration = new YarnConfiguration()
+
+  override def newYarnConfig(): CapacitySchedulerConfiguration = {
+    val ra = CapacitySchedulerConfiguration.ROOT + ".ra"
+    val rb = CapacitySchedulerConfiguration.ROOT + ".rb"
+    val a1 = ra + ".a1"
+    val a2 = ra + ".a2"
+
+    val aCapacity = 40F
+    val aMaximumCapacity = 60F
+    val bCapacity = 60F
+    val bMaximumCapacity = 100F
+    val a1Capacity = 30F
+    val a1MaximumCapacity = 70F
+    val a2Capacity = 70F
+
+    // Disable the disk utilization check to avoid the test hanging when people's disks are
+    // getting full.
+    val yarnConf = new CapacitySchedulerConfiguration()
+
+    // Define top-level queues
+    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
+    yarnConf.setMaximumCapacity(CapacitySchedulerConfiguration.ROOT, 100)
+    yarnConf.setCapacity(ra, aCapacity)
+    yarnConf.setMaximumCapacity(ra, aMaximumCapacity)
+    yarnConf.setCapacity(rb, bCapacity)
+    yarnConf.setMaximumCapacity(rb, bMaximumCapacity)
+
+    // Define 2nd-level queues
+    yarnConf.setQueues(ra, Array("a1", "a2"))
+    yarnConf.setCapacity(a1, a1Capacity)
+    yarnConf.setMaximumCapacity(a1, a1MaximumCapacity)
+    yarnConf.setCapacity(a2, a2Capacity)
+    yarnConf.set("yarn.nodemanager.resource.cpu-vcores", cpuCores.toString)
+    yarnConf
+  }
 
   test("run Spark in yarn-cluster mode with using SparkHadoopUtil.conf2") {
     testYarnAppUseSparkHadoopUtilConf2()
