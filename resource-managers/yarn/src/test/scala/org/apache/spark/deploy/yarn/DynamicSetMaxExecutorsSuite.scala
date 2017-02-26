@@ -73,6 +73,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   val a1Capacity = 30F
   val a1MaximumCapacity = 70F
   val a2Capacity = 70F
+  val isDynamicAllocation = true
 
   override def newYarnConfig(): CapacitySchedulerConfiguration = {
 
@@ -96,19 +97,22 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue") {
-    setMaxExecutors(33, queueNameA1, true)
+    // a1's cores: 80 * 0.6 * 0.7 = 33
+    setMaxExecutors(33, queueNameA1, isDynamicAllocation)
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA2} queue") {
-    setMaxExecutors(48, queueNameA2, true)
+    // a2's cores: 80 * 0.6 * 1 = 48
+    setMaxExecutors(48, queueNameA2, isDynamicAllocation)
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameRB} queue") {
-    setMaxExecutors(80, queueNameRB, true)
+    // b's cores: 80 * 1 = 80
+    setMaxExecutors(80, queueNameRB, isDynamicAllocation)
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
-    setMaxExecutors(Int.MaxValue, queueNameA1, false)
+    setMaxExecutors(Int.MaxValue, queueNameA1, !isDynamicAllocation)
   }
 
   private def setMaxExecutors(expectedExecutors: Int,
