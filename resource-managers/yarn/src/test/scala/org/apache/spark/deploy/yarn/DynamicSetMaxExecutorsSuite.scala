@@ -126,7 +126,7 @@ private object SetMaxExecutors extends Logging with Matchers {
     try {
       sc = new SparkContext(new SparkConf()
         .set("spark.dynamicAllocation.enabled", isDynamicAllocation)
-        .set("spark.shuffle.service.enabled", "true")
+        .set("spark.shuffle.service.enabled", isDynamicAllocation)
         .set(QUEUE_NAME, queueName)
         .setAppName(appName))
 
