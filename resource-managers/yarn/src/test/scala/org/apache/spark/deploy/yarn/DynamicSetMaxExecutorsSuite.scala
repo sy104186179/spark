@@ -54,7 +54,7 @@ import org.apache.spark.util.Utils
 class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   val cpuCores = 8
-  val numNodeManagers = 10
+  numNodeManagers = 10
   val coresTotal = cpuCores * numNodeManagers
   val queueNameRA = "ra"
   val queueNameRB = "rb"
@@ -94,19 +94,19 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     yarnConf
   }
 
-  test(s"run Spark in yarn-client mode with dynamicAllocation enabled and ${queueNameA1} queue") {
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue") {
     setMaxExecutors(3, queueNameA1, true)
   }
 
-  test(s"run Spark in yarn-client mode with dynamicAllocation enabled and ${queueNameA2} queue") {
-    setMaxExecutors(3, queueNameA2, true)
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA2} queue") {
+    setMaxExecutors(4, queueNameA2, true)
   }
 
-  test(s"run Spark in yarn-cluster mode with dynamicAllocation enabled and ${queueNameRB} queue") {
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameRB} queue") {
     setMaxExecutors(8, queueNameRB, true)
   }
 
-  test(s"run Spark in yarn-client mode with dynamicAllocation disabled and ${queueNameA1} queue") {
+  test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
     setMaxExecutors(Int.MaxValue, queueNameA1, false)
   }
 
@@ -116,8 +116,7 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(true,
       mainClassName(SetMaxExecutors.getClass),
-      appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
-      extraConf = Map("spark.hadoop.key" -> "value"))
+      appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString))
     checkResult(finalState, result, expectedExecutors.toString)
   }
 
@@ -150,4 +149,3 @@ private object SetMaxExecutors extends Logging with Matchers {
     }
   }
 }
-
