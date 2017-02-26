@@ -103,11 +103,11 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
 
   private def setMaxExecutors(expectedExecutors: Int,
                               queueName: String,
-                              isDynamicAllocation: Boolean): Unit = {
+                              isDynamic: Boolean): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(true,
       mainClassName(SetMaxExecutors.getClass),
-      appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString))
+      appArgs = Seq(result.getAbsolutePath, queueName, isDynamic.toString))
     checkResult(finalState, result, expectedExecutors.toString)
   }
 
