@@ -126,7 +126,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
           .set(QUEUE_NAME, "a1")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
-      sc.parallelize(1 to 10).count()
+      // sc.parallelize(1 to 10).count()
       assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = "success"
     } catch {
