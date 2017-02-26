@@ -97,17 +97,28 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     setMaxExecutors(80, queueNameRB, isDynamicAllocation)
   }
 
+  test(s"run Spark on YARN with dynamicAllocation enabled and ${queueNameA1} queue and " +
+    s"user set maxExecutors") {
+    setMaxExecutors(12, queueNameA1, isDynamicAllocation, 12)
+  }
+
   test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue") {
     setMaxExecutors(Int.MaxValue, queueNameA1, !isDynamicAllocation)
   }
 
+  test(s"run Spark on YARN with dynamicAllocation disabled and ${queueNameA1} queue and " +
+    s"user set maxExecutors") {
+    setMaxExecutors(12, queueNameA1, !isDynamicAllocation, 12)
+  }
+
   private def setMaxExecutors(expectedExecutors: Int,
                               queueName: String,
-                              isDynamic: Boolean): Unit = {
+                              isDynamic: Boolean,
+                              maxExecutors: Int = Int.MaxValue): Unit = {
     val result = File.createTempFile("result", null, tempDir)
     val finalState = runSpark(true,
       mainClassName(SetMaxExecutors.getClass),
-      appArgs = Seq(result.getAbsolutePath, queueName, isDynamic.toString))
+      appArgs = Seq(result.getAbsolutePath, queueName, isDynamic.toString, maxExecutors.toString))
     checkResult(finalState, result, expectedExecutors.toString)
   }
 
@@ -120,15 +131,23 @@ private object SetMaxExecutors extends Logging with Matchers {
     val status = new File(args(0))
     val queueName = args(1)
     val isDynamicAllocation = args(2)
+    val maxExecutors = args(3).toInt
     val appName = s"DynamicSetMaxExecutors-${isDynamicAllocation}-${queueName}"
 
     var sc: SparkContext = null
     try {
-      sc = new SparkContext(new SparkConf()
+      val conf = new SparkConf()
         .set("spark.dynamicAllocation.enabled", isDynamicAllocation)
         .set("spark.shuffle.service.enabled", isDynamicAllocation)
         .set(QUEUE_NAME, queueName)
-        .setAppName(appName))
+        .setAppName(appName)
+
+      // user manual set spark.dynamicAllocation.maxExecutors
+      if (Int.MaxValue != maxExecutors) {
+        conf.set(DYN_ALLOCATION_MAX_EXECUTORS, maxExecutors)
+      }
+
+      sc = new SparkContext(conf)
 
       result = sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString
     } finally {
