@@ -85,45 +85,45 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
   test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA1 } queue") {
     // a1's executors: 80 * 0.6 * 0.7 = 33
     setMaxExecutors(33, queueNameA1,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }")
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }")
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA2 } queue") {
     // a2's executors: 80 * 0.6 * 1 = 48
     setMaxExecutors(48, queueNameA2,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }")
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }")
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameRB } queue") {
     // b's executors: 80 * 1 = 80
     setMaxExecutors(80, queueNameRB,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }")
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }")
   }
 
   test(s"run Spark on YARN with dynamicAllocation enabled and ${ queueNameA1 } queue and " +
     s"user set maxExecutors") {
     val executors = 12
     setMaxExecutors(executors, queueNameA1,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }" +
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }" +
         s",${DYN_ALLOCATION_MAX_EXECUTORS.key}=${ executors }")
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${ queueNameA1 } queue") {
     setMaxExecutors(Int.MaxValue, queueNameA1,
-      s"spark.dynamicAllocation.enabled=${ !isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ !isDynamicAllocation }")
+      s"spark.dynamicAllocation.enabled=${ !isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ !isDynamicAllocation }")
   }
 
   test(s"run Spark on YARN with dynamicAllocation disabled and ${ queueNameA1 } queue and " +
     s"user set maxExecutors") {
     val executors = 12
     setMaxExecutors(executors, queueNameA1,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }" +
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }" +
         s",${DYN_ALLOCATION_MAX_EXECUTORS.key}=${ executors }")
   }
 
@@ -131,8 +131,8 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     s"user set spark.executor.cores") {
     // b's executors = 80 * 1 / 3 = 26
     setMaxExecutors(26, queueNameA1,
-      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }," +
-        s"spark.shuffle.service.enabled=${ isDynamicAllocation }" +
+      s"spark.dynamicAllocation.enabled=${ isDynamicAllocation }" +
+        s",spark.shuffle.service.enabled=${ isDynamicAllocation }" +
         s",${EXECUTOR_CORES.key}=3")
   }
 
@@ -161,6 +161,7 @@ private object SetMaxExecutors extends Logging with Matchers {
       val conf = new SparkConf()
         .setAppName(s"DynamicSetMaxExecutors-${ queueName }-${ extArgMaps }")
         .set(QUEUE_NAME, queueName)
+
       extArgMaps.split(",").foreach{ kv =>
         val confKVs = kv.split("=")
         conf.set(confKVs(0), confKVs(1))
