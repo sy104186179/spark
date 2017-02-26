@@ -27,6 +27,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 import org.apache.spark.SparkContext
+import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
@@ -93,7 +94,7 @@ private[spark] abstract class YarnSchedulerBackend(
     isUserSetMaxExecutors = DYN_ALLOCATION_MAX_EXECUTORS.defaultValue.get !=
       conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
     services.start(binding)
-    yarnClient.init(new YarnConfiguration())
+    yarnClient.init(SparkHadoopUtil.get.newConfiguration(conf).asInstanceOf[YarnConfiguration])
     yarnClient.start()
     super.start()
   }
