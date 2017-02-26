@@ -109,7 +109,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
       appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
     println(s"expectedExecutors:${expectedExecutors}")
-    // println(s"resultInt:${Files.toString(result, StandardCharsets.UTF_8).toInt}")
+    println(s"resultInt:${Files.toString(result, StandardCharsets.UTF_8).toInt}")
     checkResult(finalState, result, expectedExecutors.toString)
   }
 
@@ -133,7 +133,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
         .setAppName(appName))
 
       // sc.parallelize(1 to 10).count()
-      assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
+      // assert(sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS) === Int.MaxValue)
       result = sc.getConf.get(DYN_ALLOCATION_MAX_EXECUTORS).toString
     } catch {
       case ex: Exception => result = ex.getMessage
