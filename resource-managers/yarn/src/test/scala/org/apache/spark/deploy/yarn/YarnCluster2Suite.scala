@@ -104,14 +104,22 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
                                                  queueName: String,
                                                  isDynamicAllocation: Boolean): Unit = {
     val result = File.createTempFile("result", null, tempDir)
-    runSpark(true,
+    val finalState = runSpark(true,
       mainClassName(YarnClusterDriverUseSparkHadoopUtilConf2.getClass),
       appArgs = Seq(result.getAbsolutePath, queueName, isDynamicAllocation.toString),
       extraConf = Map("spark.hadoop.key" -> "value"))
-    val resultInt = Files.toString(result, StandardCharsets.UTF_8).toInt
     println(s"expectedExecutors:${expectedExecutors}")
-    println(s"resultInt:${resultInt}")
-    resultInt should be (expectedExecutors)
+    println(s"resultInt:${Files.toString(result, StandardCharsets.UTF_8).toInt}")
+    checkResult(finalState, result, expectedExecutors.toString)
+  }
+
+  override def checkResult(
+                             finalState: SparkAppHandle.State,
+                             result: File,
+                             expected: String): Unit = {
+    finalState should be (SparkAppHandle.State.FINISHED)
+    val resultString = Files.toString(result, StandardCharsets.UTF_8)
+    resultString should be (expected)
   }
 
 }
@@ -128,9 +136,9 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
     var sc: SparkContext = null
     try {
       sc = new SparkContext(new SparkConf()
-         .set("spark.dynamicAllocation.enabled", isDynamicAllocation)
-          .set("spark.shuffle.service.enabled", "true")
-          .set(QUEUE_NAME, queueName)
+        .set("spark.dynamicAllocation.enabled", isDynamicAllocation)
+        .set("spark.shuffle.service.enabled", "true")
+        .set(QUEUE_NAME, queueName)
         .setAppName(appName))
 
       // sc.parallelize(1 to 10).count()
