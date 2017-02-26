@@ -60,10 +60,14 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
   // override def newYarnConfig(): Configuration = new YarnConfiguration()
 
   override def newYarnConfig(): CapacitySchedulerConfiguration = {
-    val ra = CapacitySchedulerConfiguration.ROOT + ".ra"
-    val rb = CapacitySchedulerConfiguration.ROOT + ".rb"
-    val a1 = ra + ".a1"
-    val a2 = ra + ".a2"
+    val queueNameRA = "ra"
+    val queueNameRB = "rb"
+    val queueNameA1 = "a1"
+    val queueNameA2 = "a2"
+    val ra = CapacitySchedulerConfiguration.ROOT + "." + queueNameRA
+    val rb = CapacitySchedulerConfiguration.ROOT + "." + queueNameRB
+    val a1 = ra + "." + queueNameA1
+    val a2 = ra + "." + queueNameA2
 
     val aCapacity = 40F
     val aMaximumCapacity = 60F
@@ -78,7 +82,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
     val yarnConf = new CapacitySchedulerConfiguration()
 
     // Define top-level queues
-    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array("ra", "rb"))
+    yarnConf.setQueues(CapacitySchedulerConfiguration.ROOT, Array(queueNameRA, queueNameRB))
     yarnConf.setMaximumCapacity(CapacitySchedulerConfiguration.ROOT, 100)
     yarnConf.setCapacity(ra, aCapacity)
     yarnConf.setMaximumCapacity(ra, aMaximumCapacity)
@@ -86,7 +90,7 @@ class YarnCluster2Suite extends BaseYarnClusterSuite {
     yarnConf.setMaximumCapacity(rb, bMaximumCapacity)
 
     // Define 2nd-level queues
-    yarnConf.setQueues(ra, Array("a1", "a2"))
+    yarnConf.setQueues(ra, Array(queueNameA1, queueNameA2))
     yarnConf.setCapacity(a1, a1Capacity)
     yarnConf.setMaximumCapacity(a1, a1MaximumCapacity)
     yarnConf.setCapacity(a2, a2Capacity)
@@ -132,7 +136,7 @@ private object YarnClusterDriverUseSparkHadoopUtilConf2 extends Logging with Mat
       sc = new SparkContext(new SparkConf().setSparkHome("/root/opensource/spark")
          .set("spark.dynamicAllocation.enabled", "true")
           .set("spark.shuffle.service.enabled", "true")
-          .set(QUEUE_NAME, "ra")
+          .set(QUEUE_NAME, "a1")
          .set("spark.executor.memory", "10M").set("spark.yarn.am.memory", "10M")
         .setAppName("yarn test using SparkHadoopUtil's conf"))
 
