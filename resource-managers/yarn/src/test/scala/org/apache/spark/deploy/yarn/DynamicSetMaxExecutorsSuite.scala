@@ -98,8 +98,16 @@ class DynamicSetMaxExecutorsSuite extends BaseYarnClusterSuite {
     setMaxExecutors(3, queueNameA1, true)
   }
 
-  test(s"run Spark in yarn-cluster mode with dynamicAllocation enabled and ${queueNameA1} queue") {
+  test(s"run Spark in yarn-client mode with dynamicAllocation enabled and ${queueNameA2} queue") {
+    setMaxExecutors(3, queueNameA2, true)
+  }
+
+  test(s"run Spark in yarn-cluster mode with dynamicAllocation enabled and ${queueNameRB} queue") {
     setMaxExecutors(8, queueNameRB, true)
+  }
+
+  test(s"run Spark in yarn-client mode with dynamicAllocation disabled and ${queueNameA1} queue") {
+    setMaxExecutors(Int.MaxValue, queueNameA1, false)
   }
 
   private def setMaxExecutors(expectedExecutors: Int,
