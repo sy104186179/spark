@@ -349,9 +349,15 @@ private[spark] class ExecutorAllocationManager(
    */
   private def addExecutors(maxNumExecutorsNeeded: Int): Int = {
     // Do not request more executors if it would put our target over the upper bound
-
-    maxNumExecutors = conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
     logWarning(s"ExecutorAllocationManager.addExecutors: ${maxNumExecutors}")
+
+    if (maxNumExecutors != conf.get(DYN_ALLOCATION_MAX_EXECUTORS)) {
+      maxNumExecutors = conf.get(DYN_ALLOCATION_MAX_EXECUTORS)
+      val schedulingMode = listenerBus.sparkContext.getSchedulingMode.toString
+      val envDetails = SparkEnv.environmentDetails(conf, schedulingMode, Seq.empty, Seq.empty)
+      val event = SparkListenerEnvironmentUpdate(envDetails)
+      listenerBus.postToAll(event)
+    }
 
     if (numExecutorsTarget >= maxNumExecutors) {
       logWarning(s"Not adding executors because our current target total " +
