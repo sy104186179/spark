@@ -691,20 +691,27 @@ private[hive] class HiveClientImpl(
       isSrcLocal: Boolean): Unit = withHiveState {
     val tbl = client.getTable(tableName)
     val fs = tbl.getDataLocation.getFileSystem(conf)
-    shim.moveFile(
-      client,
-      conf,
-      new Path(loadPath),
-      tbl.getPath,
-      fs,
-      replace,
-      isSrcLocal)
-//  shim.loadTable(loadPath
-//      client,
-//      new Path(loadPath),
-//      tableName,
-//      replace,
-//      isSrcLocal)
+    val moveFile = sparkConf.get("spark.sql.useMoveFile", "true").toBoolean
+    val start = System.currentTimeMillis()
+    if (moveFile) {
+      shim.moveFile(
+        client,
+        conf,
+        new Path(loadPath),
+        tbl.getPath,
+        fs,
+        replace,
+        isSrcLocal)
+    } else {
+      shim.loadTable(
+        client,
+        new Path(loadPath),
+        tableName,
+        replace,
+        isSrcLocal)
+    }
+    val end = System.currentTimeMillis()
+    logWarning(s"moveFile: ${moveFile}, time: ${end - start}")
   }
 
   def loadDynamicPartitions(
