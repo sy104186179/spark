@@ -107,6 +107,15 @@ private[client] sealed abstract class Shim {
       replace: Boolean,
       isSrcLocal: Boolean): Unit
 
+  def moveFile(
+      hive: Hive,
+      conf: HiveConf,
+      srcf: Path,
+      destf: Path,
+      fs: FileSystem,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit
+
   def loadDynamicPartitions(
       hive: Hive,
       loadPath: Path,
@@ -220,6 +229,16 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       "loadTable",
       classOf[Path],
       classOf[String],
+      JBoolean.TYPE,
+      JBoolean.TYPE)
+  private lazy val moveFileMethod =
+    findMethod(
+      classOf[Hive],
+      "moveFile",
+      classOf[HiveConf],
+      classOf[Path],
+      classOf[Path],
+      classOf[FileSystem],
       JBoolean.TYPE,
       JBoolean.TYPE)
   private lazy val loadDynamicPartitionsMethod =
@@ -343,6 +362,17 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       replace: Boolean,
       isSrcLocal: Boolean): Unit = {
     loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, JBoolean.FALSE)
+  }
+
+  override def moveFile(
+      hive: Hive,
+      conf: HiveConf,
+      srcf: Path,
+      destf: Path,
+      fs: FileSystem,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit = {
+    moveFileMethod.invoke(hive, conf, srcf, destf, fs, replace, isSrcLocal)
   }
 
   override def loadDynamicPartitions(

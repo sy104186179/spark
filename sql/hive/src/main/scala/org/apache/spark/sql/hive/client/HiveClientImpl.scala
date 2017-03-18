@@ -689,12 +689,22 @@ private[hive] class HiveClientImpl(
       tableName: String,
       replace: Boolean,
       isSrcLocal: Boolean): Unit = withHiveState {
-    shim.loadTable(
+    val tbl = client.getTable(tableName)
+    val fs = tbl.getDataLocation.getFileSystem(conf)
+    shim.moveFile(
       client,
+      conf,
       new Path(loadPath),
-      tableName,
+      tbl.getPath,
+      fs,
       replace,
       isSrcLocal)
+//  shim.loadTable(loadPath
+//      client,
+//      new Path(loadPath),
+//      tableName,
+//      replace,
+//      isSrcLocal)
   }
 
   def loadDynamicPartitions(
