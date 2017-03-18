@@ -372,7 +372,7 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       fs: FileSystem,
       replace: Boolean,
       isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, fs, replace, isSrcLocal)
+    moveFileMethod.invoke(hive, conf, srcf, destf, fs, replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def loadDynamicPartitions(
