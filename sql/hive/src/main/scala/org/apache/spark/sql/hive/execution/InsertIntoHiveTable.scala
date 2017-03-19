@@ -295,11 +295,20 @@ case class InsertIntoHiveTable(
       }
     }
 
-    val committer = FileCommitProtocol.instantiate(
-      sparkSession.sessionState.conf.fileCommitProtocolClass,
-      jobId = java.util.UUID.randomUUID().toString,
-      outputPath = tmpLocation.toString,
-      isAppend = false)
+    var committer: FileCommitProtocol = null
+    if (partition.nonEmpty) {
+      committer = FileCommitProtocol.instantiate(
+        sparkSession.sessionState.conf.fileCommitProtocolClass,
+        jobId = java.util.UUID.randomUUID().toString,
+        outputPath = tmpLocation.toString,
+        isAppend = false)
+    } else {
+      committer = FileCommitProtocol.instantiate(
+        sparkSession.sessionState.conf.fileCommitProtocolClass,
+        jobId = java.util.UUID.randomUUID().toString,
+        outputPath = externalCatalog.getTable(table.database, table.identifier.table).location,
+        isAppend = overwrite)
+    }
 
     val partitionAttributes = partitionColumnNames.takeRight(numDynamicPartitions).map { name =>
       query.resolve(name :: Nil, sparkSession.sessionState.analyzer.resolver).getOrElse {
@@ -376,12 +385,12 @@ case class InsertIntoHiveTable(
         }
       }
     } else {
-      externalCatalog.loadTable(
-        table.database,
-        table.identifier.table,
-        tmpLocation.toString, // TODO: URI
-        overwrite,
-        isSrcLocal = false)
+//      externalCatalog.loadTable(
+//        table.database,
+//        table.identifier.table,
+//        tmpLocation.toString, // TODO: URI
+//        overwrite,
+//        isSrcLocal = false)
     }
 
     // Attempt to delete the staging directory and the inclusive files. If failed, the files are
