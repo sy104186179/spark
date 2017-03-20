@@ -296,17 +296,20 @@ case class InsertIntoHiveTable(
     }
 
     var committer: FileCommitProtocol = null
+    var outputPath: String = null
     if (partition.nonEmpty) {
+      outputPath = externalCatalog.getTable(table.database, table.identifier.table).location
       committer = FileCommitProtocol.instantiate(
         sparkSession.sessionState.conf.fileCommitProtocolClass,
         jobId = java.util.UUID.randomUUID().toString,
-        outputPath = externalCatalog.getTable(table.database, table.identifier.table).location,
+        outputPath = outputPath,
         isAppend = overwrite)
     } else {
+      outputPath = tmpLocation.toString
       committer = FileCommitProtocol.instantiate(
         sparkSession.sessionState.conf.fileCommitProtocolClass,
         jobId = java.util.UUID.randomUUID().toString,
-        outputPath = tmpLocation.toString,
+        outputPath = outputPath,
         isAppend = false)
     }
 
@@ -322,7 +325,7 @@ case class InsertIntoHiveTable(
       queryExecution = Dataset.ofRows(sparkSession, query).queryExecution,
       fileFormat = new HiveFileFormat(fileSinkConf),
       committer = committer,
-      outputSpec = FileFormatWriter.OutputSpec(tmpLocation.toString, Map.empty),
+      outputSpec = FileFormatWriter.OutputSpec(outputPath, Map.empty),
       hadoopConf = hadoopConf,
       partitionColumns = partitionAttributes,
       bucketSpec = None,
