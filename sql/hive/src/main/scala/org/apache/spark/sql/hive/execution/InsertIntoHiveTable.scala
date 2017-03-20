@@ -300,14 +300,14 @@ case class InsertIntoHiveTable(
       committer = FileCommitProtocol.instantiate(
         sparkSession.sessionState.conf.fileCommitProtocolClass,
         jobId = java.util.UUID.randomUUID().toString,
-        outputPath = tmpLocation.toString,
-        isAppend = false)
+        outputPath = externalCatalog.getTable(table.database, table.identifier.table).location,
+        isAppend = overwrite)
     } else {
       committer = FileCommitProtocol.instantiate(
         sparkSession.sessionState.conf.fileCommitProtocolClass,
         jobId = java.util.UUID.randomUUID().toString,
-        outputPath = externalCatalog.getTable(table.database, table.identifier.table).location,
-        isAppend = overwrite)
+        outputPath = tmpLocation.toString,
+        isAppend = false)
     }
 
     val partitionAttributes = partitionColumnNames.takeRight(numDynamicPartitions).map { name =>
