@@ -310,7 +310,7 @@ case class InsertIntoHiveTable(
         sparkSession.sessionState.conf.fileCommitProtocolClass,
         jobId = java.util.UUID.randomUUID().toString,
         outputPath = outputPath,
-        isAppend = overwrite)
+        isAppend = !overwrite)
     }
 
     val partitionAttributes = partitionColumnNames.takeRight(numDynamicPartitions).map { name =>
