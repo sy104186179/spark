@@ -697,7 +697,6 @@ private[hive] class HiveClientImpl(
     val tbl = client.getTable(tableName)
     val fs = tbl.getDataLocation.getFileSystem(conf)
     val moveFile = sparkConf.get("spark.sql.useMoveFile", "true").toBoolean
-    val start = System.currentTimeMillis()
     if (moveFile) {
       shim.moveFile(
         client,
@@ -715,8 +714,6 @@ private[hive] class HiveClientImpl(
         replace,
         isSrcLocal)
     }
-    val end = System.currentTimeMillis()
-    logWarning(s"moveFile: ${moveFile}, time: ${end - start}")
   }
 
   def loadDynamicPartitions(
