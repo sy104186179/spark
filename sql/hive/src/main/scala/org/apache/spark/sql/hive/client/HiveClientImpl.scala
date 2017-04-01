@@ -696,7 +696,7 @@ private[hive] class HiveClientImpl(
       isSrcLocal: Boolean): Unit = withHiveState {
     val tbl = client.getTable(tableName)
     val fs = tbl.getDataLocation.getFileSystem(conf)
-    val moveFile = sparkConf.get("spark.sql.useMoveFile", "true").toBoolean
+    val moveFile = sparkConf.getBoolean("spark.sql.useMoveFile", true)
     if (moveFile) {
       shim.moveFile(
         client,
