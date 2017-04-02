@@ -18,6 +18,7 @@
 package org.apache.spark.sql.hive.client
 
 import java.io.{File, PrintStream}
+import java.net.URI
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -695,7 +696,12 @@ private[hive] class HiveClientImpl(
       replace: Boolean,
       isSrcLocal: Boolean): Unit = withHiveState {
     val tbl = client.getTable(tableName)
-    val fs = tbl.getDataLocation.getFileSystem(conf)
+    val dataLocation = tbl.getDataLocation.asInstanceOf[Any] match {
+      case p: Path => p
+      // Compatible with hive 0.12.
+      case u: URI => new Path(u)
+    }
+    val fs = dataLocation.getFileSystem(conf)
     if (replace) {
       shim.moveFile(
         client,
