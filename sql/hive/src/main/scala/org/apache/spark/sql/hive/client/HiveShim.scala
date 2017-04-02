@@ -126,7 +126,6 @@ private[client] sealed abstract class Shim {
       conf: HiveConf,
       srcf: Path,
       destf: Path,
-      fs: FileSystem,
       replace: Boolean,
       isSrcLocal: Boolean): Unit
 
@@ -258,7 +257,6 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       classOf[HiveConf],
       classOf[Path],
       classOf[Path],
-      classOf[FileSystem],
       JBoolean.TYPE,
       JBoolean.TYPE)
   private lazy val dropIndexMethod =
@@ -402,10 +400,10 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       conf: HiveConf,
       srcf: Path,
       destf: Path,
-      fs: FileSystem,
       replace: Boolean,
       isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, fs, replace: JBoolean, isSrcLocal: JBoolean)
+    moveFileMethod.invoke(hive, conf, srcf, destf, destf.getFileSystem(conf),
+      replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def dropIndex(hive: Hive, dbName: String, tableName: String, indexName: String): Unit = {
@@ -1029,6 +1027,15 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
       JLong.TYPE,
       JBoolean.TYPE,
       classOf[AcidUtils.Operation])
+  private lazy val moveFileMethod =
+    findMethod(
+      classOf[Hive],
+      "moveFile",
+      classOf[HiveConf],
+      classOf[Path],
+      classOf[Path],
+      JBoolean.TYPE,
+      JBoolean.TYPE)
   private lazy val alterTableMethod =
     findMethod(
       classOf[Hive],
@@ -1079,6 +1086,16 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, listBucketingEnabled: JBoolean, isAcid, txnIdInLoadDynamicPartitions,
       hasFollowingStatsTask, AcidUtils.Operation.NOT_ACID)
+  }
+
+  override def moveFile(
+      hive: Hive,
+      conf: HiveConf,
+      srcf: Path,
+      destf: Path,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit = {
+    moveFileMethod.invoke(hive, conf, srcf, destf, replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def alterTable(hive: Hive, tableName: String, table: Table): Unit = {
