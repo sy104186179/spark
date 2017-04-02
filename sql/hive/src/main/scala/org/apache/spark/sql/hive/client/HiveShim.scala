@@ -873,6 +873,7 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
       classOf[HiveConf],
       classOf[Path],
       classOf[Path],
+      classOf[FileSystem],
       JBoolean.TYPE,
       JBoolean.TYPE)
 
