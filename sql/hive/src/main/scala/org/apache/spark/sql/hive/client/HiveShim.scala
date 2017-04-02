@@ -866,6 +866,16 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
       JBoolean.TYPE,
       JLong.TYPE)
 
+  private lazy val moveFileMethod =
+    findMethod(
+      classOf[Hive],
+      "moveFile",
+      classOf[HiveConf],
+      classOf[Path],
+      classOf[Path],
+      JBoolean.TYPE,
+      JBoolean.TYPE)
+
   private lazy val dropOptionsClass =
       Utils.classForName("org.apache.hadoop.hive.metastore.PartitionDropOptions")
   private lazy val dropOptionsDeleteData = dropOptionsClass.getField("deleteData")
@@ -890,6 +900,17 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, holdDDLTime, listBucketingEnabled: JBoolean, isAcid,
       txnIdInLoadDynamicPartitions)
+  }
+
+  override def moveFile(
+      hive: Hive,
+      conf: HiveConf,
+      srcf: Path,
+      destf: Path,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit = {
+    moveFileMethod.invoke(hive, conf, srcf, destf, destf.getFileSystem(conf),
+      replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def dropPartition(
