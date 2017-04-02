@@ -121,14 +121,6 @@ private[client] sealed abstract class Shim {
       numDP: Int,
       listBucketingEnabled: Boolean): Unit
 
-  def moveFile(
-      hive: Hive,
-      conf: HiveConf,
-      srcf: Path,
-      destf: Path,
-      replace: Boolean,
-      isSrcLocal: Boolean): Unit
-
   def createFunction(hive: Hive, db: String, func: CatalogFunction): Unit
 
   def dropFunction(hive: Hive, db: String, name: String): Unit
@@ -248,15 +240,6 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       classOf[JMap[String, String]],
       JBoolean.TYPE,
       JInteger.TYPE,
-      JBoolean.TYPE,
-      JBoolean.TYPE)
-  private lazy val moveFileMethod =
-    findMethod(
-      classOf[Hive],
-      "moveFile",
-      classOf[HiveConf],
-      classOf[Path],
-      classOf[Path],
       JBoolean.TYPE,
       JBoolean.TYPE)
   private lazy val dropIndexMethod =
@@ -393,17 +376,6 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       listBucketingEnabled: Boolean): Unit = {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, holdDDLTime, listBucketingEnabled: JBoolean)
-  }
-
-  override def moveFile(
-      hive: Hive,
-      conf: HiveConf,
-      srcf: Path,
-      destf: Path,
-      replace: Boolean,
-      isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, destf.getFileSystem(conf),
-      replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def dropIndex(hive: Hive, dbName: String, tableName: String, indexName: String): Unit = {
@@ -830,6 +802,27 @@ private[client] class Shim_v1_1 extends Shim_v1_0 {
   // throws an exception if the index does not exist
   protected lazy val throwExceptionInDropIndex = JBoolean.TRUE
 
+  private lazy val loadTableMethod =
+    findMethod(
+      classOf[Hive],
+      "loadTable",
+      classOf[Path],
+      classOf[String],
+      JBoolean.TYPE,
+      JBoolean.TYPE,
+      JBoolean.TYPE,
+      JBoolean.TYPE,
+      JBoolean.TYPE)
+  private lazy val moveFileMethod =
+    findMethod(
+      classOf[Hive],
+      "moveFile",
+      classOf[HiveConf],
+      classOf[Path],
+      classOf[Path],
+      classOf[FileSystem],
+      JBoolean.TYPE,
+      JBoolean.TYPE)
   private lazy val dropIndexMethod =
     findMethod(
       classOf[Hive],
@@ -839,6 +832,21 @@ private[client] class Shim_v1_1 extends Shim_v1_0 {
       classOf[String],
       JBoolean.TYPE,
       JBoolean.TYPE)
+  override def loadTable(
+      hive: Hive,
+      loadPath: Path,
+      tableName: String,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit = {
+    if (replace) {
+      val tbl = hive.getTable(tableName)
+      moveFileMethod.invoke(hive, hive.getConf, loadPath, tbl.getPath,
+        tbl.getPath.getFileSystem(hive.getConf), replace: JBoolean, isSrcLocal: JBoolean)
+    } else {
+      loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, holdDDLTime,
+        isSrcLocal: JBoolean, isSkewedStoreAsSubdir, isAcid)
+    }
+  }
 
   override def dropIndex(hive: Hive, dbName: String, tableName: String, indexName: String): Unit = {
     dropIndexMethod.invoke(hive, dbName, tableName, indexName, throwExceptionInDropIndex,
@@ -866,17 +874,6 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
       JBoolean.TYPE,
       JLong.TYPE)
 
-  private lazy val moveFileMethod =
-    findMethod(
-      classOf[Hive],
-      "moveFile",
-      classOf[HiveConf],
-      classOf[Path],
-      classOf[Path],
-      classOf[FileSystem],
-      JBoolean.TYPE,
-      JBoolean.TYPE)
-
   private lazy val dropOptionsClass =
       Utils.classForName("org.apache.hadoop.hive.metastore.PartitionDropOptions")
   private lazy val dropOptionsDeleteData = dropOptionsClass.getField("deleteData")
@@ -901,17 +898,6 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, holdDDLTime, listBucketingEnabled: JBoolean, isAcid,
       txnIdInLoadDynamicPartitions)
-  }
-
-  override def moveFile(
-      hive: Hive,
-      conf: HiveConf,
-      srcf: Path,
-      destf: Path,
-      replace: Boolean,
-      isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, destf.getFileSystem(conf),
-      replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def dropPartition(
@@ -994,8 +980,14 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
       tableName: String,
       replace: Boolean,
       isSrcLocal: Boolean): Unit = {
-    loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, isSrcLocal: JBoolean,
-      isSkewedStoreAsSubdir, isAcid)
+    if (replace) {
+      val tbl = hive.getTable(tableName)
+      moveFileMethod.invoke(hive, hive.getConf, loadPath, tbl.getPath,
+        replace: JBoolean, isSrcLocal: JBoolean)
+    } else {
+      loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, holdDDLTime,
+        isSrcLocal: JBoolean, isSkewedStoreAsSubdir, isAcid)
+    }
   }
 
   override def loadDynamicPartitions(
@@ -1008,16 +1000,6 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
       listBucketingEnabled: Boolean): Unit = {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, listBucketingEnabled: JBoolean, isAcid, txnIdInLoadDynamicPartitions)
-  }
-
-  override def moveFile(
-      hive: Hive,
-      conf: HiveConf,
-      srcf: Path,
-      destf: Path,
-      replace: Boolean,
-      isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, replace: JBoolean, isSrcLocal: JBoolean)
   }
 
 }
