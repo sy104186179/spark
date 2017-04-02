@@ -964,6 +964,15 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
       JBoolean.TYPE,
       JBoolean.TYPE,
       JLong.TYPE)
+  private lazy val moveFileMethod =
+    findMethod(
+      classOf[Hive],
+      "moveFile",
+      classOf[HiveConf],
+      classOf[Path],
+      classOf[Path],
+      JBoolean.TYPE,
+      JBoolean.TYPE)
 
   override def loadPartition(
       hive: Hive,
@@ -999,6 +1008,16 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
       listBucketingEnabled: Boolean): Unit = {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, listBucketingEnabled: JBoolean, isAcid, txnIdInLoadDynamicPartitions)
+  }
+
+  override def moveFile(
+      hive: Hive,
+      conf: HiveConf,
+      srcf: Path,
+      destf: Path,
+      replace: Boolean,
+      isSrcLocal: Boolean): Unit = {
+    moveFileMethod.invoke(hive, conf, srcf, destf, replace: JBoolean, isSrcLocal: JBoolean)
   }
 
 }
@@ -1049,15 +1068,6 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
       JLong.TYPE,
       JBoolean.TYPE,
       classOf[AcidUtils.Operation])
-  private lazy val moveFileMethod =
-    findMethod(
-      classOf[Hive],
-      "moveFile",
-      classOf[HiveConf],
-      classOf[Path],
-      classOf[Path],
-      JBoolean.TYPE,
-      JBoolean.TYPE)
   private lazy val alterTableMethod =
     findMethod(
       classOf[Hive],
@@ -1108,16 +1118,6 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
     loadDynamicPartitionsMethod.invoke(hive, loadPath, tableName, partSpec, replace: JBoolean,
       numDP: JInteger, listBucketingEnabled: JBoolean, isAcid, txnIdInLoadDynamicPartitions,
       hasFollowingStatsTask, AcidUtils.Operation.NOT_ACID)
-  }
-
-  override def moveFile(
-      hive: Hive,
-      conf: HiveConf,
-      srcf: Path,
-      destf: Path,
-      replace: Boolean,
-      isSrcLocal: Boolean): Unit = {
-    moveFileMethod.invoke(hive, conf, srcf, destf, replace: JBoolean, isSrcLocal: JBoolean)
   }
 
   override def alterTable(hive: Hive, tableName: String, table: Table): Unit = {
