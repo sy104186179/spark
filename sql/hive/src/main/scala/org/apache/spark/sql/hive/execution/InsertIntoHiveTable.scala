@@ -238,7 +238,6 @@ case class InsertIntoHiveTable(
       hiveQlTable.getMetadata
     )
     val tableLocation = hiveQlTable.getDataLocation
-    "file:/tmp/warehouse-82a248a5-3e7c-4df1-a181-6053ff13c1b6"
     val tmpLocation =
       getExternalTmpPath(tableLocation, hiveVersion, hadoopConf, stagingDir, scratchDir)
     val fileSinkConf = new FileSinkDesc(tmpLocation.toString, tableDesc, false)
