@@ -1801,6 +1801,7 @@ class HiveDDLSuite
           } else {
             val e = intercept[AnalysisException] {
               spark.sql("INSERT INTO TABLE t SELECT 1")
+              spark.sql("SELECT COUNT(*) FROM t")
             }.getMessage
             assert(e.contains("java.net.URISyntaxException: Relative path in absolute URI: a:b"))
           }
