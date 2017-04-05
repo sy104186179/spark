@@ -697,12 +697,13 @@ private[hive] class HiveClientImpl(
       isSrcLocal: Boolean): Unit = withHiveState {
     if (replace) {
       val tbl = client.getTable(tableName)
-      val fs = tbl.getDataLocation.getFileSystem(conf)
+      val dataLocation = tbl.getPath
+      val fs = dataLocation.getFileSystem(conf)
       shim.moveFile(
         client,
         conf,
         new Path(loadPath),
-        tbl.getPath,
+        dataLocation,
         fs,
         tableName,
         replace,
