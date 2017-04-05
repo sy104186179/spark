@@ -985,6 +985,7 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
       val tbl = hive.getTable(tableName)
       moveFileMethod.invoke(hive, hive.getConf, loadPath, tbl.getPath,
         replace: JBoolean, isSrcLocal: JBoolean)
+      alterTable(hive, tableName, tbl)
     } else {
       loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, holdDDLTime,
         isSrcLocal: JBoolean, isSkewedStoreAsSubdir, isAcid)
