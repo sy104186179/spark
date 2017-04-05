@@ -987,8 +987,8 @@ private[client] class Shim_v2_0 extends Shim_v1_2 {
         replace: JBoolean, isSrcLocal: JBoolean)
       alterTable(hive, tableName, tbl)
     } else {
-      loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, holdDDLTime,
-        isSrcLocal: JBoolean, isSkewedStoreAsSubdir, isAcid)
+      loadTableMethod.invoke(hive, loadPath, tableName, replace: JBoolean, isSrcLocal: JBoolean,
+        isSkewedStoreAsSubdir, isAcid)
     }
   }
 
