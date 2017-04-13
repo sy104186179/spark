@@ -93,7 +93,9 @@ private[netty] class NettyStreamManager(rpcEnv: NettyRpcEnv)
     val fileName = uri.getPath.split("/").last
     val file = jars.get(fileName)
     jars.remove(fileName)
-    file.delete()
+    if (uri.getScheme.equals("spark")) {
+      file.delete()
+    }
     !jars.containsKey(fileName)
   }
 

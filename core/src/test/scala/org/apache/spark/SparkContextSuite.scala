@@ -323,14 +323,19 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext with Eventu
 
   test("remove jar") {
     val tmpDir = Utils.createTempDir()
-    val tmpJar = File.createTempFile("test-1.0.0", ".jar", tmpDir)
-
-    tmpJar.getName
+    val tmpJar = File.createTempFile("test-1.1.0", ".jar", tmpDir)
 
     sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
     sc.addJar(tmpJar.getAbsolutePath)
     sc.listJars().size should be (1)
     sc.removeJar(sc.listJars().head)
+    sc.listJars().size should be (0)
+
+    // hdfs
+    val hdfsFile = "hdfs://nn:8020/jar/test-1.2.0.jar"
+    sc.addJar(hdfsFile)
+    sc.listJars().size should be (1)
+    sc.removeJar(hdfsFile)
     sc.listJars().size should be (0)
 
     assert (sc.parallelize(Array(1, 2, 3)).count === 3)
