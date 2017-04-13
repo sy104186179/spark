@@ -1847,6 +1847,26 @@ class SparkContext(config: SparkConf) extends Logging {
   }
 
   /**
+   * Removes a JAR dependency on this `SparkContext` added by `sc.addJar`.
+   * @param uri can be found at EnvironmentTab.
+   */
+  def removeJar(uri: String) {
+    removeJar(URI.create(uri))
+  }
+
+  def removeJar(uri: URI) {
+    if (uri == null) {
+      logWarning("null specified as parameter to removeJar")
+    } else {
+      Utils.validateURL(uri)
+      if (env.rpcEnv.fileServer.removeJar(uri)) {
+        addedJars.remove(uri.toString)
+        postEnvironmentUpdate()
+      }
+    }
+  }
+
+  /**
    * Returns a list of jar files that are added to resources.
    */
   def listJars(): Seq[String] = addedJars.keySet.toSeq

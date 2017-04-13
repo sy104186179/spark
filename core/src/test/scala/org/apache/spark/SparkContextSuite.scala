@@ -321,6 +321,21 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext with Eventu
     assert (sc.parallelize(Array(1, 2, 3)).count === 3)
   }
 
+  test("remove jar") {
+    val tmpDir = Utils.createTempDir()
+    val tmpJar = File.createTempFile("test-1.0.0", ".jar", tmpDir)
+
+    tmpJar.getName
+
+    sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+    sc.addJar(tmpJar.getAbsolutePath)
+    sc.listJars().size should be (1)
+    sc.removeJar(sc.listJars().head)
+    sc.listJars().size should be (0)
+
+    assert (sc.parallelize(Array(1, 2, 3)).count === 3)
+  }
+
   test("Cancelling job group should not cause SparkContext to shutdown (SPARK-6414)") {
     try {
       sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
