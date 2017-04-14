@@ -90,13 +90,12 @@ private[netty] class NettyStreamManager(rpcEnv: NettyRpcEnv)
   }
 
   override def removeJar(uri: URI): Boolean = {
-    val fileName = uri.getPath.split("/").last
-    val file = jars.get(fileName)
-    jars.remove(fileName)
-    if (uri.getScheme.equals("spark")) {
-      file.delete()
+    val jarName = uri.getPath.split("/").last
+    val jarFile = jars.remove(jarName)
+    if (null != jarFile) {
+      jarFile.delete()
     }
-    !jars.containsKey(fileName)
+    !jars.containsKey(jarName)
   }
 
 }
