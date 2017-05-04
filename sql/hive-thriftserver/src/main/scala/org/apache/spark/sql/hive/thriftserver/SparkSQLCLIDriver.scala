@@ -254,14 +254,6 @@ private[hive] object SparkSQLCLIDriver extends Logging {
       line = reader.readLine(currentPrompt + "> ")
     }
 
-    def setConfMap(confMap: java.util.Map[String, String]): Unit = {
-      val iterator = confMap.entrySet().iterator()
-      while (iterator.hasNext) {
-        val kv = iterator.next()
-        SparkSQLEnv.sqlContext.setConf(kv.getKey, kv.getValue)
-      }
-    }
-
     sessionState.close()
 
     System.exit(ret)
@@ -271,6 +263,14 @@ private[hive] object SparkSQLCLIDriver extends Logging {
   def isRemoteMode(state: CliSessionState): Boolean = {
     //    sessionState.isRemoteMode
     state.isHiveServerQuery
+  }
+
+  def setConfMap(confMap: java.util.Map[String, String]): Unit = {
+    val iterator = confMap.entrySet().iterator()
+    while (iterator.hasNext) {
+      val kv = iterator.next()
+      SparkSQLEnv.sqlContext.setConf(kv.getKey, kv.getValue)
+    }
   }
 
 }
