@@ -281,11 +281,7 @@ private[hive] class SparkSQLCLIDriver extends CliDriver with Logging {
 
   private val LOG = LogFactory.getLog(classOf[SparkSQLCLIDriver])
 
-  private val console = new SessionState.LogHelper(LOG)
-
-  if (sessionState.getIsSilent) {
-    Logger.getRootLogger.setLevel(Level.WARN)
-  }
+  private val console = new SessionState.LogHelper(LOG, sessionState.getIsSilent)
 
   private val isRemoteMode = {
     SparkSQLCLIDriver.isRemoteMode(sessionState)
