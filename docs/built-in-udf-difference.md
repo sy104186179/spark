@@ -40,7 +40,6 @@ BRound | Only Spark support this function. | - | - | - | -
 ## arithmetic.scala
 udf name | desc diff | spark | hive | mysql | oracle | PR
 ---|---|---|---|---|---|---
-Pmod | Spark and Hive support this function, Pmod(10,0) result difference. | Pmod(10,0) -> ArithmeticException: | Pmod(10,0) -> null | - | - | -
 Least, Greatest | Spark and Hive doesn't support string type, Hive doesn't support double type. | - | - | - | - | -
 
 ## stringExpressions.scala
