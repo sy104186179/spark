@@ -49,9 +49,12 @@ object CostBasedJoinReorder extends Rule[LogicalPlan] with PredicateHelper {
           reorder(p, p.output)
       }
       // After reordering is finished, convert OrderedJoin back to Join
-      result transformDown {
+      val ret = result transformDown {
         case OrderedJoin(left, right, jt, cond) => Join(left, right, jt, cond)
       }
+      logInfo(plan.prettyJson)
+      logInfo(ret.prettyJson)
+      ret
     }
   }
 
