@@ -37,7 +37,8 @@ object CostBasedJoinReorder extends Rule[LogicalPlan] with PredicateHelper {
   private def conf = SQLConf.get
 
   def apply(plan: LogicalPlan): LogicalPlan = {
-    if (!conf.cboEnabled || !conf.joinReorderEnabled) {
+    if (!conf.cboEnabled || !conf.joinReorderEnabled ||
+      !plan.children.exists(_.isInstanceOf[Join])) {
       plan
     } else {
       val result = plan transformDown {
@@ -52,9 +53,9 @@ object CostBasedJoinReorder extends Rule[LogicalPlan] with PredicateHelper {
       val ret = result transformDown {
         case OrderedJoin(left, right, jt, cond) => Join(left, right, jt, cond)
       }
-      logInfo(plan.prettyJson)
-      logInfo(ret.prettyJson)
-      ret
+      logInfo(plan.treeString)
+      logInfo(ret.treeString)
+      plan
     }
   }
 
