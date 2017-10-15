@@ -61,7 +61,7 @@ object CostBasedJoinReorder extends Rule[LogicalPlan] with PredicateHelper {
       // Do reordering if the number of items is appropriate and join conditions exist.
       // We also need to check if costs of all items can be evaluated.
       if (items.size > 2 && items.size <= conf.joinReorderDPThreshold && conditions.nonEmpty &&
-          items.forall(_.stats.rowCount.isDefined)) {
+          items.forall(_.stats.rowCount.isDefined) && items.forall(_.stats.rowCount.get > 0L)) {
         JoinReorderDP.search(conf, items, conditions, output)
       } else {
         plan
