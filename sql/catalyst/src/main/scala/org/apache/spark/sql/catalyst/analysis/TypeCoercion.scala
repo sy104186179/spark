@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 
@@ -44,7 +45,7 @@ import org.apache.spark.sql.types._
  */
 object TypeCoercion {
 
-  val typeCoercionRules =
+  private val commonTypeCoercionRules =
     PropagateTypes ::
       InConversion ::
       WidenSetOperationTypes ::
@@ -61,6 +62,15 @@ object TypeCoercion {
       DateTimeOperations ::
       WindowFrameCoercion ::
       Nil
+
+  def rules(conf: SQLConf): List[Rule[LogicalPlan]] = {
+    if (conf.getConf[Boolean](SQLConf.STRING_COMPARE_CASE_INSENSITIVE)) {
+      commonTypeCoercionRules :+
+        StringCompareCaseInsensitive
+    } else {
+      commonTypeCoercionRules
+    }
+  }
 
   // See https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types.
   // The conversion for integral and floating point types have a linear widening hierarchy:
@@ -332,6 +342,16 @@ object TypeCoercion {
         case (e, _) => e
       }
       Project(casted, plan)
+    }
+  }
+
+  object StringCompareCaseInsensitive extends Rule[LogicalPlan] {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
+      case e if !e.childrenResolved => e
+      case p @ Equality(left @ StringType(), right @ StringType()) =>
+        p.makeCopy(Array(Upper(left), Upper(right)))
+      case p @ BinaryComparison(left @ StringType(), right @ StringType()) =>
+        p.makeCopy(Array(Upper(left), Upper(right)))
     }
   }
 

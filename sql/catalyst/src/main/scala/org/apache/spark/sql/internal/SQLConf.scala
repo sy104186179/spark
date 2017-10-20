@@ -935,6 +935,13 @@ object SQLConf {
       .intConf
       .createWithDefault(10000)
 
+  val STRING_COMPARE_CASE_INSENSITIVE =
+    buildConf("spark.sql.string.compare.case.insensitive")
+      .internal()
+      .doc("Whether case sensitive when compare string.")
+      .booleanConf
+      .createWithDefault(false)
+
   object Deprecated {
     val MAPRED_REDUCE_TASKS = "mapred.reduce.tasks"
   }
