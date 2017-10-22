@@ -305,12 +305,7 @@ public class TaskMemoryManager {
       // this could trigger spilling to free some pages.
       return allocatePage(size, consumer);
     } else {
-      MemoryBlock page = null;
-      try {
-        page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
-      } catch (OutOfMemoryError e) {
-        logger.warn(e.getMessage());
-      }
+      MemoryBlock page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
       page.pageNumber = pageNumber;
       pageTable[pageNumber] = page;
       if (logger.isTraceEnabled()) {
