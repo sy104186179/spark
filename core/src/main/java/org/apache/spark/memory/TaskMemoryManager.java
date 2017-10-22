@@ -293,17 +293,11 @@ public class TaskMemoryManager {
       }
       allocatedPages.set(pageNumber);
     }
-    MemoryBlock page = null;
+
     logger.warn("storageMemoryFree: " + memoryManager.storageMemoryFree() +
             ", acquired: " + (memoryManager.storageMemoryFree() - acquired));
-    if (memoryManager.storageMemoryFree() - acquired >= 0) {
-      try {
-        page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
-      } catch (OutOfMemoryError e) {
-        logger.warn("Failed to allocate a page ({} bytes), try again.", acquired);
-        e.printStackTrace();
-      }
-    }
+
+    if (memoryManager.storageMemoryFree() - acquired < 0) {
       // there is no enough memory actually, it means the actual free memory is smaller than
       // MemoryManager thought, we should keep the acquired memory.
       synchronized (this) {
@@ -312,13 +306,31 @@ public class TaskMemoryManager {
       }
       // this could trigger spilling to free some pages.
       return allocatePage(size, consumer);
+    } else {
+      MemoryBlock page = null;
+      try {
+        page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
+        logger.warn("pageNumber: " + pageNumber + ", page == null: " + (page == null) +
+                ", acquiredButNotUsed: " + acquiredButNotUsed + ", allocatedPages: " + allocatedPages.size());
+      } catch (OutOfMemoryError e) {
+        logger.warn("Failed to allocate a page ({} bytes), try again.", acquired);
+        e.printStackTrace();
+        // there is no enough memory actually, it means the actual free memory is smaller than
+        // MemoryManager thought, we should keep the acquired memory.
+        synchronized (this) {
+          acquiredButNotUsed += acquired;
+          allocatedPages.clear(pageNumber);
+        }
+        // this could trigger spilling to free some pages.
+        return allocatePage(size, consumer);
+      }
+      page.pageNumber = pageNumber;
+      pageTable[pageNumber] = page;
+      if (logger.isTraceEnabled()) {
+        logger.trace("Allocate page number {} ({} bytes)", pageNumber, acquired);
+      }
+      return page;
     }
-    page.pageNumber = pageNumber;
-    pageTable[pageNumber] = page;
-    if (logger.isTraceEnabled()) {
-      logger.trace("Allocate page number {} ({} bytes)", pageNumber, acquired);
-    }
-    return page;
   }
 
   /**
