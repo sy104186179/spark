@@ -45,8 +45,7 @@ import org.apache.spark.util.Utils;
  * such as record pointers inside hashmaps or sorting buffers. Even if we decided to use 128 bits
  * to address memory, we can't just store the address of the base object since it's not guaranteed
  * to remain stable as the heap gets reorganized due to GC.
- * <p>
- * Instead, we use the following approach to encode record pointers in 64-bit longs: for off-heap
+ * <p> Failed to allocate a pageers in 64-bit longs: for off-heap
  * mode, just store the raw address, and for on-heap mode use the upper 13 bits of the address to
  * store a "page number" and the lower 51 bits to store an offset within this page. These page
  * numbers are used to index into a "page table" array inside of the MemoryManager in order to
@@ -297,8 +296,11 @@ public class TaskMemoryManager {
     MemoryBlock page = null;
     try {
       page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
+      logger.warn("pageNumber: " + pageNumber + ", page == null: " + (page == null) +
+              ", acquiredButNotUsed: " + acquiredButNotUsed + ", allocatedPages: " + allocatedPages.size());
     } catch (OutOfMemoryError e) {
       logger.warn("Failed to allocate a page ({} bytes), try again.", acquired);
+      e.printStackTrace();
       // there is no enough memory actually, it means the actual free memory is smaller than
       // MemoryManager thought, we should keep the acquired memory.
       synchronized (this) {
