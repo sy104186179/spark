@@ -295,6 +295,8 @@ public class TaskMemoryManager {
     }
     MemoryBlock page = null;
     try {
+        logger.warn("storageMemoryFree: " + memoryManager.storageMemoryFree() +
+                ", acquired: " + (memoryManager.storageMemoryFree() - acquired));
       page = memoryManager.tungstenMemoryAllocator().allocate(acquired);
       logger.warn("pageNumber: " + pageNumber + ", page == null: " + (page == null) +
               ", acquiredButNotUsed: " + acquiredButNotUsed + ", allocatedPages: " + allocatedPages.size());

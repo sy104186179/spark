@@ -180,6 +180,13 @@ private[spark] abstract class MemoryManager(
   }
 
   /**
+   * Storage memory currently in free, in bytes.
+   */
+  final def storageMemoryFree: Long = synchronized {
+    onHeapStorageMemoryPool.memoryFree + offHeapStorageMemoryPool.memoryFree
+  }
+
+  /**
    * Returns the execution memory consumption, in bytes, for the given task.
    */
   private[memory] def getExecutionMemoryUsageForTask(taskAttemptId: Long): Long = synchronized {
