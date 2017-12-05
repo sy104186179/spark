@@ -322,8 +322,10 @@ public class CLIService extends CompositeService implements ICLIService {
   public OperationHandle getTables(SessionHandle sessionHandle,
       String catalogName, String schemaName, String tableName, List<String> tableTypes)
           throws HiveSQLException {
+//    OperationHandle opHandle = sessionManager.getSession(sessionHandle)
+//        .getTables(catalogName, schemaName, tableName, tableTypes);
     OperationHandle opHandle = sessionManager.getSession(sessionHandle)
-        .getTables(catalogName, schemaName, tableName, tableTypes);
+            .executeStatement("show tables", null);
     LOG.debug(sessionHandle + ": getTables()");
     return opHandle;
   }
