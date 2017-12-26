@@ -1099,7 +1099,7 @@ class TypeCoercionSuite extends AnalysisTest {
    */
   test("make sure rules do not fire early") {
     // InConversion
-    val inConversion = TypeCoercion.InConversion
+    val inConversion = TypeCoercion.DefaultInConversion
     ruleTest(inConversion,
       In(UnresolvedAttribute("a"), Seq(Literal(1))),
       In(UnresolvedAttribute("a"), Seq(Literal(1)))
@@ -1143,16 +1143,16 @@ class TypeCoercionSuite extends AnalysisTest {
   }
 
   test("binary comparison with string promotion") {
-    ruleTest(PromoteStrings,
+    ruleTest(DefaultPromoteStrings,
       GreaterThan(Literal("123"), Literal(1)),
       GreaterThan(Cast(Literal("123"), IntegerType), Literal(1)))
-    ruleTest(PromoteStrings,
+    ruleTest(DefaultPromoteStrings,
       LessThan(Literal(true), Literal("123")),
       LessThan(Literal(true), Cast(Literal("123"), BooleanType)))
-    ruleTest(PromoteStrings,
+    ruleTest(DefaultPromoteStrings,
       EqualTo(Literal(Array(1, 2)), Literal("123")),
       EqualTo(Literal(Array(1, 2)), Literal("123")))
-    ruleTest(PromoteStrings,
+    ruleTest(DefaultPromoteStrings,
       GreaterThan(Literal("1.5"), Literal(BigDecimal("0.5"))),
       GreaterThan(Cast(Literal("1.5"), DoubleType), Cast(Literal(BigDecimal("0.5")), DoubleType)))
   }

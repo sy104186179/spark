@@ -67,8 +67,8 @@ object TypeCoercion {
         HivePromoteStrings
     } else {
       commonTypeCoercionRules :+
-        InConversion :+
-        PromoteStrings
+        DefaultInConversion :+
+        DefaultPromoteStrings
     }
   }
 
@@ -339,18 +339,10 @@ object TypeCoercion {
     }
   }
 
-  private def castExpr(expr: Expression, targetType: DataType): Expression = {
-    (expr.dataType, targetType) match {
-      case (NullType, dt) => Literal.create(null, targetType)
-      case (l, dt) if (l != dt) => Cast(expr, targetType)
-      case _ => expr
-    }
-  }
-
   /**
    * Promotes strings that appear in arithmetic expressions.
    */
-  object PromoteStrings extends TypeCoercionRule {
+  object DefaultPromoteStrings extends PromoteStrings {
 
     override protected def coerceTypes(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
       // Skip nodes who's children have not been resolved yet.
@@ -390,7 +382,7 @@ object TypeCoercion {
   /**
    * Promotes strings that appear in arithmetic expressions to compatible with Hive.
    */
-  object HivePromoteStrings extends TypeCoercionRule {
+  object HivePromoteStrings extends PromoteStrings {
 
     override protected def coerceTypes(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
       // Skip nodes who's children have not been resolved yet.
@@ -424,15 +416,6 @@ object TypeCoercion {
     }
   }
 
-  private def flattenExpr(expr: Expression): Seq[Expression] = {
-    expr match {
-      // Multi columns in IN clause is represented as a CreateNamedStruct.
-      // flatten the named struct to get the list of expressions.
-      case cns: CreateNamedStruct => cns.valExprs
-      case expr => Seq(expr)
-    }
-  }
-
   /**
    * Handles type coercion for both IN expression with subquery and IN
    * expressions without subquery.
@@ -447,7 +430,7 @@ object TypeCoercion {
    *    operator type is found the original expression will be returned and an
    *    Analysis Exception will be raised at the type checking phase.
    */
-  object InConversion extends TypeCoercionRule {
+  object DefaultInConversion extends InConversion {
 
     override protected def coerceTypes(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
       // Skip nodes who's children have not been resolved yet.
@@ -504,7 +487,7 @@ object TypeCoercion {
   /**
    * Handles type coercion for IN expression to compatible with Hive.
    */
-  object HiveInConversion extends TypeCoercionRule {
+  object HiveInConversion extends InConversion {
 
     override protected def coerceTypes(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
       // Skip nodes who's children have not been resolved yet.
@@ -985,5 +968,26 @@ trait TypeCoercionRule extends Rule[LogicalPlan] with Logging {
               newType
           }
       }
+  }
+}
+
+trait PromoteStrings extends TypeCoercionRule {
+  protected def castExpr(expr: Expression, targetType: DataType): Expression = {
+    (expr.dataType, targetType) match {
+      case (NullType, dt) => Literal.create(null, targetType)
+      case (l, dt) if (l != dt) => Cast(expr, targetType)
+      case _ => expr
+    }
+  }
+}
+
+trait InConversion extends TypeCoercionRule {
+  protected def flattenExpr(expr: Expression): Seq[Expression] = {
+    expr match {
+      // Multi columns in IN clause is represented as a CreateNamedStruct.
+      // flatten the named struct to get the list of expressions.
+      case cns: CreateNamedStruct => cns.valExprs
+      case expr => Seq(expr)
+    }
   }
 }
