@@ -513,11 +513,13 @@ private[spark] class MapOutputTrackerMaster(
     val beforeCalculate = System.nanoTime()
     shuffleStatuses(dep.shuffleId).withMapStatuses { statuses =>
       val totalSizes = new Array[Long](dep.partitioner.numPartitions)
-      val parallelAggThreshold = conf.get(
-        SHUFFLE_MAP_OUTPUT_PARALLEL_AGGREGATION_THRESHOLD)
+      val parallelAggThreshold = conf.get(SHUFFLE_MAP_OUTPUT_PARALLEL_AGGREGATION_THRESHOLD)
+      logWarning(s"statuses.length.toLong: ${statuses.length.toLong}, " +
+        s"totalSizes.length: ${totalSizes.length}")
       val parallelism = math.min(
         Runtime.getRuntime.availableProcessors(),
         statuses.length.toLong * totalSizes.length / parallelAggThreshold + 1).toInt
+      logWarning(s"parallelism: ${parallelism}")
       if (parallelism <= 1) {
         for (s <- statuses) {
           for (i <- 0 until totalSizes.length) {
