@@ -1084,6 +1084,15 @@ object SQLConf {
       .booleanConf
       .createWithDefault(true)
 
+  val typeCoercionMode =
+    buildConf("spark.sql.typeCoercion.mode")
+      .doc("Since Spark 2.3, the 'hive' mode is introduced for Hive compatiblity. " +
+        "Spark SQL has its native type cocersion mode, which is enabled by default.")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValues(Set("default", "hive"))
+      .createWithDefault("default")
+
   val REPLACE_EXCEPT_WITH_FILTER = buildConf("spark.sql.optimizer.replaceExceptWithFilter")
     .internal()
     .doc("When true, the apply function of the rule verifies whether the right node of the" +
@@ -1526,6 +1535,8 @@ class SQLConf extends Serializable with Logging {
   def arrowMaxRecordsPerBatch: Int = getConf(ARROW_EXECUTION_MAX_RECORDS_PER_BATCH)
 
   def pandasRespectSessionTimeZone: Boolean = getConf(PANDAS_RESPECT_SESSION_LOCAL_TIMEZONE)
+
+  def isHiveTypeCoercionMode: Boolean = getConf(SQLConf.typeCoercionMode).equals("hive")
 
   def replaceExceptWithFilter: Boolean = getConf(REPLACE_EXCEPT_WITH_FILTER)
 

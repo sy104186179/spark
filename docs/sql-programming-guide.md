@@ -1501,6 +1501,14 @@ that these options will be deprecated in future release as more optimizations ar
       Configures the number of partitions to use when shuffling data for joins or aggregations.
     </td>
   </tr>
+  <tr>
+    <td><code>spark.sql.typeCoercion.mode</code></td>
+    <td><code>default</code></td>
+    <td>
+      Since Spark 2.3, the <code>hive</code> mode is introduced for Hive compatiblity.
+      Spark SQL has its native type cocersion mode, which is enabled by default.
+    </td>
+  </tr>
 </table>
 
 ## Broadcast Hint for SQL Queries
