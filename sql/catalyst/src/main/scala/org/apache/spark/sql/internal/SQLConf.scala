@@ -230,6 +230,7 @@ object SQLConf {
   val SHUFFLE_PARTITIONS = buildConf("spark.sql.shuffle.partitions")
     .doc("The default number of partitions to use when shuffling data for joins or aggregations.")
     .intConf
+    .checkValue(_ > 0, "the number of partitions must be larger than 0")
     .createWithDefault(200)
 
   val SHUFFLE_TARGET_POSTSHUFFLE_INPUT_SIZE =
