@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql.catalyst.util
 
+import java.beans.Transient
 import java.sql.{Date, Timestamp}
-import java.text.{DateFormat, SimpleDateFormat}
+import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
+import java.time.temporal.ChronoField
 import java.util.{Calendar, Locale, TimeZone}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.{Function => JFunction}
@@ -76,31 +78,11 @@ object DateTimeUtils {
     }
   }
 
-  // `SimpleDateFormat` is not thread-safe.
-  private val threadLocalTimestampFormat = new ThreadLocal[DateFormat] {
-    override def initialValue(): SimpleDateFormat = {
-      new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-    }
-  }
+  def getTimestampFormat(timeZone: TimeZone): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US).withZone(timeZone.toZoneId)
 
-  def getThreadLocalTimestampFormat(timeZone: TimeZone): DateFormat = {
-    val sdf = threadLocalTimestampFormat.get()
-    sdf.setTimeZone(timeZone)
-    sdf
-  }
-
-  // `SimpleDateFormat` is not thread-safe.
-  private val threadLocalDateFormat = new ThreadLocal[DateFormat] {
-    override def initialValue(): SimpleDateFormat = {
-      new SimpleDateFormat("yyyy-MM-dd", Locale.US)
-    }
-  }
-
-  def getThreadLocalDateFormat(): DateFormat = {
-    val sdf = threadLocalDateFormat.get()
-    sdf.setTimeZone(defaultTimeZone())
-    sdf
-  }
+  def getDateFormat(): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US).withZone(defaultTimeZone().toZoneId)
 
   private val computedTimeZones = new ConcurrentHashMap[String, TimeZone]
   private val computeTimeZone = new JFunction[String, TimeZone] {
@@ -111,14 +93,19 @@ object DateTimeUtils {
     computedTimeZones.computeIfAbsent(timeZoneId, computeTimeZone)
   }
 
-  def newDateFormat(formatString: String, timeZone: TimeZone): DateFormat = {
-    val sdf = new SimpleDateFormat(formatString, Locale.US)
-    sdf.setTimeZone(timeZone)
-    // Enable strict parsing, if the input date/format is invalid, it will throw an exception.
-    // e.g. to parse invalid date '2016-13-12', or '2016-01-12' with  invalid format 'yyyy-aa-dd',
-    // an exception will be throwed.
-    sdf.setLenient(false)
-    sdf
+//  def newDateFormat(formatString: String, timeZone: TimeZone): DateTimeFormatter =
+//    DateTimeFormatter.ofPattern(formatString, Locale.US).withZone(timeZone.toZoneId)
+
+  def newDateFormat(formatString: String, timeZone: TimeZone): DateTimeFormatter = {
+    new DateTimeFormatterBuilder().appendPattern(formatString)
+       .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+      .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+      .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+      .parseDefaulting(ChronoField.MILLI_OF_SECOND, 0)
+      .parseDefaulting(ChronoField.NANO_OF_SECOND, 0)
+      .toFormatter()
+      .withLocale(Locale.US)
+      .withZone(timeZone.toZoneId)
   }
 
   // we should use the exact day as Int, for example, (year, month, day) -> day
@@ -144,7 +131,7 @@ object DateTimeUtils {
   }
 
   def dateToString(days: SQLDate): String =
-    getThreadLocalDateFormat.format(toJavaDate(days))
+    getDateFormat.format(toJavaDate(days).toLocalDate)
 
   // Converts Timestamp to string according to Hive TimestampWritable convention.
   def timestampToString(us: SQLTimestamp): String = {
@@ -155,8 +142,8 @@ object DateTimeUtils {
   def timestampToString(us: SQLTimestamp, timeZone: TimeZone): String = {
     val ts = toJavaTimestamp(us)
     val timestampString = ts.toString
-    val timestampFormat = getThreadLocalTimestampFormat(timeZone)
-    val formatted = timestampFormat.format(ts)
+    val timestampFormat = getTimestampFormat(timeZone)
+    val formatted = timestampFormat.format(ts.toInstant)
 
     if (timestampString.length > 19 && timestampString.substring(19) != ".0") {
       formatted + timestampString.substring(19)
@@ -315,9 +302,9 @@ object DateTimeUtils {
    *                         return None.
    */
   def stringToTimestamp(
-      s: UTF8String,
-      timeZone: TimeZone,
-      rejectTzInString: Boolean): Option[SQLTimestamp] = {
+                         s: UTF8String,
+                         timeZone: TimeZone,
+                         rejectTzInString: Boolean): Option[SQLTimestamp] = {
     if (s == null) {
       return None
     }
@@ -430,8 +417,8 @@ object DateTimeUtils {
     }
 
     if (segments(3) < 0 || segments(3) > 23 || segments(4) < 0 || segments(4) > 59 ||
-        segments(5) < 0 || segments(5) > 59 || segments(6) < 0 || segments(6) > 999999 ||
-        segments(7) < 0 || segments(7) > 23 || segments(8) < 0 || segments(8) > 59) {
+      segments(5) < 0 || segments(5) > 59 || segments(6) < 0 || segments(6) > 999999 ||
+      segments(7) < 0 || segments(7) > 23 || segments(8) < 0 || segments(8) > 59) {
       return None
     }
 
@@ -872,10 +859,10 @@ object DateTimeUtils {
    * Returns a timestamp value, expressed in microseconds since 1.1.1970 00:00:00.
    */
   def timestampAddInterval(
-      start: SQLTimestamp,
-      months: Int,
-      microseconds: Long,
-      timeZone: TimeZone): SQLTimestamp = {
+                            start: SQLTimestamp,
+                            months: Int,
+                            microseconds: Long,
+                            timeZone: TimeZone): SQLTimestamp = {
     val days = millisToDays(start / 1000L, timeZone)
     val newDays = dateAddMonths(days, months)
     start +
@@ -894,10 +881,10 @@ object DateTimeUtils {
    * The result is rounded to 8 decimal places if `roundOff` is set to true.
    */
   def monthsBetween(
-      time1: SQLTimestamp,
-      time2: SQLTimestamp,
-      roundOff: Boolean,
-      timeZone: TimeZone): Double = {
+                     time1: SQLTimestamp,
+                     time2: SQLTimestamp,
+                     roundOff: Boolean,
+                     timeZone: TimeZone): Double = {
     val millis1 = time1 / 1000L
     val millis2 = time2 / 1000L
     val date1 = millisToDays(millis1, timeZone)
@@ -1160,7 +1147,5 @@ object DateTimeUtils {
    */
   private[util] def resetThreadLocals(): Unit = {
     threadLocalGmtCalendar.remove()
-    threadLocalTimestampFormat.remove()
-    threadLocalDateFormat.remove()
   }
 }

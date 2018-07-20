@@ -410,7 +410,7 @@ object PartitioningUtils {
     val dateTry = Try {
       // try and parse the date, if no exception occurs this is a candidate to be resolved as
       // DateType
-      DateTimeUtils.getThreadLocalDateFormat.parse(raw)
+      DateTimeUtils.getDateFormat.parse(raw)
       // SPARK-23436: Casting the string to date may still return null if a bad Date is provided.
       // This can happen since DateFormat.parse  may not use the entire text of the given string:
       // so if there are extra-characters after the date, it returns correctly.
@@ -427,7 +427,7 @@ object PartitioningUtils {
       val unescapedRaw = unescapePathName(raw)
       // try and parse the date, if no exception occurs this is a candidate to be resolved as
       // TimestampType
-      DateTimeUtils.getThreadLocalTimestampFormat(timeZone).parse(unescapedRaw)
+      DateTimeUtils.getTimestampFormat(timeZone).parse(unescapedRaw)
       // SPARK-23436: see comment for date
       val timestampValue = Cast(Literal(unescapedRaw), TimestampType, Some(timeZone.getID)).eval()
       // Disallow TimestampType if the cast returned null
