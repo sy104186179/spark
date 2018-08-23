@@ -133,7 +133,8 @@ class FileStreamSink(
         plan = qe.executedPlan,
         fileFormat = fileFormat,
         committer = committer,
-        outputSpec = FileFormatWriter.OutputSpec(path, Map.empty, qe.analyzed.output),
+        outputSpec = FileFormatWriter.OutputSpec(
+          path, Map.empty, qe.analyzed.output, qe.analyzed.schema),
         hadoopConf = hadoopConf,
         partitionColumns = partitionColumns,
         bucketSpec = None,

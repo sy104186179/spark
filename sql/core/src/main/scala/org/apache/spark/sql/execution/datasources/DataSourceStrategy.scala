@@ -196,6 +196,9 @@ case class DataSourceAnalysis(conf: SQLConf) extends Rule[LogicalPlan] with Cast
       val partitionSchema = actualQuery.resolve(
         t.partitionSchema, t.sparkSession.sessionState.analyzer.resolver)
       val staticPartitions = parts.filter(_._2.nonEmpty).map { case (k, v) => k -> v.get }
+      val dataSchema = actualQuery.output.filterNot(partitionSchema.contains).toStructType
+      // val dataSchema = actualQuery.schema
+      val finalSchema = actualQuery.schema.toAttributes
 
       InsertIntoHadoopFsRelationCommand(
         outputPath,
@@ -209,7 +212,8 @@ case class DataSourceAnalysis(conf: SQLConf) extends Rule[LogicalPlan] with Cast
         mode,
         table,
         Some(t.location),
-        actualQuery.output)
+        actualQuery.output,
+        dataSchema)
   }
 }
 

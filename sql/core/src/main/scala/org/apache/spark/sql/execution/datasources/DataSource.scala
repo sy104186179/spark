@@ -430,11 +430,24 @@ case class DataSource(
     val caseSensitive = sparkSession.sessionState.conf.caseSensitiveAnalysis
     PartitioningUtils.validatePartitionColumn(data.schema, partitionColumns, caseSensitive)
 
+    // SPARK-17230: Resolve the partition columns so InsertIntoHadoopFsRelationCommand does
+    // not need to have the query as child, to avoid to analyze an optimized query,
+    // because InsertIntoHadoopFsRelationCommand will be optimized first.
+    val partitionAttributes = partitionColumns.map { name =>
+      data.output.find(a => equality(a.name, name)).getOrElse {
+        throw new AnalysisException(
+          s"Unable to resolve $name given [${data.output.map(_.name).mkString(", ")}]")
+      }
+    }
+
+
     val fileIndex = catalogTable.map(_.identifier).map { tableIdent =>
       sparkSession.table(tableIdent).queryExecution.analyzed.collect {
         case LogicalRelation(t: HadoopFsRelation, _, _, _) => t.location
       }.head
     }
+    val dataSchema = data.output.filterNot(partitionAttributes.contains).toStructType
+
     // For partitioned relation r, r.schema's column ordering can be different from the column
     // ordering of data.logicalPlan (partition columns are all moved after data column).  This
     // will be adjusted within InsertIntoHadoopFsRelation.
@@ -450,7 +463,8 @@ case class DataSource(
       mode = mode,
       catalogTable = catalogTable,
       fileIndex = fileIndex,
-      outputColumns = data.output)
+      outputColumns = data.output,
+      finalSchema = dataSchema)
   }
 
   /**

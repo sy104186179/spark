@@ -90,7 +90,8 @@ private[hive] trait SaveAsHiveFile extends DataWritingCommand {
       fileFormat = new HiveFileFormat(fileSinkConf),
       committer = committer,
       outputSpec =
-        FileFormatWriter.OutputSpec(outputLocation, customPartitionLocations, allColumns),
+        FileFormatWriter.OutputSpec(
+          outputLocation, customPartitionLocations, allColumns, plan.schema),
       hadoopConf = hadoopConf,
       partitionColumns = partitionAttributes,
       bucketSpec = None,

@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.execution.{SortExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 
@@ -46,7 +47,8 @@ object FileFormatWriter extends Logging {
   case class OutputSpec(
       outputPath: String,
       customPartitionLocations: Map[TablePartitionSpec, String],
-      outputColumns: Seq[Attribute])
+      outputColumns: Seq[Attribute],
+      outputSchema: StructType)
 
   /**
    * Basic work flow of this command is:
@@ -96,7 +98,7 @@ object FileFormatWriter extends Logging {
 
     val caseInsensitiveOptions = CaseInsensitiveMap(options)
 
-    val dataSchema = dataColumns.toStructType
+    val dataSchema = outputSpec.outputSchema
     DataSourceUtils.verifyWriteSchema(fileFormat, dataSchema)
     // Note: prepareWrite has side effect. It sets "job".
     val outputWriterFactory =
