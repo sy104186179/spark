@@ -80,8 +80,10 @@ trait PredicateHelper {
       val leftLiteral = allEqualTo.filter(_.left.isInstanceOf[Literal])
       val rightLiteral = allEqualTo.filter(_.right.isInstanceOf[Literal])
 
-      val leftChains = allEqualTo.filter(l => leftLiteral.exists(_.right == l.left))
-      val rightChains = allEqualTo.filter(r => rightLiteral.exists(_.left == r.right))
+      val leftChains =
+        allEqualTo.filter(l => leftLiteral.exists(x => x.right == l.left || x.right == l.right))
+      val rightChains =
+        allEqualTo.filter(r => rightLiteral.exists(x => x.left == r.right || x.left == r.left))
 
       leftLiteral ++ rightLiteral ++ leftChains ++ rightChains
     } else {
