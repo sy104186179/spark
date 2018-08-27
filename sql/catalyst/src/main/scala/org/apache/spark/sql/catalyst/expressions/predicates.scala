@@ -72,6 +72,23 @@ trait PredicateHelper {
     }
   }
 
+  // Filter out all `EqualTo` that contains `Literal` chains
+  protected def joinPushDownOthersidePredicates(condition: Expression): Seq[Expression] = {
+    val allEqualTo = splitConjunctivePredicates(condition)
+      .filter(_.isInstanceOf[EqualTo]).map(_.asInstanceOf[EqualTo])
+    if (allEqualTo.nonEmpty) {
+      val leftLiteral = allEqualTo.filter(_.left.isInstanceOf[Literal])
+      val rightLiteral = allEqualTo.filter(_.right.isInstanceOf[Literal])
+
+      val leftChains = allEqualTo.filter(l => leftLiteral.exists(_.right == l.left))
+      val rightChains = allEqualTo.filter(r => rightLiteral.exists(_.left == r.right))
+
+      leftLiteral ++ rightLiteral ++ leftChains ++ rightChains
+    } else {
+      Nil
+    }
+  }
+
   // Substitute any known alias from a map.
   protected def replaceAlias(
       condition: Expression,

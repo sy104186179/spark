@@ -323,8 +323,14 @@ case class Join(
         left.constraints.union(right.constraints)
       case LeftExistence(_) =>
         left.constraints
+      case LeftOuter if condition.isDefined =>
+        left.constraints
+          .union(joinPushDownOthersidePredicates(condition.get).toSet)
       case LeftOuter =>
         left.constraints
+      case RightOuter if condition.isDefined =>
+        right.constraints
+          .union(joinPushDownOthersidePredicates(condition.get).toSet)
       case RightOuter =>
         right.constraints
       case FullOuter =>
