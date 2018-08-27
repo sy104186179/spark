@@ -75,7 +75,7 @@ trait PredicateHelper {
   // Filter out all `EqualTo` that contains `Literal` chains
   protected def joinPushDownOthersidePredicates(condition: Expression): Seq[Expression] = {
     val allEqualTo = splitConjunctivePredicates(condition)
-      .filter(_.isInstanceOf[EqualTo]).map(_.asInstanceOf[EqualTo])
+      .filter(_.isInstanceOf[BinaryComparison]).map(_.asInstanceOf[BinaryComparison])
     if (allEqualTo.nonEmpty) {
       val leftLiteral = allEqualTo.filter(_.left.isInstanceOf[Literal])
       val rightLiteral = allEqualTo.filter(_.right.isInstanceOf[Literal])
