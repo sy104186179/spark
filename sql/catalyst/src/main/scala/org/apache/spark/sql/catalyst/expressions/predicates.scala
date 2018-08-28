@@ -72,25 +72,6 @@ trait PredicateHelper {
     }
   }
 
-  // Filter out all `BinaryComparison` that contains `Literal` chains
-  protected def joinPushDownOthersidePredicates(condition: Expression): Seq[Expression] = {
-    val predicates = splitConjunctivePredicates(condition)
-      .filter(_.isInstanceOf[BinaryComparison]).map(_.asInstanceOf[BinaryComparison])
-    if (predicates.nonEmpty) {
-      val leftLiteral = predicates.filter(_.left.isInstanceOf[Literal])
-      val rightLiteral = predicates.filter(_.right.isInstanceOf[Literal])
-
-      val leftChains =
-        predicates.filter(l => leftLiteral.exists(x => x.right == l.left || x.right == l.right))
-      val rightChains =
-        predicates.filter(r => rightLiteral.exists(x => x.left == r.right || x.left == r.left))
-
-      leftLiteral ++ rightLiteral ++ leftChains ++ rightChains
-    } else {
-      Nil
-    }
-  }
-
   // Substitute any known alias from a map.
   protected def replaceAlias(
       condition: Expression,

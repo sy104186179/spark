@@ -1122,7 +1122,8 @@ object PushDownPredicate extends Rule[LogicalPlan] with PredicateHelper {
  *
  * Check https://cwiki.apache.org/confluence/display/Hive/OuterJoinBehavior for more details
  */
-object PushPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelper {
+object PushPredicateThroughJoin extends Rule[LogicalPlan]
+    with PredicateHelper with ConstraintHelper {
   /**
    * Splits join condition expressions or filter predicates (on a given join's output) into three
    * categories based on the attributes required to evaluate them. Note that we explicitly exclude
@@ -1190,8 +1191,10 @@ object PushPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelper {
 
     // push down the join filter into sub query scanning if applicable
     case j @ Join(left, right, joinType, joinCondition) =>
+      val condition = joinCondition.map(splitConjunctivePredicates).getOrElse(Nil)
+      val additionalCondition = inferAdditionalConstraints(condition.toSet)
       val (leftJoinConditions, rightJoinConditions, commonJoinCondition) =
-        split(joinCondition.map(splitConjunctivePredicates).getOrElse(Nil), left, right)
+        split(condition ++ additionalCondition, left, right)
 
       joinType match {
         case _: InnerLike | LeftSemi =>
