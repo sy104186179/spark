@@ -72,18 +72,18 @@ trait PredicateHelper {
     }
   }
 
-  // Filter out all `EqualTo` that contains `Literal` chains
+  // Filter out all `BinaryComparison` that contains `Literal` chains
   protected def joinPushDownOthersidePredicates(condition: Expression): Seq[Expression] = {
-    val allEqualTo = splitConjunctivePredicates(condition)
+    val predicates = splitConjunctivePredicates(condition)
       .filter(_.isInstanceOf[BinaryComparison]).map(_.asInstanceOf[BinaryComparison])
-    if (allEqualTo.nonEmpty) {
-      val leftLiteral = allEqualTo.filter(_.left.isInstanceOf[Literal])
-      val rightLiteral = allEqualTo.filter(_.right.isInstanceOf[Literal])
+    if (predicates.nonEmpty) {
+      val leftLiteral = predicates.filter(_.left.isInstanceOf[Literal])
+      val rightLiteral = predicates.filter(_.right.isInstanceOf[Literal])
 
       val leftChains =
-        allEqualTo.filter(l => leftLiteral.exists(x => x.right == l.left || x.right == l.right))
+        predicates.filter(l => leftLiteral.exists(x => x.right == l.left || x.right == l.right))
       val rightChains =
-        allEqualTo.filter(r => rightLiteral.exists(x => x.left == r.right || x.left == r.left))
+        predicates.filter(r => rightLiteral.exists(x => x.left == r.right || x.left == r.left))
 
       leftLiteral ++ rightLiteral ++ leftChains ++ rightChains
     } else {
