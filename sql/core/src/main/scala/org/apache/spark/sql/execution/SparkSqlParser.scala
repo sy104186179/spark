@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.parser.SqlBaseParser._
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.{HiveSerDe, SQLConf, VariableSubstitution}
@@ -272,7 +273,14 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       throw new ParseException(s"It is not allowed to add database prefix `$database` to " +
         s"the table name in CACHE TABLE AS SELECT", ctx)
     }
-    CacheTableCommand(tableIdent, query, ctx.LAZY != null, Option(ctx.storageLevel).map(source))
+    val storageLevelKey = "storagelevel"
+    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
+    val storageLevelValue = CaseInsensitiveMap(options).get(storageLevelKey)
+    val withoutStorageLevel = options.filterKeys(_.toLowerCase(Locale.ROOT) != storageLevelKey)
+    if (withoutStorageLevel.nonEmpty) {
+      logWarning(s"Invalid options: ${withoutStorageLevel.mkString(", ")}")
+    }
+    CacheTableCommand(tableIdent, query, ctx.LAZY != null, storageLevelValue)
   }
 
   /**
