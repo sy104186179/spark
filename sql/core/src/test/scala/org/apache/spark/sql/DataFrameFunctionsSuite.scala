@@ -1215,7 +1215,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       Seq(("a string element", 1)).toDF().selectExpr("element_at(_1, _2)")
     }
     val errorMsg1 =
-      s"""
+      """
          |The first argument to function element_at should have been array or map type, but
          |its string type.
        """.stripMargin.replace("\n", " ").trim()
@@ -1240,7 +1240,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       OneRowRelation().selectExpr("element_at(array('a', 'b'), 1L)")
     }
     val errorMsg2 =
-      s"""
+      """
          |Input to function element_at should have been array followed by a int, but it's
          |[array<string>, bigint].
        """.stripMargin.replace("\n", " ").trim()
@@ -1280,7 +1280,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       OneRowRelation().selectExpr("element_at(map(1, 'a', 2, 'b'), '1')")
     }
     val errorMsg3 =
-      s"""
+      """
          |Input to function element_at should have been map followed by a value of same
          |key type, but it's [map<int,string>, string].
        """.stripMargin.replace("\n", " ").trim()
