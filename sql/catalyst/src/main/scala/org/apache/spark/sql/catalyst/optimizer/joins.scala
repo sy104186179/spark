@@ -183,7 +183,7 @@ object PullOutPythonUDFInJoinCondition extends Rule[LogicalPlan] with PredicateH
         splitConjunctivePredicates(condition.get).partition(hasPythonUDF)
       val newCondition = if (rest.isEmpty) {
         logWarning(s"The join condition:$condition of the join plan contains PythonUDF only," +
-          s" it will be moved out and the join plan will be turned to cross join.")
+          " it will be moved out and the join plan will be turned to cross join.")
         None
       } else {
         Some(rest.reduceLeft(And))
