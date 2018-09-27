@@ -679,7 +679,7 @@ class InsertSuite extends QueryTest with TestHiveSingleton with BeforeAndAfter
 
       val e = intercept[IllegalArgumentException] {
         sql(
-          s"""
+          """
              |INSERT OVERWRITE LOCAL DIRECTORY 'abc://a'
              |ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
              |SELECT * FROM test_insert_table
@@ -696,7 +696,7 @@ class InsertSuite extends QueryTest with TestHiveSingleton with BeforeAndAfter
 
       val e = intercept[ParseException] {
         sql(
-          s"""
+          """
              |INSERT OVERWRITE DIRECTORY 'file://tmp'
              |USING json
              |ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
@@ -714,7 +714,7 @@ class InsertSuite extends QueryTest with TestHiveSingleton with BeforeAndAfter
 
       val e = intercept[ParseException] {
         sql(
-          s"""
+          """
              |INSERT OVERWRITE DIRECTORY 'file://tmp2'
              |USING json
              |ROW FORMAT DELIMITED FIELDS TERMINATED BY ','

@@ -947,7 +947,7 @@ class HiveDDLSuite
   test("desc table for Hive table - bucketed + sorted table") {
     withTable("tbl") {
       sql(
-        s"""
+        """
           |CREATE TABLE tbl (id int, name string)
           |CLUSTERED BY(id)
           |SORTED BY(id, name) INTO 1024 BUCKETS
@@ -1049,7 +1049,7 @@ class HiveDDLSuite
       assert(!tableDirectoryExists(TableIdentifier(tabName), Option(expectedDBLocation)))
     }
 
-    sql(s"USE default")
+    sql("USE default")
     val sqlDropDatabase = s"DROP DATABASE $dbName ${if (cascade) "CASCADE" else "RESTRICT"}"
     if (tableExists && !cascade) {
       val message = intercept[AnalysisException] {

@@ -46,7 +46,7 @@ class HiveOrcSourceSuite extends OrcSuite with TestHiveSingleton {
        """.stripMargin)
 
     sql(
-      s"""INSERT INTO TABLE normal_orc
+      """INSERT INTO TABLE normal_orc
          |SELECT intField, stringField FROM orc_temp_table
        """.stripMargin)
 

@@ -63,7 +63,7 @@ private[yarn] class YARNHadoopDelegationTokenManager(
         provider.obtainCredentials(hadoopConf, sparkConf, creds)
       } else {
         logDebug(s"Service ${provider.serviceName} does not require a token." +
-          s" Check your configuration to see if security is disabled or not.")
+          " Check your configuration to see if security is disabled or not.")
         None
       }
     }.foldLeft(superInterval)(math.min)

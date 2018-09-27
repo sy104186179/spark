@@ -128,7 +128,7 @@ class ContinuousExecution(
         nextOffsets
       case None =>
         // We are starting this stream for the first time. Offsets are all None.
-        logInfo(s"Starting new streaming query.")
+        logInfo("Starting new streaming query.")
         currentBatchId = 0
         OffsetSeq.fill(continuousSources.map(_ => null): _*)
     }

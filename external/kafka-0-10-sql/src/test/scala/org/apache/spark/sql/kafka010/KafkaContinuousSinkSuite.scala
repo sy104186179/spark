@@ -283,7 +283,7 @@ class KafkaContinuousSinkSuite extends KafkaContinuousTest {
     try {
       /* topic field wrong type */
       writer = createKafkaWriter(input.toDF())(
-        withSelectExpr = s"CAST('1' as INT) as topic", "value"
+        withSelectExpr = "CAST('1' as INT) as topic", "value"
       )
       testUtils.sendMessages(inputTopic, Array("1", "2", "3", "4", "5"))
       eventually(timeout(streamingTimeout)) {

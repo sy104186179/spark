@@ -581,7 +581,7 @@ trait StreamTest extends QueryTest with SharedSQLContext with TimeLimits with Be
           clock.advance(timeToAdd)
           manualClockExpectedTime += timeToAdd
           verify(clock.getTimeMillis() === manualClockExpectedTime,
-            s"Unexpected clock time after updating: " +
+            "Unexpected clock time after updating: " +
               s"expecting $manualClockExpectedTime, current ${clock.getTimeMillis()}")
 
         case StopStream =>
@@ -589,11 +589,11 @@ trait StreamTest extends QueryTest with SharedSQLContext with TimeLimits with Be
           try failAfter(streamingTimeout) {
             currentStream.stop()
             verify(!currentStream.queryExecutionThread.isAlive,
-              s"microbatch thread not stopped")
+              "microbatch thread not stopped")
             verify(!currentStream.isActive,
               "query.isActive() is false even after stopping")
             verify(currentStream.exception.isEmpty,
-              s"query.exception() is not empty after clean stop: " +
+              "query.exception() is not empty after clean stop: " +
                 currentStream.exception.map(_.toString()).getOrElse(""))
           } catch {
             case _: InterruptedException =>
@@ -617,7 +617,7 @@ trait StreamTest extends QueryTest with SharedSQLContext with TimeLimits with Be
               assert(!currentStream.queryExecutionThread.isAlive)
             }
             verify(currentStream.exception === Some(thrownException),
-              s"incorrect exception returned by query.exception()")
+              "incorrect exception returned by query.exception()")
 
             val exception = currentStream.exception.get
             verify(exception.cause.getClass === ef.causeClass,
@@ -763,7 +763,7 @@ trait StreamTest extends QueryTest with SharedSQLContext with TimeLimits with Be
           assert(currentStream != null,
             s"Cannot perform stream-progress-locked actions $actns when query is not active")
           assert(currentStream.isInstanceOf[MicroBatchExecution],
-            s"Cannot perform stream-progress-locked actions on non-microbatch queries")
+            "Cannot perform stream-progress-locked actions on non-microbatch queries")
           currentStream.asInstanceOf[MicroBatchExecution].withProgressLocked {
             actns.foreach(executeAction)
           }

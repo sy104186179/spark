@@ -1446,7 +1446,7 @@ private[spark] class DAGScheduler(
               willRetry = !shouldAbortStage)
           } else {
             logDebug(s"Received fetch failure from $task, but its from $failedStage which is no " +
-              s"longer running")
+              "longer running")
           }
 
           if (mapStage.rdd.isBarrier()) {

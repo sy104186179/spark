@@ -39,7 +39,7 @@ object CSVBenchmarks extends SQLHelper {
   import spark.implicits._
 
   def quotedValuesBenchmark(rowsNum: Int, numIters: Int): Unit = {
-    val benchmark = new Benchmark(s"Parsing quoted values", rowsNum)
+    val benchmark = new Benchmark("Parsing quoted values", rowsNum)
 
     withTempPath { path =>
       val str = (0 until 10000).map(i => s""""$i"""").mkString(",")
@@ -52,7 +52,7 @@ object CSVBenchmarks extends SQLHelper {
       val schema = new StructType().add("value", StringType)
       val ds = spark.read.option("header", true).schema(schema).csv(path.getAbsolutePath)
 
-      benchmark.addCase(s"One quoted string", numIters) { _ =>
+      benchmark.addCase("One quoted string", numIters) { _ =>
         ds.filter((_: Row) => true).count()
       }
 
@@ -88,13 +88,13 @@ object CSVBenchmarks extends SQLHelper {
         ds.select("*").filter((row: Row) => true).count()
       }
       val cols100 = columnNames.take(100).map(Column(_))
-      benchmark.addCase(s"Select 100 columns", 3) { _ =>
+      benchmark.addCase("Select 100 columns", 3) { _ =>
         ds.select(cols100: _*).filter((row: Row) => true).count()
       }
-      benchmark.addCase(s"Select one column", 3) { _ =>
+      benchmark.addCase("Select one column", 3) { _ =>
         ds.select($"col1").filter((row: Row) => true).count()
       }
-      benchmark.addCase(s"count()", 3) { _ =>
+      benchmark.addCase("count()", 3) { _ =>
         ds.count()
       }
 
@@ -130,10 +130,10 @@ object CSVBenchmarks extends SQLHelper {
       benchmark.addCase(s"Select $colsNum columns + count()", 3) { _ =>
         ds.select("*").filter((_: Row) => true).count()
       }
-      benchmark.addCase(s"Select 1 column + count()", 3) { _ =>
+      benchmark.addCase("Select 1 column + count()", 3) { _ =>
         ds.select($"col1").filter((_: Row) => true).count()
       }
-      benchmark.addCase(s"count()", 3) { _ =>
+      benchmark.addCase("count()", 3) { _ =>
         ds.count()
       }
 

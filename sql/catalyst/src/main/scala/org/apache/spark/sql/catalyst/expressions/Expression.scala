@@ -400,7 +400,7 @@ abstract class UnaryExpression extends Expression {
    * of evaluation process, we should override [[eval]].
    */
   protected def nullSafeEval(input: Any): Any =
-    sys.error(s"UnaryExpressions must override either eval or nullSafeEval")
+    sys.error("UnaryExpressions must override either eval or nullSafeEval")
 
   /**
    * Called by unary expressions to generate a code block that returns null if its parent returns
@@ -492,7 +492,7 @@ abstract class BinaryExpression extends Expression {
    * of evaluation process, we should override [[eval]].
    */
   protected def nullSafeEval(input1: Any, input2: Any): Any =
-    sys.error(s"BinaryExpressions must override either eval or nullSafeEval")
+    sys.error("BinaryExpressions must override either eval or nullSafeEval")
 
   /**
    * Short hand for generating binary evaluation code.
@@ -632,7 +632,7 @@ abstract class TernaryExpression extends Expression {
    * of evaluation process, we should override [[eval]].
    */
   protected def nullSafeEval(input1: Any, input2: Any, input3: Any): Any =
-    sys.error(s"TernaryExpressions must override either eval or nullSafeEval")
+    sys.error("TernaryExpressions must override either eval or nullSafeEval")
 
   /**
    * Short hand for generating ternary evaluation code.

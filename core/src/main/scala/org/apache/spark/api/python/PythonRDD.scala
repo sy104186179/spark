@@ -167,7 +167,7 @@ private[spark] object PythonRDD extends Logging {
   }
 
   def toLocalIteratorAndServe[T](rdd: RDD[T]): Array[Any] = {
-    serveIterator(rdd.toLocalIterator, s"serve toLocalIterator")
+    serveIterator(rdd.toLocalIterator, "serve toLocalIterator")
   }
 
   def readRDDFromFile(sc: JavaSparkContext, filename: String, parallelism: Int):

@@ -79,7 +79,7 @@ class EncoderResolutionSuite extends PlanTest {
     val encoder = ExpressionEncoder[PrimitiveArrayClass]
     val attrs = Seq('arr.array(StringType))
     assert(intercept[AnalysisException](encoder.resolveAndBind(attrs)).message ==
-      s"""
+      """
          |Cannot up cast array element from string to bigint as it may truncate
          |The type path of the target object is:
          |- array element class: "scala.Long"
@@ -201,7 +201,7 @@ class EncoderResolutionSuite extends PlanTest {
       ExpressionEncoder[StringIntClass].resolveAndBind(Seq('a.string, 'b.long))
     }.message
     assert(msg1 ==
-      s"""
+      """
          |Cannot up cast `b` from bigint to int as it may truncate
          |The type path of the target object is:
          |- field (class: "scala.Int", name: "b")
@@ -214,7 +214,7 @@ class EncoderResolutionSuite extends PlanTest {
       ExpressionEncoder[ComplexClass].resolveAndBind(Seq('a.long, 'b.struct(structType)))
     }.message
     assert(msg2 ==
-      s"""
+      """
          |Cannot up cast `b`.`b` from decimal(38,18) to bigint as it may truncate
          |The type path of the target object is:
          |- field (class: "scala.Long", name: "b")

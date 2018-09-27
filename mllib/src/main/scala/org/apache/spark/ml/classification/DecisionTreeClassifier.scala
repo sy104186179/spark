@@ -294,7 +294,7 @@ object DecisionTreeClassificationModel extends MLReadable[DecisionTreeClassifica
       categoricalFeatures: Map[Int, Int],
       numFeatures: Int = -1): DecisionTreeClassificationModel = {
     require(oldModel.algo == OldAlgo.Classification,
-      s"Cannot convert non-classification DecisionTreeModel (old API) to" +
+      "Cannot convert non-classification DecisionTreeModel (old API) to" +
         s" DecisionTreeClassificationModel (new API).  Algo is: ${oldModel.algo}")
     val rootNode = Node.fromOld(oldModel.topNode, categoricalFeatures, isClassification = true)
     val uid = if (parent != null) parent.uid else Identifiable.randomUID("dtc")

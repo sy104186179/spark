@@ -256,7 +256,7 @@ object VectorAssembler extends DefaultParamsReadable[VectorAssembler] {
       case v: Double =>
         if (v.isNaN && !keepInvalid) {
           throw new SparkException(
-            s"""Encountered NaN while assembling a row with handleInvalid = "error". Consider
+            """Encountered NaN while assembling a row with handleInvalid = "error". Consider
                |removing NaNs from dataset or using handleInvalid = "keep" or "skip"."""
               .stripMargin)
         } else if (v != 0.0) {
@@ -285,7 +285,7 @@ object VectorAssembler extends DefaultParamsReadable[VectorAssembler] {
           featureIndex += length
         } else {
           throw new SparkException(
-            s"""Encountered null while assembling a row with handleInvalid = "keep". Consider
+            """Encountered null while assembling a row with handleInvalid = "keep". Consider
                |removing nulls from dataset or using handleInvalid = "keep" or "skip"."""
               .stripMargin)
         }

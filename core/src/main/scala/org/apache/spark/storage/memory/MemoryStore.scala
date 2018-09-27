@@ -109,7 +109,7 @@ private[spark] class MemoryStore(
   if (maxMemory < unrollMemoryThreshold) {
     logWarning(s"Max memory ${Utils.bytesToString(maxMemory)} is less than the initial memory " +
       s"threshold ${Utils.bytesToString(unrollMemoryThreshold)} needed to store a block in " +
-      s"memory. Please configure Spark with more memory.")
+      "memory. Please configure Spark with more memory.")
   }
 
   logInfo("MemoryStore started with capacity %s".format(Utils.bytesToString(maxMemory)))
@@ -210,7 +210,7 @@ private[spark] class MemoryStore(
       reserveUnrollMemoryForThisTask(blockId, initialMemoryThreshold, memoryMode)
 
     if (!keepUnrolling) {
-      logWarning(s"Failed to reserve initial memory threshold of " +
+      logWarning("Failed to reserve initial memory threshold of " +
         s"${Utils.bytesToString(initialMemoryThreshold)} for computing block $blockId in memory.")
     } else {
       unrollMemoryUsedByThisBlock += initialMemoryThreshold
@@ -335,7 +335,7 @@ private[spark] class MemoryStore(
     val initialMemoryThreshold = unrollMemoryThreshold
     val chunkSize = if (initialMemoryThreshold > Int.MaxValue) {
       logWarning(s"Initial memory threshold of ${Utils.bytesToString(initialMemoryThreshold)} " +
-        s"is too large to be set as chunk size. Chunk size has been capped to " +
+        "is too large to be set as chunk size. Chunk size has been capped to " +
         s"${Utils.bytesToString(Int.MaxValue)}")
       Int.MaxValue
     } else {

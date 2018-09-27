@@ -480,7 +480,7 @@ class RandomForestSuite extends SparkFunSuite with MLlibTestSparkContext {
       val metadata =
         DecisionTreeMetadata.buildMetadata(rdd, strategy, numTrees, featureSubsetStrategy)
       seeds.foreach { seed =>
-        val failString = s"Failed on test with:" +
+        val failString = "Failed on test with:" +
           s"numTrees=$numTrees, featureSubsetStrategy=$featureSubsetStrategy," +
           s" numFeaturesPerNode=$numFeaturesPerNode, seed=$seed"
         val nodeStack = new mutable.ArrayStack[(Int, LearningNode)]

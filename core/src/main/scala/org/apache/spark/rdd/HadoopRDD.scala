@@ -215,7 +215,7 @@ class HadoopRDD[K, V](
     } catch {
       case e: InvalidInputException if ignoreMissingFiles =>
         logWarning(s"${jobConf.get(FileInputFormat.INPUT_DIR)} doesn't exist and no" +
-            s" partitions returned from this path.", e)
+            " partitions returned from this path.", e)
         Array.empty[Partition]
     }
   }

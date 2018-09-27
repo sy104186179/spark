@@ -114,7 +114,7 @@ private[spark] class ExecutorPodsAllocator(
       val currentTotalExpectedExecutors = totalExpectedExecutors.get
       logDebug(s"Currently have $currentRunningExecutors running executors and" +
         s" $currentPendingExecutors pending executors. $newlyCreatedExecutors executors" +
-        s" have been requested but are pending appearance in the cluster.")
+        " have been requested but are pending appearance in the cluster.")
       if (newlyCreatedExecutors.isEmpty
         && currentPendingExecutors == 0
         && currentRunningExecutors < currentTotalExpectedExecutors) {
@@ -144,9 +144,9 @@ private[spark] class ExecutorPodsAllocator(
           " executors. Not scaling up further.")
       } else if (newlyCreatedExecutors.nonEmpty || currentPendingExecutors != 0) {
         logDebug(s"Still waiting for ${newlyCreatedExecutors.size + currentPendingExecutors}" +
-          s" executors to begin running before requesting for more executors. # of executors in" +
+          " executors to begin running before requesting for more executors. # of executors in" +
           s" pending status in the cluster: $currentPendingExecutors. # of executors that we have" +
-          s" created but we have not observed as being present in the cluster yet:" +
+          " created but we have not observed as being present in the cluster yet:" +
           s" ${newlyCreatedExecutors.size}.")
       }
     }

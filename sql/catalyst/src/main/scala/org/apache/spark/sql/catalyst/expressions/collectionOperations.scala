@@ -552,7 +552,7 @@ case class MapConcat(children: Seq[Expression]) extends ComplexTypeMergingExpres
     val numElements = keyArrayDatas.foldLeft(0L)((sum, ad) => sum + ad.numElements())
     if (numElements > ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH) {
       throw new RuntimeException(s"Unsuccessful attempt to concat maps with $numElements " +
-        s"elements due to exceeding the map size limit " +
+        "elements due to exceeding the map size limit " +
         s"${ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH}.")
     }
     val finalKeyArray = new Array[AnyRef](numElements.toInt)
@@ -2471,7 +2471,7 @@ case class Flatten(child: Expression) extends UnaryExpression {
       TypeCheckResult.TypeCheckSuccess
     case _ =>
       TypeCheckResult.TypeCheckFailure(
-        s"The argument should be an array of arrays, " +
+        "The argument should be an array of arrays, " +
         s"but '${child.sql}' is of ${child.dataType.catalogString} type."
       )
   }
@@ -3434,7 +3434,7 @@ trait ArrayBinaryLike extends BinaryArrayExpressionWithImplicitCast with ArraySe
 object ArrayBinaryLike {
   def throwUnionLengthOverflowException(length: Int): Unit = {
     throw new RuntimeException(s"Unsuccessful try to union arrays with $length " +
-      s"elements due to exceeding the array size limit " +
+      "elements due to exceeding the array size limit " +
       s"${ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH}.")
   }
 }

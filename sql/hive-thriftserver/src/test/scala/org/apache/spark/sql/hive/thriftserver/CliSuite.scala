@@ -245,7 +245,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     val jarFile = Thread.currentThread().getContextClassLoader.getResource("TestUDTF.jar")
     runCliWithin(2.minute)(
       s"ADD JAR $jarFile;" -> "",
-      s"LIST JARS;" -> "TestUDTF.jar"
+      "LIST JARS;" -> "TestUDTF.jar"
     )
   }
 
@@ -262,7 +262,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
       getContextClassLoader.getResource("data/files/small_kv.txt")
     runCliWithin(2.minute)(
       s"ADD FILE $dataFilePath;" -> "",
-      s"LIST FILES;" -> "small_kv.txt"
+      "LIST FILES;" -> "small_kv.txt"
     )
   }
 
@@ -292,7 +292,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     val tmpDir = Utils.createTempDir(namePrefix = "SPARK-21451")
     runCliWithin(
       1.minute,
-      Seq(s"--conf", s"spark.hadoop.${ConfVars.METASTOREWAREHOUSE}=$tmpDir"))(
+      Seq("--conf", s"spark.hadoop.${ConfVars.METASTOREWAREHOUSE}=$tmpDir"))(
       "set spark.sql.warehouse.dir;" -> tmpDir.getAbsolutePath)
     tmpDir.delete()
   }

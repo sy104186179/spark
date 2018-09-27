@@ -654,7 +654,7 @@ class OrcQuerySuite extends OrcQueryTest with SharedSQLContext {
           // This creates 1 empty ORC file with ORC SerDe.  We are using this trick because
           // Spark SQL ORC data source always avoids write empty ORC files.
           spark.sql(
-            s"""INSERT INTO TABLE empty_orc
+            """INSERT INTO TABLE empty_orc
                |SELECT key, value FROM empty
              """.stripMargin)
 

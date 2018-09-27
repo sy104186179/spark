@@ -362,7 +362,7 @@ private[spark] class ExecutorAllocationManager(
       numExecutorsTarget - oldNumExecutorsTarget
     } else if (addTime != NOT_SET && now >= addTime) {
       val delta = addExecutors(maxNeeded)
-      logDebug(s"Starting timer to add more executors (to " +
+      logDebug("Starting timer to add more executors (to " +
         s"expire in $sustainedSchedulerBacklogTimeoutS seconds)")
       addTime = now + (sustainedSchedulerBacklogTimeoutS * 1000)
       delta
@@ -383,7 +383,7 @@ private[spark] class ExecutorAllocationManager(
   private def addExecutors(maxNumExecutorsNeeded: Int): Int = {
     // Do not request more executors if it would put our target over the upper bound
     if (numExecutorsTarget >= maxNumExecutors) {
-      logDebug(s"Not adding executors because our current target total " +
+      logDebug("Not adding executors because our current target total " +
         s"is already $numExecutorsTarget (limit $maxNumExecutors)")
       numExecutorsToAdd = 1
       return 0
@@ -501,7 +501,7 @@ private[spark] class ExecutorAllocationManager(
       }
       executorsRemoved
     } else {
-      logWarning(s"Unable to reach the cluster manager to kill executor/s " +
+      logWarning("Unable to reach the cluster manager to kill executor/s " +
         s"${executorIdsToBeRemoved.mkString(",")} or no executor eligible to kill!")
       Seq.empty[String]
     }
@@ -529,7 +529,7 @@ private[spark] class ExecutorAllocationManager(
     // Do not kill the executor again if it is already pending to be killed (should never happen)
     if (executorsPendingToRemove.contains(executorId)) {
       logWarning(s"Attempted to remove executor $executorId " +
-        s"when it is already pending to be removed!")
+        "when it is already pending to be removed!")
       return false
     }
 
@@ -578,7 +578,7 @@ private[spark] class ExecutorAllocationManager(
    */
   private def onSchedulerBacklogged(): Unit = synchronized {
     if (addTime == NOT_SET) {
-      logDebug(s"Starting timer to add executors because pending tasks " +
+      logDebug("Starting timer to add executors because pending tasks " +
         s"are building up (to expire in $schedulerBacklogTimeoutS seconds)")
       addTime = clock.getTimeMillis + schedulerBacklogTimeoutS * 1000
     }

@@ -81,7 +81,7 @@ private[spark] class HadoopDelegationTokenManager(
       Some(createFn)
     } catch {
       case t: Throwable =>
-        logDebug(s"Failed to load built in provider.", t)
+        logDebug("Failed to load built in provider.", t)
         None
     }
   }
@@ -132,7 +132,7 @@ private[spark] class HadoopDelegationTokenManager(
         provider.obtainDelegationTokens(hadoopConf, sparkConf, creds)
       } else {
         logDebug(s"Service ${provider.serviceName} does not require a token." +
-          s" Check your configuration to see if security is disabled or not.")
+          " Check your configuration to see if security is disabled or not.")
         None
       }
     }.foldLeft(Long.MaxValue)(math.min)

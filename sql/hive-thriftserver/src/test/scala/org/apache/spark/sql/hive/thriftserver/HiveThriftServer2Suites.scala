@@ -563,7 +563,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
 
         Seq(
           s"ADD JAR $jarURL",
-          s"""CREATE TEMPORARY FUNCTION udtf_count2
+          """CREATE TEMPORARY FUNCTION udtf_count2
              |AS 'org.apache.spark.sql.hive.execution.GenericUDTFCount2'
            """.stripMargin
         ).foreach(statement.execute)
@@ -663,7 +663,7 @@ class SingleSessionSuite extends HiveThriftJdbcTest {
         Seq(
           "SET foo=bar",
           s"ADD JAR $jarURL",
-          s"""CREATE TEMPORARY FUNCTION udtf_count2
+          """CREATE TEMPORARY FUNCTION udtf_count2
               |AS 'org.apache.spark.sql.hive.execution.GenericUDTFCount2'
            """.stripMargin
         ).foreach(statement.execute)
@@ -1041,7 +1041,7 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
         throw cause
     }.get
 
-    logInfo(s"HiveThriftServer2 started successfully")
+    logInfo("HiveThriftServer2 started successfully")
   }
 
   override protected def afterAll(): Unit = {

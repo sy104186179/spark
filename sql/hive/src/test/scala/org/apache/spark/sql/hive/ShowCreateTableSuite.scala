@@ -52,7 +52,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("data source table CTAS") {
     withTable("ddl_test") {
       sql(
-        s"""CREATE TABLE ddl_test
+        """CREATE TABLE ddl_test
            |USING json
            |AS SELECT 1 AS a, "foo" AS b
          """.stripMargin
@@ -65,7 +65,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("partitioned data source table") {
     withTable("ddl_test") {
       sql(
-        s"""CREATE TABLE ddl_test
+        """CREATE TABLE ddl_test
            |USING json
            |PARTITIONED BY (b)
            |AS SELECT 1 AS a, "foo" AS b
@@ -79,7 +79,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("bucketed data source table") {
     withTable("ddl_test") {
       sql(
-        s"""CREATE TABLE ddl_test
+        """CREATE TABLE ddl_test
            |USING json
            |CLUSTERED BY (a) SORTED BY (b) INTO 2 BUCKETS
            |AS SELECT 1 AS a, "foo" AS b
@@ -93,7 +93,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("partitioned bucketed data source table") {
     withTable("ddl_test") {
       sql(
-        s"""CREATE TABLE ddl_test
+        """CREATE TABLE ddl_test
            |USING json
            |PARTITIONED BY (c)
            |CLUSTERED BY (a) SORTED BY (b) INTO 2 BUCKETS
@@ -123,7 +123,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("simple hive table") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (
+        """CREATE TABLE t1 (
            |  c1 INT COMMENT 'bla',
            |  c2 STRING
            |)
@@ -162,7 +162,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("partitioned hive table") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (
+        """CREATE TABLE t1 (
            |  c1 INT COMMENT 'bla',
            |  c2 STRING
            |)
@@ -181,7 +181,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("hive table with explicit storage info") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (
+        """CREATE TABLE t1 (
            |  c1 INT COMMENT 'bla',
            |  c2 STRING
            |)
@@ -199,7 +199,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("hive table with STORED AS clause") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (
+        """CREATE TABLE t1 (
            |  c1 INT COMMENT 'bla',
            |  c2 STRING
            |)
@@ -214,7 +214,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("hive table with serde info") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (
+        """CREATE TABLE t1 (
            |  c1 INT COMMENT 'bla',
            |  c2 STRING
            |)
@@ -250,7 +250,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
   test("hive bucketing is supported") {
     withTable("t1") {
       sql(
-        s"""CREATE TABLE t1 (a INT, b STRING)
+        """CREATE TABLE t1 (a INT, b STRING)
            |CLUSTERED BY (a)
            |SORTED BY (b)
            |INTO 2 BUCKETS
@@ -264,7 +264,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
     withTable("t1") {
       withView("v1") {
         sql(
-          s"""
+          """
              |CREATE TABLE t1 (c1 INT, c2 STRING)
              |PARTITIONED BY (
              |  p1 BIGINT COMMENT 'bla',
@@ -272,7 +272,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
            """.stripMargin)
 
         createRawHiveTable(
-          s"""
+          """
              |CREATE VIEW v1
              |PARTITIONED ON (p1, p2)
              |AS SELECT * from t1
@@ -292,7 +292,7 @@ class ShowCreateTableSuite extends QueryTest with SQLTestUtils with TestHiveSing
     withTable("t1") {
       val createTable = "CREATE TABLE `t1`(`a` STRUCT<`b`: STRING>)"
       sql(createTable)
-      val shownDDL = sql(s"SHOW CREATE TABLE t1")
+      val shownDDL = sql("SHOW CREATE TABLE t1")
         .head()
         .getString(0)
         .split("\n")

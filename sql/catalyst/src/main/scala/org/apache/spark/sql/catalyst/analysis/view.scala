@@ -77,7 +77,7 @@ case class AliasViewChild(conf: SQLConf) extends Rule[LogicalPlan] with CastSupp
           if (Cast.mayTruncate(originAttr.dataType, attr.dataType)) {
             throw new AnalysisException(s"Cannot up cast ${originAttr.sql} from " +
               s"${originAttr.dataType.catalogString} to ${attr.dataType.catalogString} as it " +
-              s"may truncate\n")
+              "may truncate\n")
           } else {
             Alias(cast(originAttr, attr.dataType), attr.name)(exprId = attr.exprId,
               qualifier = attr.qualifier, explicitMetadata = Some(attr.metadata))

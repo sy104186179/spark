@@ -142,7 +142,7 @@ class NewHadoopRDD[K, V](
     } catch {
       case e: InvalidInputException if ignoreMissingFiles =>
         logWarning(s"${_conf.get(FileInputFormat.INPUT_DIR)} doesn't exist and no" +
-            s" partitions returned from this path.", e)
+            " partitions returned from this path.", e)
         Array.empty[Partition]
     }
   }

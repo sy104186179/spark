@@ -185,10 +185,10 @@ object JSONBenchmarks extends SQLHelper {
       benchmark.addCase(s"Select $colsNum columns + count()", 3) { _ =>
         ds.select("*").filter((_: Row) => true).count()
       }
-      benchmark.addCase(s"Select 1 column + count()", 3) { _ =>
+      benchmark.addCase("Select 1 column + count()", 3) { _ =>
         ds.select($"col1").filter((_: Row) => true).count()
       }
-      benchmark.addCase(s"count()", 3) { _ =>
+      benchmark.addCase("count()", 3) { _ =>
         ds.count()
       }
 

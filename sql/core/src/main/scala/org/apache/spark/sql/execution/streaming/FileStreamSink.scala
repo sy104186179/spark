@@ -50,7 +50,7 @@ object FileStreamSink extends Logging {
           }
         } catch {
           case NonFatal(e) =>
-            logWarning(s"Error while looking for metadata directory.")
+            logWarning("Error while looking for metadata directory.")
             false
         }
       case _ => false

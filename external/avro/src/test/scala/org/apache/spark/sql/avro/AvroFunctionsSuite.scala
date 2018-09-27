@@ -30,13 +30,13 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext {
     val df = spark.range(10).select('id, 'id.cast("string").as("str"))
 
     val avroDF = df.select(to_avro('id).as("a"), to_avro('str).as("b"))
-    val avroTypeLong = s"""
+    val avroTypeLong = """
       |{
       |  "type": "int",
       |  "name": "id"
       |}
     """.stripMargin
-    val avroTypeStr = s"""
+    val avroTypeStr = """
       |{
       |  "type": "string",
       |  "name": "str"
@@ -48,7 +48,7 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext {
   test("roundtrip in to_avro and from_avro - struct") {
     val df = spark.range(10).select(struct('id, 'id.cast("string").as("str")).as("struct"))
     val avroStructDF = df.select(to_avro('struct).as("avro"))
-    val avroTypeStruct = s"""
+    val avroTypeStruct = """
       |{
       |  "type": "record",
       |  "name": "struct",
@@ -63,7 +63,7 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext {
 
   test("roundtrip in to_avro and from_avro - array with null") {
     val dfOne = Seq(Tuple1(Tuple1(1) :: Nil), Tuple1(null :: Nil)).toDF("array")
-    val avroTypeArrStruct = s"""
+    val avroTypeArrStruct = """
       |[ {
       |  "type" : "array",
       |  "items" : [ {

@@ -187,7 +187,7 @@ class TrainValidationSplitSuite
         assert(lr.uid === lr2.uid)
         assert(lr.getMaxIter === lr2.getMaxIter)
       case other =>
-        throw new AssertionError(s"Loaded TrainValidationSplit expected estimator of type" +
+        throw new AssertionError("Loaded TrainValidationSplit expected estimator of type" +
           s" LogisticRegression but found ${other.getClass.getName}")
     }
   }
@@ -264,12 +264,12 @@ class TrainValidationSplitSuite
             assert(ova.getClassifier.asInstanceOf[LogisticRegression].getMaxIter
               === lr.getMaxIter)
           case other =>
-            throw new AssertionError(s"Loaded TrainValidationSplit expected estimator of type" +
+            throw new AssertionError("Loaded TrainValidationSplit expected estimator of type" +
               s" LogisticRegression but found ${other.getClass.getName}")
         }
 
       case other =>
-        throw new AssertionError(s"Loaded TrainValidationSplit expected estimator of type" +
+        throw new AssertionError("Loaded TrainValidationSplit expected estimator of type" +
           s" OneVsRest but found ${other.getClass.getName}")
     }
 

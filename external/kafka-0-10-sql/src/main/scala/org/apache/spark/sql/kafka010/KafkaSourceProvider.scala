@@ -357,7 +357,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     if (caseInsensitiveParams.contains(s"kafka.${ConsumerConfig.GROUP_ID_CONFIG}")) {
       throw new IllegalArgumentException(
         s"Kafka option '${ConsumerConfig.GROUP_ID_CONFIG}' is not supported as " +
-          s"user-specified consumer groups are not used to track offsets.")
+          "user-specified consumer groups are not used to track offsets.")
     }
 
     if (caseInsensitiveParams.contains(s"kafka.${ConsumerConfig.AUTO_OFFSET_RESET_CONFIG}")) {
@@ -402,7 +402,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     if (!caseInsensitiveParams.contains(s"kafka.${ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG}")) {
       throw new IllegalArgumentException(
         s"Option 'kafka.${ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG}' must be specified for " +
-          s"configuring Kafka consumer")
+          "configuring Kafka consumer")
     }
   }
 

@@ -308,7 +308,7 @@ private[spark] object ClosureCleaner extends Logging {
         }
       }
 
-      logDebug(s" + fields accessed by starting closure: " + accessedFields.size)
+      logDebug(" + fields accessed by starting closure: " + accessedFields.size)
       accessedFields.foreach { f => logDebug("     " + f) }
 
       // List of outer (class, object) pairs, ordered from outermost to innermost

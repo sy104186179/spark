@@ -91,7 +91,7 @@ private[spark] class KubernetesSuite extends SparkFunSuite
     val sparkDistroExamplesJarFile: File = sparkHomeDir.resolve(Paths.get("examples", "jars"))
       .toFile
       .listFiles(new PatternFilenameFilter(Pattern.compile("^spark-examples_.*\\.jar$")))(0)
-    containerLocalSparkDistroExamplesJar = s"local:///opt/spark/examples/jars/" +
+    containerLocalSparkDistroExamplesJar = "local:///opt/spark/examples/jars/" +
       s"${sparkDistroExamplesJarFile.getName}"
     testBackend = IntegrationTestBackendFactory.getTestBackend
     testBackend.initialize()

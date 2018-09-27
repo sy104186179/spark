@@ -1099,7 +1099,7 @@ class ExecutorAllocationManagerSuite
       .set("spark.dynamicAllocation.initialExecutors", initialExecutors.toString)
       .set("spark.dynamicAllocation.schedulerBacklogTimeout", "1000ms")
       .set("spark.dynamicAllocation.sustainedSchedulerBacklogTimeout", "1000ms")
-      .set("spark.dynamicAllocation.executorIdleTimeout", s"3000ms")
+      .set("spark.dynamicAllocation.executorIdleTimeout", "3000ms")
     val mockAllocationClient = mock(classOf[ExecutorAllocationClient])
     val mockBMM = mock(classOf[BlockManagerMaster])
     val manager = new ExecutorAllocationManager(

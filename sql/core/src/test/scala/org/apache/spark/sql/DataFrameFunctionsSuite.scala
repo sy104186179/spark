@@ -771,7 +771,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       OneRowRelation().selectExpr("array_contains(array(1), .01234567890123456790123456780)")
     }
     val errorMsg1 =
-      s"""
+      """
          |Input to function array_contains should have been array followed by a
          |value with same element type, but it's [array<int>, decimal(29,29)].
        """.stripMargin.replace("\n", " ").trim()
@@ -781,7 +781,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       OneRowRelation().selectExpr("array_contains(array(1), 'foo')")
     }
     val errorMsg2 =
-      s"""
+      """
          |Input to function array_contains should have been array followed by a
          |value with same element type, but it's [array<int>, string].
        """.stripMargin.replace("\n", " ").trim()
@@ -1139,7 +1139,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       Seq(("a string element", "a")).toDF().selectExpr("array_position(_1, _2)")
     }
     val errorMsg1 =
-      s"""
+      """
          |Input to function array_position should have been array followed by a
          |value with same element type, but it's [string, string].
        """.stripMargin.replace("\n", " ").trim()
@@ -1149,7 +1149,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       OneRowRelation().selectExpr("array_position(array(1), '1')")
     }
     val errorMsg2 =
-      s"""
+      """
          |Input to function array_position should have been array followed by a
          |value with same element type, but it's [array<int>, string].
        """.stripMargin.replace("\n", " ").trim()
@@ -1615,7 +1615,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
       Seq(("a string element", "a")).toDF().selectExpr("array_remove(_1, _2)")
     }
     val errorMsg1 =
-      s"""
+      """
          |Input to function array_remove should have been array followed by a
          |value with same element type, but it's [string, string].
        """.stripMargin.replace("\n", " ").trim()
@@ -1626,7 +1626,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSQLContext {
     }
 
     val errorMsg2 =
-      s"""
+      """
          |Input to function array_remove should have been array followed by a
          |value with same element type, but it's [array<int>, string].
        """.stripMargin.replace("\n", " ").trim()

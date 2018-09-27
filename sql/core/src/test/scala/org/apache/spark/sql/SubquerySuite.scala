@@ -914,7 +914,7 @@ class SubquerySuite extends QueryTest with SharedSQLContext {
         sql(s"CREATE TABLE t3 USING parquet LOCATION '${path.toURI}/t3'")
 
         val sqlText =
-          s"""
+          """
              |SELECT *
              |FROM   (SELECT *
              |        FROM   t2

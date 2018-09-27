@@ -142,7 +142,7 @@ private[deploy] class Master(
     if (reverseProxy) {
       masterWebUiUrl = conf.get("spark.ui.reverseProxyUrl", masterWebUiUrl)
       webUi.addProxy()
-      logInfo(s"Spark Master is acting as a reverse proxy. Master, Workers and " +
+      logInfo("Spark Master is acting as a reverse proxy. Master, Workers and " +
        s"Applications UIs are available at $masterWebUiUrl")
     }
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(new Runnable {
@@ -442,7 +442,7 @@ private[deploy] class Master(
     case RequestKillDriver(driverId) =>
       if (state != RecoveryState.ALIVE) {
         val msg = s"${Utils.BACKUP_STANDALONE_MASTER_PREFIX}: $state. " +
-          s"Can only kill drivers in ALIVE state."
+          "Can only kill drivers in ALIVE state."
         context.reply(KillDriverResponse(self, driverId, success = false, msg))
       } else {
         logInfo("Asked to kill driver " + driverId)
@@ -809,7 +809,7 @@ private[deploy] class Master(
         removeDriver(driver.id, DriverState.ERROR, None)
       }
     }
-    logInfo(s"Telling app of lost worker: " + worker.id)
+    logInfo("Telling app of lost worker: " + worker.id)
     apps.filterNot(completedApps.contains(_)).foreach { app =>
       app.driver.send(WorkerRemoved(worker.id, worker.host, msg))
     }

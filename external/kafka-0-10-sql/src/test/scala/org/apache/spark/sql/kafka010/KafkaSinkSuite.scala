@@ -98,7 +98,7 @@ class KafkaSinkSuite extends StreamTest with SharedSQLContext with KafkaTest {
         .save()
     }
     assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
-      s"save mode ignore not allowed for kafka"))
+      "save mode ignore not allowed for kafka"))
 
     // Test bad save mode Overwrite
     ex = intercept[AnalysisException] {
@@ -109,7 +109,7 @@ class KafkaSinkSuite extends StreamTest with SharedSQLContext with KafkaTest {
         .save()
     }
     assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
-      s"save mode overwrite not allowed for kafka"))
+      "save mode overwrite not allowed for kafka"))
   }
 
   test("SPARK-20496: batch - enforce analyzed plans") {
@@ -283,7 +283,7 @@ class KafkaSinkSuite extends StreamTest with SharedSQLContext with KafkaTest {
       /* topic field wrong type */
       ex = intercept[StreamingQueryException] {
         writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = s"CAST('1' as INT) as topic", "value"
+          withSelectExpr = "CAST('1' as INT) as topic", "value"
         )
         input.addData("1", "2", "3", "4", "5")
         writer.processAllAvailable()

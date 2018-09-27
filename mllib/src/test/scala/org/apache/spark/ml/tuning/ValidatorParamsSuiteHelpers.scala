@@ -47,7 +47,7 @@ object ValidatorParamsSuiteHelpers extends Assertions {
                 val estimatorParamMap2 = Array(estimator2.extractParamMap())
                 compareParamMaps(estimatorParamMap, estimatorParamMap2)
               case other =>
-                throw new AssertionError(s"Expected parameter of type Params but" +
+                throw new AssertionError("Expected parameter of type Params but" +
                   s" found ${otherParam.getClass.getName}")
             }
           case _ =>

@@ -425,17 +425,17 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
   // Left outer joins: stream-stream allowed with join on watermark attribute
   // Note that the attribute need not be watermarked on both sides.
   assertSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and join on attribute with left watermark",
+    "left outer join with stream-stream relations and join on attribute with left watermark",
     streamRelation.join(streamRelation, joinType = LeftOuter,
       condition = Some(attributeWithWatermark === attribute)),
     OutputMode.Append())
   assertSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and join on attribute with right watermark",
+    "left outer join with stream-stream relations and join on attribute with right watermark",
     streamRelation.join(streamRelation, joinType = LeftOuter,
       condition = Some(attribute === attributeWithWatermark)),
     OutputMode.Append())
   assertNotSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and join on non-watermarked attribute",
+    "left outer join with stream-stream relations and join on non-watermarked attribute",
     streamRelation.join(streamRelation, joinType = LeftOuter,
       condition = Some(attribute === attribute)),
     OutputMode.Append(),
@@ -443,7 +443,7 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
 
   // Left outer joins: stream-stream allowed with range condition yielding state value watermark
   assertSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and state value watermark", {
+    "left outer join with stream-stream relations and state value watermark", {
       val leftRelation = streamRelation
       val rightTimeWithWatermark =
         AttributeReference("b", IntegerType)().withMetadata(watermarkMetadata)
@@ -457,7 +457,7 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
 
   // Left outer joins: stream-stream not allowed with insufficient range condition
   assertNotSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and state value watermark", {
+    "left outer join with stream-stream relations and state value watermark", {
       val leftRelation = streamRelation
       val rightTimeWithWatermark =
         AttributeReference("b", IntegerType)().withMetadata(watermarkMetadata)
@@ -497,17 +497,17 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
   // Right outer joins: stream-stream allowed with join on watermark attribute
   // Note that the attribute need not be watermarked on both sides.
   assertSupportedInStreamingPlan(
-    s"right outer join with stream-stream relations and join on attribute with left watermark",
+    "right outer join with stream-stream relations and join on attribute with left watermark",
     streamRelation.join(streamRelation, joinType = RightOuter,
       condition = Some(attributeWithWatermark === attribute)),
     OutputMode.Append())
   assertSupportedInStreamingPlan(
-    s"right outer join with stream-stream relations and join on attribute with right watermark",
+    "right outer join with stream-stream relations and join on attribute with right watermark",
     streamRelation.join(streamRelation, joinType = RightOuter,
       condition = Some(attribute === attributeWithWatermark)),
     OutputMode.Append())
   assertNotSupportedInStreamingPlan(
-    s"right outer join with stream-stream relations and join on non-watermarked attribute",
+    "right outer join with stream-stream relations and join on non-watermarked attribute",
     streamRelation.join(streamRelation, joinType = RightOuter,
       condition = Some(attribute === attribute)),
     OutputMode.Append(),
@@ -515,7 +515,7 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
 
   // Right outer joins: stream-stream allowed with range condition yielding state value watermark
   assertSupportedInStreamingPlan(
-    s"right outer join with stream-stream relations and state value watermark", {
+    "right outer join with stream-stream relations and state value watermark", {
       val leftTimeWithWatermark =
         AttributeReference("b", IntegerType)().withMetadata(watermarkMetadata)
       val leftRelation = new TestStreamingRelation(leftTimeWithWatermark)
@@ -529,7 +529,7 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
 
   // Right outer joins: stream-stream not allowed with insufficient range condition
   assertNotSupportedInStreamingPlan(
-    s"right outer join with stream-stream relations and state value watermark", {
+    "right outer join with stream-stream relations and state value watermark", {
       val leftTimeWithWatermark =
         AttributeReference("b", IntegerType)().withMetadata(watermarkMetadata)
       val leftRelation = new TestStreamingRelation(leftTimeWithWatermark)

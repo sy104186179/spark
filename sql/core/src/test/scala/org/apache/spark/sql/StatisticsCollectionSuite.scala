@@ -238,7 +238,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     numbers.foreach { case (input, (expectedSize, expectedRows)) =>
       val stats = Statistics(sizeInBytes = input, rowCount = Some(input))
       val expectedString = s"sizeInBytes=$expectedSize, rowCount=$expectedRows," +
-        s" hints=none"
+        " hints=none"
       assert(stats.simpleString == expectedString)
     }
   }

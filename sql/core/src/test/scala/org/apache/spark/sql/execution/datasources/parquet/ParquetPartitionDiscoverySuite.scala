@@ -311,7 +311,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
             "hdfs://host:9000/path/a=10.5/b=hello"))))
 
     check(Seq(
-      s"hdfs://host:9000/path/a=10/b=20",
+      "hdfs://host:9000/path/a=10/b=20",
       s"hdfs://host:9000/path/a=$defaultPartitionName/b=hello"),
       PartitionSpec(
         StructType(Seq(
@@ -319,7 +319,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
           StructField("b", StringType))),
         Seq(
           Partition(InternalRow(10, UTF8String.fromString("20")),
-            s"hdfs://host:9000/path/a=10/b=20"),
+            "hdfs://host:9000/path/a=10/b=20"),
           Partition(InternalRow(null, UTF8String.fromString("hello")),
             s"hdfs://host:9000/path/a=$defaultPartitionName/b=hello"))))
 
@@ -336,8 +336,8 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
             s"hdfs://host:9000/path/a=10.5/b=$defaultPartitionName"))))
 
     check(Seq(
-      s"hdfs://host:9000/path1",
-      s"hdfs://host:9000/path2"),
+      "hdfs://host:9000/path1",
+      "hdfs://host:9000/path2"),
       PartitionSpec.emptySpec)
 
     // The cases below check the resolution for type conflicts.
@@ -418,7 +418,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
             "hdfs://host:9000/path/a=10.5/b=hello"))))
 
     check(Seq(
-      s"hdfs://host:9000/path/a=10/b=20",
+      "hdfs://host:9000/path/a=10/b=20",
       s"hdfs://host:9000/path/a=$defaultPartitionName/b=hello"),
       PartitionSpec(
         StructType(Seq(
@@ -426,7 +426,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
           StructField("b", StringType))),
         Seq(
           Partition(InternalRow(UTF8String.fromString("10"), UTF8String.fromString("20")),
-            s"hdfs://host:9000/path/a=10/b=20"),
+            "hdfs://host:9000/path/a=10/b=20"),
           Partition(InternalRow(null, UTF8String.fromString("hello")),
             s"hdfs://host:9000/path/a=$defaultPartitionName/b=hello"))))
 
@@ -444,8 +444,8 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
             s"hdfs://host:9000/path/a=10.5/b=$defaultPartitionName"))))
 
     check(Seq(
-      s"hdfs://host:9000/path1",
-      s"hdfs://host:9000/path2"),
+      "hdfs://host:9000/path1",
+      "hdfs://host:9000/path2"),
       PartitionSpec.emptySpec)
   }
 
@@ -743,7 +743,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
       case (t, index) => StructField(s"p_$index", t)
     }
 
-    val schema = StructType(partitionColumns :+ StructField(s"i", StringType))
+    val schema = StructType(partitionColumns :+ StructField("i", StringType))
     val df = spark.createDataFrame(sparkContext.parallelize(row :: Nil), schema)
 
     withTempPath { dir =>
@@ -785,7 +785,7 @@ class ParquetPartitionDiscoverySuite extends QueryTest with ParquetTest with Sha
       case (t, index) => StructField(s"p_$index", t)
     }
 
-    val schema = StructType(partitionColumns :+ StructField(s"i", StringType))
+    val schema = StructType(partitionColumns :+ StructField("i", StringType))
     val df = spark.createDataFrame(sparkContext.parallelize(row :: Nil), schema)
 
     withTempPath { dir =>

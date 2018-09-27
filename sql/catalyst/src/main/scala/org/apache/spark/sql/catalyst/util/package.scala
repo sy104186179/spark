@@ -160,7 +160,7 @@ package object util {
     val builder = StringBuilder.newBuilder
 
     str.foreach {
-      case '\'' => builder ++= s"\\\'"
+      case '\'' => builder ++= "\\\'"
       case ch => builder += ch
     }
 

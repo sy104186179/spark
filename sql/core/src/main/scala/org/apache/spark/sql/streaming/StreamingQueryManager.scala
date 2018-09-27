@@ -223,7 +223,7 @@ class StreamingQueryManager private[sql] (sparkSession: SparkSession) extends Lo
       if (useTempCheckpointLocation) {
         // Delete the temp checkpoint when a query is being stopped without errors.
         deleteCheckpointOnStop = true
-        Utils.createTempDir(namePrefix = s"temporary").getCanonicalPath
+        Utils.createTempDir(namePrefix = "temporary").getCanonicalPath
       } else {
         throw new AnalysisException(
           "checkpointLocation must be specified either " +
@@ -238,7 +238,7 @@ class StreamingQueryManager private[sql] (sparkSession: SparkSession) extends Lo
       val fs = checkpointPath.getFileSystem(df.sparkSession.sessionState.newHadoopConf())
       if (fs.exists(checkpointPath)) {
         throw new AnalysisException(
-          s"This query does not support recovering from checkpoint location. " +
+          "This query does not support recovering from checkpoint location. " +
             s"Delete $checkpointPath to start over.")
       }
     }
@@ -338,8 +338,8 @@ class StreamingQueryManager private[sql] (sparkSession: SparkSession) extends Lo
       if (activeQueries.values.exists(_.id == query.id)) {
         throw new IllegalStateException(
           s"Cannot start query with id ${query.id} as another query with same id is " +
-            s"already active. Perhaps you are attempting to restart a query from checkpoint " +
-            s"that is already active.")
+            "already active. Perhaps you are attempting to restart a query from checkpoint " +
+            "that is already active.")
       }
 
       activeQueries.put(query.id, query)

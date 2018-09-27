@@ -978,7 +978,7 @@ class AvroSuite extends QueryTest with SharedSQLContext with SQLTestUtils {
       assert(spark.sql("SELECT * FROM episodesEmpty").collect().isEmpty)
 
       spark.sql(
-        s"""
+        """
            |INSERT OVERWRITE TABLE episodesEmpty
            |SELECT * FROM episodes
          """.stripMargin.replaceAll("\n", " "))
