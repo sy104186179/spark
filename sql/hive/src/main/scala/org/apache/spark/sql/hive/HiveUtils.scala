@@ -273,6 +273,22 @@ private[spark] object HiveUtils extends Logging {
     loader.createClient().asInstanceOf[HiveClientImpl]
   }
 
+  protected[hive] def newClientFromHadoopConfig(
+      conf: SparkConf,
+      hadoopConf: Configuration): HiveClientImpl = {
+    val configurations = formatTimeVarsForHiveClient(hadoopConf)
+    logInfo(s"Initializing execution hive from hadoop configuration, version $builtinHiveVersion")
+    val loader = new IsolatedClientLoader(
+      version = IsolatedClientLoader.hiveVersion(builtinHiveVersion),
+      sparkConf = conf,
+      execJars = Seq.empty,
+      hadoopConf = hadoopConf,
+      config = configurations,
+      isolationOn = false,
+      baseClassLoader = Utils.getContextOrSparkClassLoader)
+    loader.createClient().asInstanceOf[HiveClientImpl]
+  }
+
   /**
    * Create a [[HiveClient]] used to retrieve metadata from the Hive MetaStore.
    *

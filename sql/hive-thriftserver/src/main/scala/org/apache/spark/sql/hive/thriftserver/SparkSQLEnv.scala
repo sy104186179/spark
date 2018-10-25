@@ -19,6 +19,8 @@ package org.apache.spark.sql.hive.thriftserver
 
 import java.io.PrintStream
 
+import org.apache.hadoop.hive.conf.HiveConf
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SQLContext}
@@ -55,6 +57,11 @@ private[hive] object SparkSQLEnv extends Logging {
       metadataHive.setInfo(new PrintStream(System.err, true, "UTF-8"))
       metadataHive.setError(new PrintStream(System.err, true, "UTF-8"))
       sparkSession.conf.set(HiveUtils.FAKE_HIVE_VERSION.key, HiveUtils.builtinHiveVersion)
+
+      HiveConf.metaVars.foreach { key =>
+        sparkContext.hadoopConfiguration
+          .set(key.varname, metadataHive.getConf(key.varname, key.defaultStrVal))
+      }
     }
   }
 

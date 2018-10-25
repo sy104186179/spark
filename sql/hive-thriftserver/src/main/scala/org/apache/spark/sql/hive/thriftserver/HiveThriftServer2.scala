@@ -91,6 +91,7 @@ object HiveThriftServer2 extends Logging {
     }
 
     val executionHive = HiveUtils.newClientForExecution(
+    // val executionHive = HiveUtils.newClientFromHadoopConfig(
       SparkSQLEnv.sqlContext.sparkContext.conf,
       SparkSQLEnv.sqlContext.sessionState.newHadoopConf())
 
