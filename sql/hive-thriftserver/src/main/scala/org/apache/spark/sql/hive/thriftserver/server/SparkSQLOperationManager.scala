@@ -27,7 +27,7 @@ import org.apache.hive.service.cli.session.HiveSession
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.hive.HiveUtils
-import org.apache.spark.sql.hive.thriftserver.{ReflectionUtils, SparkExecuteStatementOperation, SparkGetSchemasOperation, SparkGetTablesOperation}
+import org.apache.spark.sql.hive.thriftserver._
 import org.apache.spark.sql.internal.SQLConf
 
 /**
@@ -116,8 +116,14 @@ private[thriftserver] class SparkSQLOperationManager()
       schemaName: String,
       tableName: String,
       columnName: String): GetColumnsOperation = synchronized {
-    logWarning("Run into newGetColumnsOperation")
-    super.newGetColumnsOperation(parentSession, catalogName, schemaName, tableName, columnName)
+    val sqlContext = sessionToContexts.get(parentSession.getSessionHandle)
+    require(sqlContext != null, s"Session handle: ${parentSession.getSessionHandle} has not been" +
+      s" initialized or had already closed.")
+    val operation = new SparkGetColumnsOperation(sqlContext, parentSession,
+      catalogName, schemaName, tableName, columnName)
+    handleToOperation.put(operation.getHandle, operation)
+    logDebug(s"Created GetColumnsOperation with session=$parentSession.")
+    operation
   }
 
   override def newGetFunctionsOperation(
