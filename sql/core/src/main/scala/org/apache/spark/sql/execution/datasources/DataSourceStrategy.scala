@@ -23,7 +23,7 @@ import java.util.concurrent.Callable
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.{EmptyRDD, RDD}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow, QualifiedTableName}
 import org.apache.spark.sql.catalyst.CatalystTypeConverters.convertToScala
@@ -307,6 +307,17 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         Set.empty,
         toCatalystRDD(l, baseRelation.buildScan()),
         baseRelation,
+        None) :: Nil
+
+    // For test only. see SPARK-24869 for more details.
+    case l @ LogicalRelation(fakeRelation: BaseRelation, _, None, false) =>
+      RowDataSourceScanExec(
+        l.output,
+        l.output.indices,
+        Set.empty,
+        Set.empty,
+        new EmptyRDD[InternalRow](fakeRelation.sqlContext.sparkContext),
+        fakeRelation,
         None) :: Nil
 
     case _ => Nil
