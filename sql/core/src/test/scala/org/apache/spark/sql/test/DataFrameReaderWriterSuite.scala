@@ -56,10 +56,6 @@ class DefaultSource
   with SchemaRelationProvider
   with CreatableRelationProvider {
 
-  case class FakeRelation(sqlContext: SQLContext) extends BaseRelation {
-    override def schema: StructType = StructType(Seq(StructField("a", StringType)))
-  }
-
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String],
@@ -95,10 +91,6 @@ class DefaultSource
 class DefaultSourceWithoutUserSpecifiedSchema
   extends RelationProvider
   with CreatableRelationProvider {
-
-  case class FakeRelation(sqlContext: SQLContext) extends BaseRelation {
-    override def schema: StructType = StructType(Seq(StructField("a", StringType)))
-  }
 
   override def createRelation(
       sqlContext: SQLContext,

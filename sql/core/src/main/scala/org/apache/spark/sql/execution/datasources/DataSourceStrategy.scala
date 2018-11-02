@@ -309,17 +309,6 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         baseRelation,
         None) :: Nil
 
-    // For test only. see SPARK-24869 for more details.
-    case l @ LogicalRelation(fakeRelation: BaseRelation, _, None, false) =>
-      RowDataSourceScanExec(
-        l.output,
-        l.output.indices,
-        Set.empty,
-        Set.empty,
-        new EmptyRDD[InternalRow](fakeRelation.sqlContext.sparkContext),
-        fakeRelation,
-        None) :: Nil
-
     case _ => Nil
   }
 
