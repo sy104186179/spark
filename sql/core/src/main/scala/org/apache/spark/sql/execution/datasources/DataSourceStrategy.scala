@@ -23,7 +23,7 @@ import java.util.concurrent.Callable
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.{EmptyRDD, RDD}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow, QualifiedTableName}
 import org.apache.spark.sql.catalyst.CatalystTypeConverters.convertToScala
