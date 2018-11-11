@@ -36,6 +36,7 @@ import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.json4s.JsonAST._
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.JsonMethods._
+import org.mockito.Mockito._
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.htmlunit.HtmlUnitDriver
 import org.scalatest.{BeforeAndAfter, Matchers}
@@ -44,11 +45,11 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.selenium.WebBrowser
 
 import org.apache.spark._
-import org.apache.spark.deploy.history.config._
+import org.apache.spark.internal.config.History._
 import org.apache.spark.status.api.v1.ApplicationInfo
 import org.apache.spark.status.api.v1.JobData
 import org.apache.spark.ui.SparkUI
-import org.apache.spark.util.{ResetSystemProperties, Utils}
+import org.apache.spark.util.{ResetSystemProperties, ShutdownHookManager, Utils}
 
 /**
  * A collection of tests against the historyserver, including comparing responses from the json
@@ -81,6 +82,7 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
       .set("spark.history.fs.update.interval", "0")
       .set("spark.testing", "true")
       .set(LOCAL_STORE_DIR, storeDir.getAbsolutePath())
+      .set("spark.eventLog.logStageExecutorMetrics.enabled", "true")
     conf.setAll(extraConf)
     provider = new FsHistoryProvider(conf)
     provider.checkForLogs()
@@ -127,6 +129,8 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     "succeeded&failed job list json" ->
       "applications/local-1422981780767/jobs?status=succeeded&status=failed",
     "executor list json" -> "applications/local-1422981780767/executors",
+    "executor list with executor metrics json" ->
+      "applications/application_1506645932520_24630151/executors",
     "stage list json" -> "applications/local-1422981780767/stages",
     "complete stage list json" -> "applications/local-1422981780767/stages?status=complete",
     "failed stage list json" -> "applications/local-1422981780767/stages?status=failed",
@@ -156,6 +160,8 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
       "applications/local-1426533911241/1/stages/0/0/taskList",
     "stage task list from multi-attempt app json(2)" ->
       "applications/local-1426533911241/2/stages/0/0/taskList",
+    "blacklisting for stage" -> "applications/app-20180109111548-0000/stages/0/0",
+    "blacklisting node for stage" -> "applications/application_1516285256255_0012/stages/0/0",
 
     "rdd list storage json" -> "applications/local-1422981780767/storage/rdd",
     "executor node blacklisting" -> "applications/app-20161116163331-0000/executors",
@@ -279,6 +285,29 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     getContentAndCode("foobar")._1 should be (HttpServletResponse.SC_NOT_FOUND)
   }
 
+  test("automatically retrieve uiRoot from request through Knox") {
+    assert(sys.props.get("spark.ui.proxyBase").isEmpty,
+      "spark.ui.proxyBase is defined but it should not for this UT")
+    assert(sys.env.get("APPLICATION_WEB_PROXY_BASE").isEmpty,
+      "APPLICATION_WEB_PROXY_BASE is defined but it should not for this UT")
+    val page = new HistoryPage(server)
+    val requestThroughKnox = mock[HttpServletRequest]
+    val knoxBaseUrl = "/gateway/default/sparkhistoryui"
+    when(requestThroughKnox.getHeader("X-Forwarded-Context")).thenReturn(knoxBaseUrl)
+    val responseThroughKnox = page.render(requestThroughKnox)
+
+    val urlsThroughKnox = responseThroughKnox \\ "@href" map (_.toString)
+    val siteRelativeLinksThroughKnox = urlsThroughKnox filter (_.startsWith("/"))
+    all (siteRelativeLinksThroughKnox) should startWith (knoxBaseUrl)
+
+    val directRequest = mock[HttpServletRequest]
+    val directResponse = page.render(directRequest)
+
+    val directUrls = directResponse \\ "@href" map (_.toString)
+    val directSiteRelativeLinks = directUrls filter (_.startsWith("/"))
+    all (directSiteRelativeLinks) should not startWith (knoxBaseUrl)
+  }
+
   test("static relative links are prefixed with uiRoot (spark.ui.proxyBase)") {
     val uiRoot = Option(System.getenv("APPLICATION_WEB_PROXY_BASE")).getOrElse("/testwebproxybase")
     val page = new HistoryPage(server)
@@ -292,6 +321,11 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     val urls = response \\ "@href" map (_.toString)
     val siteRelativeLinks = urls filter (_.startsWith("/"))
     all (siteRelativeLinks) should startWith (uiRoot)
+  }
+
+  test("/version api endpoint") {
+    val response = getUrl("version")
+    assert(response.contains(SPARK_VERSION))
   }
 
   test("ajax rendered relative links are prefixed with uiRoot (spark.ui.proxyBase)") {
@@ -564,7 +598,7 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     assert(jobcount === getNumJobs("/jobs"))
 
     // no need to retain the test dir now the tests complete
-    logDir.deleteOnExit()
+    ShutdownHookManager.registerShutdownDeleteDir(logDir)
   }
 
   test("ui and api authorization checks") {

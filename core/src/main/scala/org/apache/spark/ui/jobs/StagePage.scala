@@ -23,12 +23,10 @@ import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 
 import scala.collection.mutable.{HashMap, HashSet}
-import scala.xml.{Elem, Node, Unparsed}
+import scala.xml.{Node, Unparsed}
 
 import org.apache.commons.lang3.StringEscapeUtils
 
-import org.apache.spark.SparkConf
-import org.apache.spark.internal.config._
 import org.apache.spark.scheduler.TaskLocality
 import org.apache.spark.status._
 import org.apache.spark.status.api.v1._
@@ -93,7 +91,6 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
     val parameterTaskSortColumn = UIUtils.stripXSS(request.getParameter("task.sort"))
     val parameterTaskSortDesc = UIUtils.stripXSS(request.getParameter("task.desc"))
     val parameterTaskPageSize = UIUtils.stripXSS(request.getParameter("task.pageSize"))
-    val parameterTaskPrevPageSize = UIUtils.stripXSS(request.getParameter("task.prevPageSize"))
 
     val taskPage = Option(parameterTaskPage).map(_.toInt).getOrElse(1)
     val taskSortColumn = Option(parameterTaskSortColumn).map { sortColumn =>
@@ -101,20 +98,18 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
     }.getOrElse("Index")
     val taskSortDesc = Option(parameterTaskSortDesc).map(_.toBoolean).getOrElse(false)
     val taskPageSize = Option(parameterTaskPageSize).map(_.toInt).getOrElse(100)
-    val taskPrevPageSize = Option(parameterTaskPrevPageSize).map(_.toInt).getOrElse(taskPageSize)
-
     val stageId = parameterId.toInt
     val stageAttemptId = parameterAttempt.toInt
 
     val stageHeader = s"Details for Stage $stageId (Attempt $stageAttemptId)"
-    val stageData = parent.store
+    val (stageData, stageJobIds) = parent.store
       .asOption(parent.store.stageAttempt(stageId, stageAttemptId, details = false))
       .getOrElse {
         val content =
           <div id="no-info">
             <p>No information to display for Stage {stageId} (Attempt {stageAttemptId})</p>
           </div>
-        return UIUtils.headerSparkPage(stageHeader, content, parent)
+        return UIUtils.headerSparkPage(request, stageHeader, content, parent)
       }
 
     val localitySummary = store.localitySummary(stageData.stageId, stageData.attemptId)
@@ -127,7 +122,7 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
           <h4>Summary Metrics</h4> No tasks have started yet
           <h4>Tasks</h4> No tasks have started yet
         </div>
-      return UIUtils.headerSparkPage(stageHeader, content, parent)
+      return UIUtils.headerSparkPage(request, stageHeader, content, parent)
     }
 
     val storedTasks = store.taskCount(stageData.stageId, stageData.attemptId)
@@ -135,7 +130,7 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
     val totalTasksNumStr = if (totalTasks == storedTasks) {
       s"$totalTasks"
     } else {
-      s"$totalTasks, showing ${storedTasks}"
+      s"$totalTasks, showing $storedTasks"
     }
 
     val summary =
@@ -183,6 +178,15 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
             <li>
               <strong>Shuffle Spill (Disk): </strong>
               {Utils.bytesToString(stageData.diskBytesSpilled)}
+            </li>
+          }}
+          {if (!stageJobIds.isEmpty) {
+            <li>
+              <strong>Associated Job Ids: </strong>
+              {stageJobIds.map(jobId => {val detailUrl = "%s/jobs/job/?id=%s".format(
+                UIUtils.prependBaseUri(request, parent.basePath), jobId)
+              <a href={s"${detailUrl}"}>{s"${jobId}"} &nbsp;&nbsp;</a>
+            })}
             </li>
           }}
         </ul>
@@ -260,35 +264,30 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
 
     val accumulableHeaders: Seq[String] = Seq("Accumulable", "Value")
     def accumulableRow(acc: AccumulableInfo): Seq[Node] = {
-      <tr><td>{acc.name}</td><td>{acc.value}</td></tr>
+      if (acc.name != null && acc.value != null) {
+        <tr><td>{acc.name}</td><td>{acc.value}</td></tr>
+      } else {
+        Nil
+      }
     }
     val accumulableTable = UIUtils.listingTable(
       accumulableHeaders,
       accumulableRow,
       stageData.accumulatorUpdates.toSeq)
 
-    val page: Int = {
-      // If the user has changed to a larger page size, then go to page 1 in order to avoid
-      // IndexOutOfBoundsException.
-      if (taskPageSize <= taskPrevPageSize) {
-        taskPage
-      } else {
-        1
-      }
-    }
     val currentTime = System.currentTimeMillis()
     val (taskTable, taskTableHTML) = try {
       val _taskTable = new TaskPagedTable(
         stageData,
-        UIUtils.prependBaseUri(parent.basePath) +
-          s"/stages/stage?id=${stageId}&attempt=${stageAttemptId}",
+        UIUtils.prependBaseUri(request, parent.basePath) +
+          s"/stages/stage/?id=${stageId}&attempt=${stageAttemptId}",
         currentTime,
         pageSize = taskPageSize,
         sortColumn = taskSortColumn,
         desc = taskSortDesc,
         store = parent.store
       )
-      (_taskTable, _taskTable.table(page))
+      (_taskTable, _taskTable.table(taskPage))
     } catch {
       case e @ (_ : IllegalArgumentException | _ : IndexOutOfBoundsException) =>
         val errorMessage =
@@ -486,9 +485,17 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
       <div>{summaryTable.getOrElse("No tasks have reported metrics yet.")}</div> ++
       aggMetrics ++
       maybeAccumulableTable ++
-      <h4 id="tasks-section">Tasks ({totalTasksNumStr})</h4> ++
-        taskTableHTML ++ jsForScrollingDownToTaskTable
-    UIUtils.headerSparkPage(stageHeader, content, parent, showVisualization = true)
+      <span id="tasks-section" class="collapse-aggregated-tasks collapse-table"
+          onClick="collapseTable('collapse-aggregated-tasks','aggregated-tasks')">
+        <h4>
+          <span class="collapse-table-arrow arrow-open"></span>
+          <a>Tasks ({totalTasksNumStr})</a>
+        </h4>
+      </span> ++
+      <div class="aggregated-tasks collapsible-table">
+        {taskTableHTML ++ jsForScrollingDownToTaskTable}
+      </div>
+    UIUtils.headerSparkPage(request, stageHeader, content, parent, showVisualization = true)
   }
 
   def makeTimeline(tasks: Seq[TaskData], currentTime: Long): Seq[Node] = {
@@ -676,7 +683,7 @@ private[ui] class TaskDataSource(
 
   private var _tasksToShow: Seq[TaskData] = null
 
-  override def dataSize: Int = stage.numCompleteTasks + stage.numFailedTasks + stage.numKilledTasks
+  override def dataSize: Int = store.taskCount(stage.stageId, stage.attemptId).toInt
 
   override def sliceData(from: Int, to: Int): Seq[TaskData] = {
     if (_tasksToShow == null) {
@@ -713,8 +720,6 @@ private[ui] class TaskPagedTable(
 
   override def pageSizeFormField: String = "task.pageSize"
 
-  override def prevPageSizeFormField: String = "task.prevPageSize"
-
   override def pageNumberFormField: String = "task.page"
 
   override val dataSource: TaskDataSource = new TaskDataSource(
@@ -740,37 +745,39 @@ private[ui] class TaskPagedTable(
   }
 
   def headers: Seq[Node] = {
+    import ApiHelper._
+
     val taskHeadersAndCssClasses: Seq[(String, String)] =
       Seq(
-        ("Index", ""), ("ID", ""), ("Attempt", ""), ("Status", ""), ("Locality Level", ""),
-        ("Executor ID", ""), ("Host", ""), ("Launch Time", ""), ("Duration", ""),
-        ("Scheduler Delay", TaskDetailsClassNames.SCHEDULER_DELAY),
-        ("Task Deserialization Time", TaskDetailsClassNames.TASK_DESERIALIZATION_TIME),
-        ("GC Time", ""),
-        ("Result Serialization Time", TaskDetailsClassNames.RESULT_SERIALIZATION_TIME),
-        ("Getting Result Time", TaskDetailsClassNames.GETTING_RESULT_TIME),
-        ("Peak Execution Memory", TaskDetailsClassNames.PEAK_EXECUTION_MEMORY)) ++
-        {if (hasAccumulators(stage)) Seq(("Accumulators", "")) else Nil} ++
-        {if (hasInput(stage)) Seq(("Input Size / Records", "")) else Nil} ++
-        {if (hasOutput(stage)) Seq(("Output Size / Records", "")) else Nil} ++
+        (HEADER_TASK_INDEX, ""), (HEADER_ID, ""), (HEADER_ATTEMPT, ""), (HEADER_STATUS, ""),
+        (HEADER_LOCALITY, ""), (HEADER_EXECUTOR, ""), (HEADER_HOST, ""), (HEADER_LAUNCH_TIME, ""),
+        (HEADER_DURATION, ""), (HEADER_SCHEDULER_DELAY, TaskDetailsClassNames.SCHEDULER_DELAY),
+        (HEADER_DESER_TIME, TaskDetailsClassNames.TASK_DESERIALIZATION_TIME),
+        (HEADER_GC_TIME, ""),
+        (HEADER_SER_TIME, TaskDetailsClassNames.RESULT_SERIALIZATION_TIME),
+        (HEADER_GETTING_RESULT_TIME, TaskDetailsClassNames.GETTING_RESULT_TIME),
+        (HEADER_PEAK_MEM, TaskDetailsClassNames.PEAK_EXECUTION_MEMORY)) ++
+        {if (hasAccumulators(stage)) Seq((HEADER_ACCUMULATORS, "")) else Nil} ++
+        {if (hasInput(stage)) Seq((HEADER_INPUT_SIZE, "")) else Nil} ++
+        {if (hasOutput(stage)) Seq((HEADER_OUTPUT_SIZE, "")) else Nil} ++
         {if (hasShuffleRead(stage)) {
-          Seq(("Shuffle Read Blocked Time", TaskDetailsClassNames.SHUFFLE_READ_BLOCKED_TIME),
-            ("Shuffle Read Size / Records", ""),
-            ("Shuffle Remote Reads", TaskDetailsClassNames.SHUFFLE_READ_REMOTE_SIZE))
+          Seq((HEADER_SHUFFLE_READ_TIME, TaskDetailsClassNames.SHUFFLE_READ_BLOCKED_TIME),
+            (HEADER_SHUFFLE_TOTAL_READS, ""),
+            (HEADER_SHUFFLE_REMOTE_READS, TaskDetailsClassNames.SHUFFLE_READ_REMOTE_SIZE))
         } else {
           Nil
         }} ++
         {if (hasShuffleWrite(stage)) {
-          Seq(("Write Time", ""), ("Shuffle Write Size / Records", ""))
+          Seq((HEADER_SHUFFLE_WRITE_TIME, ""), (HEADER_SHUFFLE_WRITE_SIZE, ""))
         } else {
           Nil
         }} ++
         {if (hasBytesSpilled(stage)) {
-          Seq(("Shuffle Spill (Memory)", ""), ("Shuffle Spill (Disk)", ""))
+          Seq((HEADER_MEM_SPILL, ""), (HEADER_DISK_SPILL, ""))
         } else {
           Nil
         }} ++
-        Seq(("Errors", ""))
+        Seq((HEADER_ERROR, ""))
 
     if (!taskHeadersAndCssClasses.map(_._1).contains(sortColumn)) {
       throw new IllegalArgumentException(s"Unknown column: $sortColumn")
@@ -856,7 +863,7 @@ private[ui] class TaskPagedTable(
         {formatBytes(task.taskMetrics.map(_.peakExecutionMemory))}
       </td>
       {if (hasAccumulators(stage)) {
-        accumulatorsInfo(task)
+        <td>{accumulatorsInfo(task)}</td>
       }}
       {if (hasInput(stage)) {
         metricInfo(task) { m =>
@@ -912,8 +919,12 @@ private[ui] class TaskPagedTable(
   }
 
   private def accumulatorsInfo(task: TaskData): Seq[Node] = {
-    task.accumulatorUpdates.map { acc =>
-      Unparsed(StringEscapeUtils.escapeHtml4(s"${acc.name}: ${acc.update}"))
+    task.accumulatorUpdates.flatMap { acc =>
+      if (acc.name != null && acc.update.isDefined) {
+        Unparsed(StringEscapeUtils.escapeHtml4(s"${acc.name}: ${acc.update.get}")) ++ <br />
+      } else {
+        Nil
+      }
     }
   }
 
@@ -947,37 +958,66 @@ private[ui] class TaskPagedTable(
   }
 }
 
-private object ApiHelper {
+private[ui] object ApiHelper {
 
+  val HEADER_ID = "ID"
+  val HEADER_TASK_INDEX = "Index"
+  val HEADER_ATTEMPT = "Attempt"
+  val HEADER_STATUS = "Status"
+  val HEADER_LOCALITY = "Locality Level"
+  val HEADER_EXECUTOR = "Executor ID"
+  val HEADER_HOST = "Host"
+  val HEADER_LAUNCH_TIME = "Launch Time"
+  val HEADER_DURATION = "Duration"
+  val HEADER_SCHEDULER_DELAY = "Scheduler Delay"
+  val HEADER_DESER_TIME = "Task Deserialization Time"
+  val HEADER_GC_TIME = "GC Time"
+  val HEADER_SER_TIME = "Result Serialization Time"
+  val HEADER_GETTING_RESULT_TIME = "Getting Result Time"
+  val HEADER_PEAK_MEM = "Peak Execution Memory"
+  val HEADER_ACCUMULATORS = "Accumulators"
+  val HEADER_INPUT_SIZE = "Input Size / Records"
+  val HEADER_OUTPUT_SIZE = "Output Size / Records"
+  val HEADER_SHUFFLE_READ_TIME = "Shuffle Read Blocked Time"
+  val HEADER_SHUFFLE_TOTAL_READS = "Shuffle Read Size / Records"
+  val HEADER_SHUFFLE_REMOTE_READS = "Shuffle Remote Reads"
+  val HEADER_SHUFFLE_WRITE_TIME = "Write Time"
+  val HEADER_SHUFFLE_WRITE_SIZE = "Shuffle Write Size / Records"
+  val HEADER_MEM_SPILL = "Shuffle Spill (Memory)"
+  val HEADER_DISK_SPILL = "Shuffle Spill (Disk)"
+  val HEADER_ERROR = "Errors"
 
-  private val COLUMN_TO_INDEX = Map(
-    "ID" -> null.asInstanceOf[String],
-    "Index" -> TaskIndexNames.TASK_INDEX,
-    "Attempt" -> TaskIndexNames.ATTEMPT,
-    "Status" -> TaskIndexNames.STATUS,
-    "Locality Level" -> TaskIndexNames.LOCALITY,
-    "Executor ID / Host" -> TaskIndexNames.EXECUTOR,
-    "Launch Time" -> TaskIndexNames.LAUNCH_TIME,
-    "Duration" -> TaskIndexNames.DURATION,
-    "Scheduler Delay" -> TaskIndexNames.SCHEDULER_DELAY,
-    "Task Deserialization Time" -> TaskIndexNames.DESER_TIME,
-    "GC Time" -> TaskIndexNames.GC_TIME,
-    "Result Serialization Time" -> TaskIndexNames.SER_TIME,
-    "Getting Result Time" -> TaskIndexNames.GETTING_RESULT_TIME,
-    "Peak Execution Memory" -> TaskIndexNames.PEAK_MEM,
-    "Accumulators" -> TaskIndexNames.ACCUMULATORS,
-    "Input Size / Records" -> TaskIndexNames.INPUT_SIZE,
-    "Output Size / Records" -> TaskIndexNames.OUTPUT_SIZE,
-    "Shuffle Read Blocked Time" -> TaskIndexNames.SHUFFLE_READ_TIME,
-    "Shuffle Read Size / Records" -> TaskIndexNames.SHUFFLE_TOTAL_READS,
-    "Shuffle Remote Reads" -> TaskIndexNames.SHUFFLE_REMOTE_READS,
-    "Write Time" -> TaskIndexNames.SHUFFLE_WRITE_TIME,
-    "Shuffle Write Size / Records" -> TaskIndexNames.SHUFFLE_WRITE_SIZE,
-    "Shuffle Spill (Memory)" -> TaskIndexNames.MEM_SPILL,
-    "Shuffle Spill (Disk)" -> TaskIndexNames.DISK_SPILL,
-    "Errors" -> TaskIndexNames.ERROR)
+  private[ui] val COLUMN_TO_INDEX = Map(
+    HEADER_ID -> null.asInstanceOf[String],
+    HEADER_TASK_INDEX -> TaskIndexNames.TASK_INDEX,
+    HEADER_ATTEMPT -> TaskIndexNames.ATTEMPT,
+    HEADER_STATUS -> TaskIndexNames.STATUS,
+    HEADER_LOCALITY -> TaskIndexNames.LOCALITY,
+    HEADER_EXECUTOR -> TaskIndexNames.EXECUTOR,
+    HEADER_HOST -> TaskIndexNames.HOST,
+    HEADER_LAUNCH_TIME -> TaskIndexNames.LAUNCH_TIME,
+    HEADER_DURATION -> TaskIndexNames.DURATION,
+    HEADER_SCHEDULER_DELAY -> TaskIndexNames.SCHEDULER_DELAY,
+    HEADER_DESER_TIME -> TaskIndexNames.DESER_TIME,
+    HEADER_GC_TIME -> TaskIndexNames.GC_TIME,
+    HEADER_SER_TIME -> TaskIndexNames.SER_TIME,
+    HEADER_GETTING_RESULT_TIME -> TaskIndexNames.GETTING_RESULT_TIME,
+    HEADER_PEAK_MEM -> TaskIndexNames.PEAK_MEM,
+    HEADER_ACCUMULATORS -> TaskIndexNames.ACCUMULATORS,
+    HEADER_INPUT_SIZE -> TaskIndexNames.INPUT_SIZE,
+    HEADER_OUTPUT_SIZE -> TaskIndexNames.OUTPUT_SIZE,
+    HEADER_SHUFFLE_READ_TIME -> TaskIndexNames.SHUFFLE_READ_TIME,
+    HEADER_SHUFFLE_TOTAL_READS -> TaskIndexNames.SHUFFLE_TOTAL_READS,
+    HEADER_SHUFFLE_REMOTE_READS -> TaskIndexNames.SHUFFLE_REMOTE_READS,
+    HEADER_SHUFFLE_WRITE_TIME -> TaskIndexNames.SHUFFLE_WRITE_TIME,
+    HEADER_SHUFFLE_WRITE_SIZE -> TaskIndexNames.SHUFFLE_WRITE_SIZE,
+    HEADER_MEM_SPILL -> TaskIndexNames.MEM_SPILL,
+    HEADER_DISK_SPILL -> TaskIndexNames.DISK_SPILL,
+    HEADER_ERROR -> TaskIndexNames.ERROR)
 
-  def hasAccumulators(stageData: StageData): Boolean = stageData.accumulatorUpdates.size > 0
+  def hasAccumulators(stageData: StageData): Boolean = {
+    stageData.accumulatorUpdates.exists { acc => acc.name != null && acc.value != null }
+  }
 
   def hasInput(stageData: StageData): Boolean = stageData.inputBytes > 0
 
@@ -1000,6 +1040,11 @@ private object ApiHelper {
       case Some(v) => Option(v)
       case _ => throw new IllegalArgumentException(s"Invalid sort column: $sortColumn")
     }
+  }
+
+  def lastStageNameAndDescription(store: AppStatusStore, job: JobData): (String, String) = {
+    val stage = store.asOption(store.stageAttempt(job.stageIds.max, 0)._1)
+    (stage.map(_.name).getOrElse(""), stage.flatMap(_.description).getOrElse(job.name))
   }
 
 }

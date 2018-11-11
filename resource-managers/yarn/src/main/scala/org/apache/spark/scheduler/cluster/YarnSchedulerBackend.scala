@@ -19,8 +19,8 @@ package org.apache.spark.scheduler.cluster
 
 import java.util.concurrent.atomic.{AtomicBoolean}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
@@ -69,6 +69,7 @@ private[spark] abstract class YarnSchedulerBackend(
 
   /** Scheduler extension services. */
   private val services: SchedulerExtensionServices = new SchedulerExtensionServices()
+
 
   /**
    * Bind to YARN. This *must* be done before calling [[start()]].
@@ -263,8 +264,12 @@ private[spark] abstract class YarnSchedulerBackend(
           logWarning(s"Requesting driver to remove executor $executorId for reason $reason")
           driverEndpoint.send(r)
         }
-    }
 
+      case u @ UpdateDelegationTokens(tokens) =>
+        // Add the tokens to the current user and send a message to the scheduler so that it
+        // notifies all registered executors of the new tokens.
+        driverEndpoint.send(u)
+    }
 
     override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
       case r: RequestExecutors =>

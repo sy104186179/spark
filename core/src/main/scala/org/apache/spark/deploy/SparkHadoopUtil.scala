@@ -18,6 +18,7 @@
 package org.apache.spark.deploy
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream, File, IOException}
+import java.lang.reflect.Method
 import java.security.PrivilegedExceptionAction
 import java.text.DateFormat
 import java.util.{Arrays, Comparator, Date, Locale}
@@ -30,8 +31,7 @@ import scala.util.control.NonFatal
 
 import com.google.common.primitives.Longs
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, FileSystem, Path, PathFilter}
-import org.apache.hadoop.fs.permission.FsAction
+import org.apache.hadoop.fs._
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
@@ -40,6 +40,7 @@ import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdenti
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config._
 import org.apache.spark.util.Utils
 
 /**
@@ -107,11 +108,13 @@ class SparkHadoopUtil extends Logging {
   }
 
   /**
-   * Return an appropriate (subclass) of Configuration. Creating config can initializes some Hadoop
+   * Return an appropriate (subclass) of Configuration. Creating config can initialize some Hadoop
    * subsystems.
    */
   def newConfiguration(conf: SparkConf): Configuration = {
-    SparkHadoopUtil.newConfiguration(conf)
+    val hadoopConf = SparkHadoopUtil.newConfiguration(conf)
+    hadoopConf.addResource(SparkHadoopUtil.SPARK_HADOOP_CONF_FILE)
+    hadoopConf
   }
 
   /**
@@ -144,7 +147,8 @@ class SparkHadoopUtil extends Logging {
   private[spark] def addDelegationTokens(tokens: Array[Byte], sparkConf: SparkConf) {
     UserGroupInformation.setConfiguration(newConfiguration(sparkConf))
     val creds = deserialize(tokens)
-    logInfo(s"Adding/updating delegation tokens ${dumpTokens(creds)}")
+    logInfo("Updating delegation tokens for current user.")
+    logDebug(s"Adding/updating delegation tokens ${dumpTokens(creds)}")
     addCurrentUserCredentials(creds)
   }
 
@@ -320,19 +324,6 @@ class SparkHadoopUtil extends Logging {
   }
 
   /**
-   * Return a fresh Hadoop configuration, bypassing the HDFS cache mechanism.
-   * This is to prevent the DFSClient from using an old cached token to connect to the NameNode.
-   */
-  private[spark] def getConfBypassingFSCache(
-      hadoopConf: Configuration,
-      scheme: String): Configuration = {
-    val newConf = new Configuration(hadoopConf)
-    val confKey = s"fs.${scheme}.impl.disable.cache"
-    newConf.setBoolean(confKey, true)
-    newConf
-  }
-
-  /**
    * Dump the credentials' tokens to string values.
    *
    * @param credentials credentials
@@ -376,28 +367,6 @@ class SparkHadoopUtil extends Logging {
     buffer.toString
   }
 
-  private[spark] def checkAccessPermission(status: FileStatus, mode: FsAction): Boolean = {
-    val perm = status.getPermission
-    val ugi = UserGroupInformation.getCurrentUser
-
-    if (ugi.getShortUserName == status.getOwner) {
-      if (perm.getUserAction.implies(mode)) {
-        return true
-      }
-    } else if (ugi.getGroupNames.contains(status.getGroup)) {
-      if (perm.getGroupAction.implies(mode)) {
-        return true
-      }
-    } else if (perm.getOtherAction.implies(mode)) {
-      return true
-    }
-
-    logDebug(s"Permission denied: user=${ugi.getShortUserName}, " +
-      s"path=${status.getPath}:${status.getOwner}:${status.getGroup}" +
-      s"${if (status.isDirectory) "d" else "-"}$perm")
-    false
-  }
-
   def serialize(creds: Credentials): Array[Byte] = {
     val byteStream = new ByteArrayOutputStream
     val dataStream = new DataOutputStream(byteStream)
@@ -435,20 +404,14 @@ object SparkHadoopUtil {
    */
   private[spark] val UPDATE_INPUT_METRICS_INTERVAL_RECORDS = 1000
 
-  def get: SparkHadoopUtil = instance
-
   /**
-   * Given an expiration date (e.g. for Hadoop Delegation Tokens) return a the date
-   * when a given fraction of the duration until the expiration date has passed.
-   * Formula: current time + (fraction * (time until expiration))
-   * @param expirationDate Drop-dead expiration date
-   * @param fraction fraction of the time until expiration return
-   * @return Date when the fraction of the time until expiration has passed
+   * Name of the file containing the gateway's Hadoop configuration, to be overlayed on top of the
+   * cluster's Hadoop config. It is up to the Spark code launching the application to create
+   * this file if it's desired. If the file doesn't exist, it will just be ignored.
    */
-  private[spark] def getDateOfNextUpdate(expirationDate: Long, fraction: Double): Long = {
-    val ct = System.currentTimeMillis
-    (ct + (fraction * (expirationDate - ct))).toLong
-  }
+  private[spark] val SPARK_HADOOP_CONF_FILE = "__spark_hadoop_conf__.xml"
+
+  def get: SparkHadoopUtil = instance
 
   /**
    * Returns a Configuration object with Spark configuration applied on top. Unlike
@@ -495,4 +458,33 @@ object SparkHadoopUtil {
       hadoopConf.set(key.substring("spark.hadoop.".length), value)
     }
   }
+
+  // scalastyle:off line.size.limit
+  /**
+   * Create a path that uses replication instead of erasure coding (ec), regardless of the default
+   * configuration in hdfs for the given path.  This can be helpful as hdfs ec doesn't support
+   * hflush(), hsync(), or append()
+   * https://hadoop.apache.org/docs/r3.0.0/hadoop-project-dist/hadoop-hdfs/HDFSErasureCoding.html#Limitations
+   */
+  // scalastyle:on line.size.limit
+  def createNonECFile(fs: FileSystem, path: Path): FSDataOutputStream = {
+    try {
+      // Use reflection as this uses apis only avialable in hadoop 3
+      val builderMethod = fs.getClass().getMethod("createFile", classOf[Path])
+      val builder = builderMethod.invoke(fs, path)
+      val builderCls = builder.getClass()
+      // this may throw a NoSuchMethodException if the path is not on hdfs
+      val replicateMethod = builderCls.getMethod("replicate")
+      val buildMethod = builderCls.getMethod("build")
+      val b2 = replicateMethod.invoke(builder)
+      buildMethod.invoke(b2).asInstanceOf[FSDataOutputStream]
+    } catch {
+      case  _: NoSuchMethodException =>
+        // No createFile() method, we're using an older hdfs client, which doesn't give us control
+        // over EC vs. replication.  Older hdfs doesn't have EC anyway, so just create a file with
+        // old apis.
+        fs.create(path)
+    }
+  }
+
 }

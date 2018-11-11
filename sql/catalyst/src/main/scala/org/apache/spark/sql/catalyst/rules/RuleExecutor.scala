@@ -17,29 +17,24 @@
 
 package org.apache.spark.sql.catalyst.rules
 
-import scala.collection.JavaConverters._
-
-import com.google.common.util.concurrent.AtomicLongMap
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.errors.TreeNodeException
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.catalyst.util.sideBySide
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.Utils
 
 object RuleExecutor {
-  protected val timeMap = AtomicLongMap.create[String]()
-
-  /** Resets statistics about time spent running specific rules */
-  def resetTime(): Unit = timeMap.clear()
+  protected val queryExecutionMeter = QueryExecutionMetering()
 
   /** Dump statistics about time spent running specific rules. */
   def dumpTimeSpent(): String = {
-    val map = timeMap.asMap().asScala
-    val maxSize = map.keys.map(_.toString.length).max
-    map.toSeq.sortBy(_._2).reverseMap { case (k, v) =>
-      s"${k.padTo(maxSize, " ").mkString} $v"
-    }.mkString("\n", "\n", "")
+    queryExecutionMeter.dumpTimeSpent()
+  }
+
+  /** Resets statistics about time spent running specific rules */
+  def resetMetrics(): Unit = {
+    queryExecutionMeter.resetMetrics()
   }
 }
 
@@ -77,6 +72,8 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
    */
   def execute(plan: TreeType): TreeType = {
     var curPlan = plan
+    val queryExecutionMetrics = RuleExecutor.queryExecutionMeter
+    val planChangeLogger = new PlanChangeLogger()
 
     batches.foreach { batch =>
       val batchStartPlan = curPlan
@@ -91,15 +88,14 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
             val startTime = System.nanoTime()
             val result = rule(plan)
             val runTime = System.nanoTime() - startTime
-            RuleExecutor.timeMap.addAndGet(rule.ruleName, runTime)
 
             if (!result.fastEquals(plan)) {
-              logTrace(
-                s"""
-                  |=== Applying Rule ${rule.ruleName} ===
-                  |${sideBySide(plan.treeString, result.treeString).mkString("\n")}
-                """.stripMargin)
+              queryExecutionMetrics.incNumEffectiveExecution(rule.ruleName)
+              queryExecutionMetrics.incTimeEffectiveExecutionBy(rule.ruleName, runTime)
+              planChangeLogger.log(rule.ruleName, plan, result)
             }
+            queryExecutionMetrics.incExecutionTimeBy(rule.ruleName, runTime)
+            queryExecutionMetrics.incNumExecution(rule.ruleName)
 
             // Run the structural integrity checker against the plan after each rule.
             if (!isPlanIntegral(result)) {
@@ -135,14 +131,39 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
       if (!batchStartPlan.fastEquals(curPlan)) {
         logDebug(
           s"""
-          |=== Result of Batch ${batch.name} ===
-          |${sideBySide(batchStartPlan.treeString, curPlan.treeString).mkString("\n")}
-        """.stripMargin)
+            |=== Result of Batch ${batch.name} ===
+            |${sideBySide(batchStartPlan.treeString, curPlan.treeString).mkString("\n")}
+          """.stripMargin)
       } else {
         logTrace(s"Batch ${batch.name} has no effect.")
       }
     }
 
     curPlan
+  }
+
+  private class PlanChangeLogger {
+
+    private val logLevel = SQLConf.get.optimizerPlanChangeLogLevel
+
+    private val logRules = SQLConf.get.optimizerPlanChangeRules.map(Utils.stringToSeq)
+
+    def log(ruleName: String, oldPlan: TreeType, newPlan: TreeType): Unit = {
+      if (logRules.isEmpty || logRules.get.contains(ruleName)) {
+        lazy val message =
+          s"""
+             |=== Applying Rule ${ruleName} ===
+             |${sideBySide(oldPlan.treeString, newPlan.treeString).mkString("\n")}
+           """.stripMargin
+        logLevel match {
+          case "TRACE" => logTrace(message)
+          case "DEBUG" => logDebug(message)
+          case "INFO" => logInfo(message)
+          case "WARN" => logWarning(message)
+          case "ERROR" => logError(message)
+          case _ => logTrace(message)
+        }
+      }
+    }
   }
 }

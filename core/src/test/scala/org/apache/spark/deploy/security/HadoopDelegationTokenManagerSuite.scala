@@ -17,100 +17,98 @@
 
 package org.apache.spark.deploy.security
 
+import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.security.Credentials
-import org.scalatest.Matchers
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
+import org.apache.spark.util.Utils
 
-class HadoopDelegationTokenManagerSuite extends SparkFunSuite with Matchers {
-  private var delegationTokenManager: HadoopDelegationTokenManager = null
-  private var sparkConf: SparkConf = null
-  private var hadoopConf: Configuration = null
+class HadoopDelegationTokenManagerSuite extends SparkFunSuite {
+  private val hadoopConf = new Configuration()
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    sparkConf = new SparkConf()
-    hadoopConf = new Configuration()
-  }
-
-  test("Correctly load default credential providers") {
-    delegationTokenManager = new HadoopDelegationTokenManager(
-      sparkConf,
-      hadoopConf,
-      hadoopFSsToAccess)
-
-    delegationTokenManager.getServiceDelegationTokenProvider("hadoopfs") should not be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hbase") should not be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hive") should not be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("bogus") should be (None)
+  test("default configuration") {
+    val manager = new HadoopDelegationTokenManager(new SparkConf(false), hadoopConf)
+    assert(manager.isProviderLoaded("hadoopfs"))
+    assert(manager.isProviderLoaded("hbase"))
+    assert(manager.isProviderLoaded("hive"))
   }
 
   test("disable hive credential provider") {
-    sparkConf.set("spark.security.credentials.hive.enabled", "false")
-    delegationTokenManager = new HadoopDelegationTokenManager(
-      sparkConf,
-      hadoopConf,
-      hadoopFSsToAccess)
-
-    delegationTokenManager.getServiceDelegationTokenProvider("hadoopfs") should not be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hbase") should not be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hive") should be (None)
+    val sparkConf = new SparkConf(false).set("spark.security.credentials.hive.enabled", "false")
+    val manager = new HadoopDelegationTokenManager(sparkConf, hadoopConf)
+    assert(manager.isProviderLoaded("hadoopfs"))
+    assert(manager.isProviderLoaded("hbase"))
+    assert(!manager.isProviderLoaded("hive"))
   }
 
   test("using deprecated configurations") {
-    sparkConf.set("spark.yarn.security.tokens.hadoopfs.enabled", "false")
-    sparkConf.set("spark.yarn.security.credentials.hive.enabled", "false")
-    delegationTokenManager = new HadoopDelegationTokenManager(
-      sparkConf,
-      hadoopConf,
-      hadoopFSsToAccess)
-
-    delegationTokenManager.getServiceDelegationTokenProvider("hadoopfs") should be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hive") should be (None)
-    delegationTokenManager.getServiceDelegationTokenProvider("hbase") should not be (None)
+    val sparkConf = new SparkConf(false)
+      .set("spark.yarn.security.tokens.hadoopfs.enabled", "false")
+      .set("spark.yarn.security.credentials.hive.enabled", "false")
+    val manager = new HadoopDelegationTokenManager(sparkConf, hadoopConf)
+    assert(!manager.isProviderLoaded("hadoopfs"))
+    assert(manager.isProviderLoaded("hbase"))
+    assert(!manager.isProviderLoaded("hive"))
   }
 
-  test("verify no credentials are obtained") {
-    delegationTokenManager = new HadoopDelegationTokenManager(
-      sparkConf,
-      hadoopConf,
-      hadoopFSsToAccess)
-    val creds = new Credentials()
+  test("SPARK-23209: obtain tokens when Hive classes are not available") {
+    // This test needs a custom class loader to hide Hive classes which are in the classpath.
+    // Because the manager code loads the Hive provider directly instead of using reflection, we
+    // need to drive the test through the custom class loader so a new copy that cannot find
+    // Hive classes is loaded.
+    val currentLoader = Thread.currentThread().getContextClassLoader()
+    val noHive = new ClassLoader() {
+      override def loadClass(name: String, resolve: Boolean): Class[_] = {
+        if (name.startsWith("org.apache.hive") || name.startsWith("org.apache.hadoop.hive")) {
+          throw new ClassNotFoundException(name)
+        }
 
-    // Tokens cannot be obtained from HDFS, Hive, HBase in unit tests.
-    delegationTokenManager.obtainDelegationTokens(hadoopConf, creds)
-    val tokens = creds.getAllTokens
-    tokens.size() should be (0)
+        val prefixBlacklist = Seq("java", "scala", "com.sun.", "sun.")
+        if (prefixBlacklist.exists(name.startsWith(_))) {
+          return currentLoader.loadClass(name)
+        }
+
+        val found = findLoadedClass(name)
+        if (found != null) {
+          return found
+        }
+
+        val classFileName = name.replaceAll("\\.", "/") + ".class"
+        val in = currentLoader.getResourceAsStream(classFileName)
+        if (in != null) {
+          val bytes = IOUtils.toByteArray(in)
+          return defineClass(name, bytes, 0, bytes.length)
+        }
+
+        throw new ClassNotFoundException(name)
+      }
+    }
+
+    Utils.withContextClassLoader(noHive) {
+      val test = noHive.loadClass(NoHiveTest.getClass.getName().stripSuffix("$"))
+      test.getMethod("runTest").invoke(null)
+    }
+  }
+}
+
+/** Test code for SPARK-23209 to avoid using too much reflection above. */
+private object NoHiveTest {
+
+  def runTest(): Unit = {
+    try {
+      val manager = new HadoopDelegationTokenManager(new SparkConf(), new Configuration())
+      require(!manager.isProviderLoaded("hive"))
+    } catch {
+      case e: Throwable =>
+        // Throw a better exception in case the test fails, since there may be a lot of nesting.
+        var cause = e
+        while (cause.getCause() != null) {
+          cause = cause.getCause()
+        }
+        throw cause
+    }
   }
 
-  test("obtain tokens For HiveMetastore") {
-    val hadoopConf = new Configuration()
-    hadoopConf.set("hive.metastore.kerberos.principal", "bob")
-    // thrift picks up on port 0 and bails out, without trying to talk to endpoint
-    hadoopConf.set("hive.metastore.uris", "http://localhost:0")
-
-    val hiveCredentialProvider = new HiveDelegationTokenProvider()
-    val credentials = new Credentials()
-    hiveCredentialProvider.obtainDelegationTokens(hadoopConf, sparkConf, credentials)
-
-    credentials.getAllTokens.size() should be (0)
-  }
-
-  test("Obtain tokens For HBase") {
-    val hadoopConf = new Configuration()
-    hadoopConf.set("hbase.security.authentication", "kerberos")
-
-    val hbaseTokenProvider = new HBaseDelegationTokenProvider()
-    val creds = new Credentials()
-    hbaseTokenProvider.obtainDelegationTokens(hadoopConf, sparkConf, creds)
-
-    creds.getAllTokens.size should be (0)
-  }
-
-  private[spark] def hadoopFSsToAccess(hadoopConf: Configuration): Set[FileSystem] = {
-    Set(FileSystem.get(hadoopConf))
-  }
 }

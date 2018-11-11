@@ -40,9 +40,9 @@ import org.apache.spark.LocalSparkContext._
 import org.apache.spark.api.java.StorageLevels
 import org.apache.spark.deploy.history.HistoryServerSuite
 import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
+import org.apache.spark.internal.config.Status._
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.status.api.v1.{JacksonMessageWriter, RDDDataDistribution, StageStatus}
-import org.apache.spark.status.config._
 
 private[spark] class SparkUICssErrorHandler extends DefaultCssErrorHandler {
 
@@ -704,6 +704,23 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
         assert(stage2.contains("{\n      label=&quot;groupBy&quot;;\n      " +
           "6 [label=&quot;ShuffledRDD [6]"))
       }
+    }
+  }
+
+  test("stages page should show skipped stages") {
+    withSpark(newSparkContext()) { sc =>
+      val rdd = sc.parallelize(0 to 100, 100).repartition(10).cache()
+      rdd.count()
+      rdd.count()
+
+      eventually(timeout(5 seconds), interval(50 milliseconds)) {
+        goToUi(sc, "/stages")
+        find(id("skipped")).get.text should be("Skipped Stages (1)")
+      }
+      val stagesJson = getJson(sc.ui.get, "stages")
+      stagesJson.children.size should be (4)
+      val stagesStatus = stagesJson.children.map(_ \ "status")
+      stagesStatus.count(_ == JString(StageStatus.SKIPPED.name())) should be (1)
     }
   }
 
