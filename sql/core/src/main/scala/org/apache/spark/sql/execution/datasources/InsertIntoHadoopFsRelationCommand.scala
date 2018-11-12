@@ -183,13 +183,13 @@ case class InsertIntoHadoopFsRelationCommand(
         refreshUpdatedPartitions(updatedPartitionPaths)
       }
 
-      // refresh cached files in FileIndex
-      fileIndex.foreach(_.refresh())
-      // refresh data cache if table is cached
-      sparkSession.catalog.refreshByPath(outputPath.toString)
-
       if (catalogTable.nonEmpty) {
         CommandUtils.updateTableStats(sparkSession, catalogTable.get)
+      } else {
+        // refresh cached files in FileIndex
+        fileIndex.foreach(_.refresh())
+        // refresh data cache if table is cached
+        sparkSession.catalog.refreshByPath(outputPath.toString)
       }
 
     } else {

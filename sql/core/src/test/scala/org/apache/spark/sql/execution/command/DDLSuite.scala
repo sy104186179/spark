@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterEach
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row, SaveMode}
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.{QualifiedTableName, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchPartitionException, NoSuchTableException, TempTableAlreadyExistsException}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -2712,6 +2712,45 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
             }
           }
         }
+      }
+    }
+  }
+
+  test("SPARK-23263 update table stats if enable AUTO_SIZE_UPDATE_ENABLED") {
+    withTable("t") {
+      withSQLConf(SQLConf.AUTO_SIZE_UPDATE_ENABLED.key -> "true") {
+        sql(s"CREATE TABLE t using parquet as select 1")
+        val catalogTable = spark.sessionState.catalog.getTableMetadata(TableIdentifier("t"))
+        assert(catalogTable.stats.nonEmpty)
+      }
+    }
+  }
+
+  test("SPARK-25403 refresh the table after inserting data") {
+    withTable("t") {
+      val catalog = spark.sessionState.catalog
+      val qualifiedTableName = QualifiedTableName(catalog.getCurrentDatabase, "t")
+      sql("CREATE TABLE t (a INT) USING parquet")
+      sql("INSERT INTO TABLE t VALUES (1)")
+      assert(catalog.getCachedTable(qualifiedTableName) === null)
+      assert(spark.table("t").count() === 1)
+      assert(catalog.getCachedTable(qualifiedTableName) !== null)
+    }
+  }
+
+  test("SPARK-19784 refresh the table after altering the table location") {
+    withTempPath { path =>
+      withTable("t") {
+        val catalog = spark.sessionState.catalog
+        val qualifiedTableName = QualifiedTableName(catalog.getCurrentDatabase, "t")
+        sql("CREATE TABLE t (a INT) USING parquet")
+        sql("INSERT INTO TABLE t VALUES (1)")
+        assert(catalog.getCachedTable(qualifiedTableName) === null)
+        spark.range(5).toDF("a").write.parquet(path.getCanonicalPath)
+        spark.sql(s"ALTER TABLE t SET LOCATION '${path.getCanonicalPath}'")
+        assert(catalog.getCachedTable(qualifiedTableName) === null)
+        assert(spark.table("t").count() === 5)
+        assert(catalog.getCachedTable(qualifiedTableName) !== null)
       }
     }
   }
