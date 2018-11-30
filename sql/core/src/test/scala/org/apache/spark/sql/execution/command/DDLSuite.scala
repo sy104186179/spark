@@ -25,6 +25,7 @@ import java.util.{Locale, TimeZone}
 import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterEach
 
+import org.apache.spark.internal.config
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row, SaveMode}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchPartitionException, NoSuchTableException, TempTableAlreadyExistsException}
@@ -2718,6 +2719,13 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
         }
       }
     }
+  }
+
+  test("set command rejects SparkConf entries") {
+    val ex = intercept[AnalysisException] {
+      sql(s"SET ${config.CPUS_PER_TASK.key} = 4")
+    }
+    assert(ex.getMessage.contains("Spark config"))
   }
 
   test("create table support default value") {
