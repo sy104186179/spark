@@ -2846,6 +2846,7 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
 
   test("specification of column names in INSERT INTO contains dynamic partition") {
     withTable("tab1") {
+      sql("set hive.exec.dynamic.partition.mode=nonstrict")
       sql("CREATE TABLE tab1(a int, b string default 'spark', c string) " +
         s"USING $dataSource PARTITIONED BY (c)")
       Seq("INTO", "OVERWRITE").foreach { insertType =>
@@ -2862,6 +2863,16 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
         sql("INSERT INTO tab1 (id, ID) values(123)")
       }.getMessage
       assert(e.contains("Found duplicate column(s)"))
+    }
+  }
+
+  test("Cannot resolve column name when column not exist") {
+    withTable("tab1") {
+      sql(s"CREATE TABLE tab1(c string default 'spark', id int) USING $dataSource")
+      val e = intercept[AnalysisException] {
+        sql("INSERT INTO tab1 (a, b) values(123)")
+      }.getMessage
+      assert(e.contains("Cannot resolve column name"))
     }
   }
 

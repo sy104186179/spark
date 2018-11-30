@@ -955,7 +955,7 @@ class Analyzer(
       case i @ InsertIntoTable(table, cols, _, _, _, _)
         if table.resolved && cols.exists(!_.resolved) =>
 
-        SchemaUtils.checkColumnNameDuplication(cols.map(_.name), "in the insertion", conf.resolver)
+        SchemaUtils.checkColumnNameDuplication(cols.map(_.name), "in the insertion", resolver)
 
         val resolvedColumns = cols.map {
           case col @ (u: UnresolvedAttribute) =>
@@ -963,7 +963,12 @@ class Analyzer(
           case other => other
         }
 
-        i.copy(columns = resolvedColumns)
+        if (resolvedColumns.forall(_.resolved)) {
+          i.copy(columns = resolvedColumns)
+        } else {
+          throw new AnalysisException(
+            s"Cannot resolve column name: ${cols.map(_.name).mkString(", ")}")
+        }
 
 //      // HiveTableRelation and LogicalRelation
 //      case i @ InsertIntoTable(table, columns, _, query, _, _)
