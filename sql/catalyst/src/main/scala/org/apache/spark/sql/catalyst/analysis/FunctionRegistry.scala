@@ -369,8 +369,8 @@ object FunctionRegistry {
 
     // datetime functions
     expression[AddMonths]("add_months"),
-    expression[CurrentDate]("current_date"),
-    expression[CurrentTimestamp]("current_timestamp"),
+    expression[CurrentDate](CurrentDate.prettyName),
+    expression[CurrentTimestamp](CurrentTimestamp.prettyName),
     expression[DateDiff]("datediff"),
     expression[DateAdd]("date_add"),
     expression[DateFormatClass]("date_format"),

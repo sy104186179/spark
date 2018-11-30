@@ -38,7 +38,7 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRela
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetSchemaConverter
 import org.apache.spark.sql.internal.HiveSerDe
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{MetadataBuilder, _}
 import org.apache.spark.util.{SerializableConfiguration, ThreadUtils}
 
 // Note: The definition of these commands are based on the ones described in
@@ -330,11 +330,15 @@ case class AlterTableChangeColumnCommand(
       if (field.name == originColumn.name) {
         // Create a new column from the origin column with the new comment.
         addComment(field, newColumn.getComment)
+        val builder = new MetadataBuilder
+        builder.withMetadata(field.metadata).withMetadata(newColumn.metadata)
+        field.copy(metadata = builder.build())
       } else {
         field
       }
     }
     catalog.alterTableDataSchema(tableName, StructType(newDataSchema))
+    catalog.refreshTable(tableName)
 
     Seq.empty[Row]
   }

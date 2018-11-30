@@ -21,6 +21,7 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL._
 
 import org.apache.spark.annotation.InterfaceStability
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp}
 import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdentifier}
 
 /**
@@ -87,6 +88,21 @@ case class StructField(
       .map(escapeSingleQuotedString)
       .map(" COMMENT '" + _ + "'")
 
-    s"${quoteIdentifier(name)} ${dataType.sql}${comment.getOrElse("")}"
+    val defaultValue = if (metadata.contains(DEFAULT_VALUE)) {
+      val value = metadata.getString(DEFAULT_VALUE)
+      (value, dataType) match {
+        case (null, _) => " DEFAULT null"
+        case (_, BooleanType) => s" DEFAULT $value"
+        case (CurrentDate.prettyName, DateType) => s" DEFAULT ${CurrentDate.prettyName}"
+        case (CurrentTimestamp.prettyName, TimestampType) =>
+          s" DEFAULT ${CurrentTimestamp.prettyName}"
+        case (_, StringType) => s" DEFAULT '$value'"
+        case (_, _) => s" DEFAULT CAST('$value' as ${dataType.sql})"
+      }
+    } else {
+      ""
+    }
+
+    s"${quoteIdentifier(name)} ${dataType.sql}${defaultValue}${comment.getOrElse("")}"
   }
 }

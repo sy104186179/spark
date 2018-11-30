@@ -19,7 +19,8 @@ package org.apache.spark.sql.execution.command
 
 import java.io.File
 import java.net.URI
-import java.util.Locale
+import java.sql.Date
+import java.util.{Locale, TimeZone}
 
 import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterEach
@@ -29,10 +30,13 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchPartitionException, NoSuchTableException, TempTableAlreadyExistsException}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, EmptyRow}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
 import org.apache.spark.sql.test.{SharedSQLContext, SQLTestUtils}
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.Utils
 
 
@@ -2713,6 +2717,155 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
           }
         }
       }
+    }
+  }
+
+  test("create table support default value") {
+    val defaultColumn = "c"
+
+    def testDefaultValue(defaultSql: String, defaultValue: String): Unit = {
+      withTable("tab1") {
+        sql(s"CREATE TABLE tab1($defaultSql, id int) USING $dataSource")
+        val catalog = spark.sessionState.catalog
+        val value = catalog.getTableMetadata(TableIdentifier("tab1")).schema.
+          find(_.name.equals(defaultColumn)).get.metadata.getString(DEFAULT_VALUE)
+        assert(value === defaultValue)
+
+        spark.sql("show create table tab1").show(false)
+      }
+    }
+
+    def testInvalidDefaultValue(defaultSql: String): Unit = {
+      withTable("tab1") {
+        val e = intercept[AnalysisException] {
+          sql(s"CREATE TABLE tab1($defaultSql, id int) USING $dataSource")
+        }.getMessage
+        assert(e.contains("Invalid default value"))
+      }
+    }
+
+    Seq(
+      s"$defaultColumn int default null" -> null,
+      s"$defaultColumn int default 1" -> "1",
+      s"$defaultColumn bigint default 1L" -> "1",
+      s"$defaultColumn double default 1D" -> "1.0",
+      s"$defaultColumn double default cast(1.0 as double)" -> "1.0",
+      s"$defaultColumn float default cast(1 as float)" -> "1",
+      s"$defaultColumn string default 'str'" -> "str",
+      s"$defaultColumn date default cast('2018-01-01' as date)" -> "2018-01-01",
+      s"$defaultColumn date default current_date" -> "current_date",
+      s"$defaultColumn date default current_DATE" -> "current_date",
+      s"$defaultColumn timestamp default cast('2018-01-01' as timestamp)" -> "2018-01-01",
+      s"$defaultColumn timestamp default current_timestamp" -> "current_timestamp",
+      s"$defaultColumn boolean default false" -> "false",
+      s"$defaultColumn decimal default cast(1 as decimal)" -> "1",
+      s"$defaultColumn decimal(10, 4) default cast(1 as decimal(10, 4))" -> "1"
+    ).foreach { case (k, v) =>
+      testDefaultValue(k, v)
+    }
+
+    Seq(s"$defaultColumn int default '1'",
+      s"$defaultColumn double default 1",
+      s"$defaultColumn double default 1L",
+      s"$defaultColumn double default cast(cast(1 as double) as double)",
+      s"$defaultColumn float default 1F",
+      s"$defaultColumn date default '2018-01-01'",
+      s"$defaultColumn date default current_timestamp",
+      s"$defaultColumn boolean default 'false'",
+      s"$defaultColumn decimal(10, 2) default cast(1 as decimal)",
+      s"$defaultColumn decimal(10, 2) default cast(1 as decimal(10, 3))"
+    ).foreach(s => testInvalidDefaultValue(s))
+  }
+
+  test("Could not set default value to partition column") {
+    withTable("tab1") {
+      val e = intercept[AnalysisException] {
+        sql("CREATE TABLE tab1(a int, b string default 'spark') " +
+          s"USING $dataSource PARTITIONED BY (b)")
+      }.getMessage
+      assert(e.contains("Could not set default value to partition column"))
+    }
+  }
+
+  test("Support specification of column names in INSERT INTO / INSERT OVERWRITE TABLE") {
+    val defaultColumn = "c"
+
+    def testDefaultValue(defaultSql: String, defaultValue: Any): Unit = {
+      Seq("INTO", "OVERWRITE").foreach { insertType =>
+        withTable("tab1") {
+          sql(s"CREATE TABLE tab1($defaultSql, id int) USING $dataSource")
+          sql(s"INSERT $insertType TABLE tab1 (id) values(123)")
+          checkAnswer(sql("SELECT * FROM tab1"), Seq(Row(defaultValue, 123)))
+        }
+      }
+    }
+
+    val date1 = DateTimeUtils.toJavaDate(CurrentDate(Option(TimeZone.getDefault.getID))
+      .eval(EmptyRow).asInstanceOf[Int])
+    val ts1 = DateTimeUtils.toJavaTimestamp(DateTimeUtils.stringToTimestamp(
+      UTF8String.fromString("2018-01-01")).get)
+
+    Seq(
+      s"$defaultColumn int default null" -> null,
+      s"$defaultColumn int default 1" -> 1,
+      s"$defaultColumn bigint default 1L" -> 1L,
+      s"$defaultColumn double default 1D" -> 1.0,
+      s"$defaultColumn double default cast(1.0 as double)" -> 1.0,
+      s"$defaultColumn float default cast(1 as float)" -> 1F,
+      s"$defaultColumn string default 'str'" -> "str",
+      s"$defaultColumn date default cast('2018-01-01' as date)" -> Date.valueOf("2018-01-01"),
+      s"$defaultColumn date default current_date" -> date1,
+      s"$defaultColumn date default current_DATE" -> date1,
+      s"$defaultColumn timestamp default cast('2018-01-01' as timestamp)" -> ts1,
+      s"$defaultColumn boolean default false" -> false,
+      s"$defaultColumn decimal default cast(1 as decimal)" -> 1,
+      s"$defaultColumn decimal(10, 4) default cast(1 as decimal(10, 4))" -> BigDecimal(1.0000)
+    ).foreach { case (k, v) =>
+      testDefaultValue(k, v)
+    }
+  }
+
+  test("specification of column names in INSERT INTO contains static partition") {
+    withTable("tab1") {
+      sql("CREATE TABLE tab1(a int, b string default 'spark', c string) " +
+        s"USING $dataSource PARTITIONED BY (c)")
+      Seq("INTO", "OVERWRITE").foreach { insertType =>
+        sql(s"INSERT $insertType TABLE tab1 (a) PARTITION(c='c') values(123)")
+        checkAnswer(sql("SELECT * FROM tab1"), Seq(Row(123, "spark", "c")))
+      }
+    }
+  }
+
+  test("specification of column names in INSERT INTO contains dynamic partition") {
+    withTable("tab1") {
+      sql("CREATE TABLE tab1(a int, b string default 'spark', c string) " +
+        s"USING $dataSource PARTITIONED BY (c)")
+      Seq("INTO", "OVERWRITE").foreach { insertType =>
+        sql(s"INSERT $insertType TABLE tab1 (a, c) PARTITION(c) values(123, 's')")
+        checkAnswer(sql("SELECT * FROM tab1"), Seq(Row(123, "spark", "s")))
+      }
+    }
+  }
+
+  test("specification of duplicate column names in INSERT INTO") {
+    withTable("tab1") {
+      sql(s"CREATE TABLE tab1(c string default 'spark', id int) USING $dataSource")
+      val e = intercept[AnalysisException] {
+        sql("INSERT INTO tab1 (id, ID) values(123)")
+      }.getMessage
+      assert(e.contains("Found duplicate column(s)"))
+    }
+  }
+
+  test("alter default value") {
+    withTable("tab1") {
+      sql(s"CREATE TABLE tab1(c string default 'str', id int) USING $dataSource")
+      sql("INSERT OVERWRITE TABLE tab1 (id) values(123)")
+      checkAnswer(sql("SELECT c FROM tab1"), Seq(Row("str")))
+
+      sql("Alter table tab1 change c c STRING DEFAULT 'spark'")
+      sql("INSERT OVERWRITE TABLE tab1 (id) values(456)")
+      checkAnswer(sql("SELECT c FROM tab1"), Seq(Row("spark")))
     }
   }
 }

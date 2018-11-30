@@ -29,4 +29,6 @@ package object types {
    * inspector in Hive.
    */
   val HIVE_TYPE_STRING = "HIVE_TYPE_STRING"
+
+  val DEFAULT_VALUE = "DEFAULT_VALUE"
 }

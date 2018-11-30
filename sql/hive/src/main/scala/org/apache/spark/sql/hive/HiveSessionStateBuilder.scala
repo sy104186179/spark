@@ -77,6 +77,7 @@ class HiveSessionStateBuilder(session: SparkSession, parentState: Option[Session
       new DetermineTableStats(session) +:
         RelationConversions(conf, catalog) +:
         PreprocessTableCreation(session) +:
+        AddDefaultValueIfNecessary(conf) +:
         PreprocessTableInsertion(conf) +:
         DataSourceAnalysis(conf) +:
         HiveAnalysis +:

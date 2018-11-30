@@ -250,8 +250,8 @@ query
     ;
 
 insertInto
-    : INSERT OVERWRITE TABLE tableIdentifier (partitionSpec (IF NOT EXISTS)?)?                              #insertOverwriteTable
-    | INSERT INTO TABLE? tableIdentifier partitionSpec?                                                     #insertIntoTable
+    : INSERT OVERWRITE TABLE tableIdentifier identifierList? (partitionSpec (IF NOT EXISTS)?)?              #insertOverwriteTable
+    | INSERT INTO TABLE? tableIdentifier identifierList? partitionSpec?                                     #insertIntoTable
     | INSERT OVERWRITE LOCAL? DIRECTORY path=STRING rowFormat? createFileFormat?                            #insertOverwriteHiveDir
     | INSERT OVERWRITE LOCAL? DIRECTORY (path=STRING)? tableProvider (OPTIONS options=tablePropertyList)?   #insertOverwriteDir
     ;
@@ -666,7 +666,7 @@ colTypeList
     ;
 
 colType
-    : identifier dataType (COMMENT STRING)?
+    : identifier dataType (DEFAULT defaultValue=primaryExpression)? (COMMENT STRING)?
     ;
 
 complexColTypeList
@@ -766,7 +766,7 @@ nonReserved
     | CASCADE | RESTRICT | BUCKETS | CLUSTERED | SORTED | PURGE | INPUTFORMAT | OUTPUTFORMAT
     | DBPROPERTIES | DFS | TRUNCATE | COMPUTE | LIST
     | STATISTICS | ANALYZE | PARTITIONED | EXTERNAL | DEFINED | RECORDWRITER
-    | REVOKE | GRANT | LOCK | UNLOCK | MSCK | REPAIR | RECOVER | EXPORT | IMPORT | LOAD | VALUES | COMMENT | ROLE
+    | REVOKE | GRANT | LOCK | UNLOCK | MSCK | REPAIR | RECOVER | EXPORT | IMPORT | LOAD | VALUES | DEFAULT | COMMENT | ROLE
     | ROLES | COMPACTIONS | PRINCIPALS | TRANSACTIONS | INDEX | INDEXES | LOCKS | OPTION | LOCAL | INPATH
     | ASC | DESC | LIMIT | RENAME | SETS
     | AT | NULLS | OVERWRITE | ALL | ANY | ALTER | AS | BETWEEN | BY | CREATE | DELETE
@@ -882,6 +882,7 @@ RENAME: 'RENAME';
 ARRAY: 'ARRAY';
 MAP: 'MAP';
 STRUCT: 'STRUCT';
+DEFAULT: 'DEFAULT';
 COMMENT: 'COMMENT';
 SET: 'SET';
 RESET: 'RESET';

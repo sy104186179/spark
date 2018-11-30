@@ -38,6 +38,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeRef
 import org.apache.spark.sql.catalyst.util.toPrettySQL
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.SchemaUtils
 
 /**
  * A trivial [[Analyzer]] with a dummy [[SessionCatalog]] and [[EmptyFunctionRegistry]].
@@ -706,7 +707,7 @@ class Analyzer(
     }
 
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoTable(u: UnresolvedRelation, parts, child, _, _) if child.resolved =>
+      case i @ InsertIntoTable(u: UnresolvedRelation, _, _, child, _, _) if child.resolved =>
         EliminateSubqueryAliases(lookupTableFromCatalog(u)) match {
           case v: View =>
             u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
@@ -948,6 +949,39 @@ class Analyzer(
         } else {
           Generate(newG.asInstanceOf[Generator], join, outer, qualifier, output, child)
         }
+
+      case i @ InsertIntoTable(table, cols, _, _, _, _)
+        if table.resolved && cols.exists(!_.resolved) =>
+
+        SchemaUtils.checkColumnNameDuplication(cols.map(_.name), "in the insertion", conf.resolver)
+
+        val resolvedColumns = cols.map {
+          case col @ (u: UnresolvedAttribute) =>
+            table.output.attrs.resolve(u.nameParts, resolver).map(_.toAttribute).getOrElse(col)
+          case other => other
+        }
+
+        i.copy(columns = resolvedColumns)
+
+//      // HiveTableRelation and LogicalRelation
+//      case i @ InsertIntoTable(table, columns, _, query, _, _)
+//        if table.resolved && columns.exists(!_.resolved) =>
+//        val resolvedColumns = columns.map {
+//          // table.output.attrs.resolve(u.nameParts, resolver).map(_.toAttribute).getOrElse(col)
+//          case col @ (u: UnresolvedAttribute) =>
+//            table.output.attrs.resolve(u.nameParts, resolver) match {
+//              case Some(v) =>
+//                table.output.attrs.find(_.exprId == v.exprId).getOrElse(v).toAttribute
+//              case None =>
+//                col
+//            }
+//          case other => other
+//        }
+//
+//        val mapping = resolvedColumns.map(_.exprId).zip(query.output).toMap
+//        val newProjectList =
+//          table.output.attrs.map(col => mapping.getOrElse(col.exprId, getDefaultValue(col)))
+//        i.copy(columns = resolvedColumns, query = Project(newProjectList, query))
 
       // Skips plan which contains deserializer expressions, as they should be resolved by another
       // rule: ResolveDeserializer.

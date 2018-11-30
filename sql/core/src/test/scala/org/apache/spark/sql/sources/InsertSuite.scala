@@ -135,7 +135,7 @@ class InsertSuite extends DataSourceTest with SharedSQLContext {
     )
   }
 
-  test("SELECT clause generating a different number of columns is not allowed.") {
+  ignore("SELECT clause generating a different number of columns is not allowed") {
     val message = intercept[AnalysisException] {
       sql(
         s"""

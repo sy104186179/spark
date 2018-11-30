@@ -182,7 +182,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    * Parameters used for writing query to a table:
    *   (tableIdentifier, partitionKeys, exists).
    */
-  type InsertTableParams = (TableIdentifier, Map[String, Option[String]], Boolean)
+  type InsertTableParams = (TableIdentifier, Seq[String], Map[String, Option[String]], Boolean)
 
   /**
    * Parameters used for writing query to a directory: (isLocal, CatalogStorageFormat, provider).
@@ -192,8 +192,8 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   /**
    * Add an
    * {{{
-   *   INSERT OVERWRITE TABLE tableIdentifier [partitionSpec [IF NOT EXISTS]]?
-   *   INSERT INTO [TABLE] tableIdentifier [partitionSpec]
+   *   INSERT OVERWRITE TABLE tableIdentifier [identifierList] [partitionSpec [IF NOT EXISTS]]?
+   *   INSERT INTO [TABLE] tableIdentifier [identifierList] [partitionSpec]
    *   INSERT OVERWRITE [LOCAL] DIRECTORY STRING [rowFormat] [createFileFormat]
    *   INSERT OVERWRITE [LOCAL] DIRECTORY [STRING] tableProvider [OPTIONS tablePropertyList]
    * }}}
@@ -204,11 +204,13 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       query: LogicalPlan): LogicalPlan = withOrigin(ctx) {
     ctx match {
       case table: InsertIntoTableContext =>
-        val (tableIdent, partitionKeys, exists) = visitInsertIntoTable(table)
-        InsertIntoTable(UnresolvedRelation(tableIdent), partitionKeys, query, false, exists)
+        val (tableIdent, namedSeq, partitionKeys, exists) = visitInsertIntoTable(table)
+        val cols = namedSeq.map(name => UnresolvedAttribute(name))
+        InsertIntoTable(UnresolvedRelation(tableIdent), cols, partitionKeys, query, false, exists)
       case table: InsertOverwriteTableContext =>
-        val (tableIdent, partitionKeys, exists) = visitInsertOverwriteTable(table)
-        InsertIntoTable(UnresolvedRelation(tableIdent), partitionKeys, query, true, exists)
+        val (tableIdent, namedSeq, partitionKeys, exists) = visitInsertOverwriteTable(table)
+        val cols = namedSeq.map(name => UnresolvedAttribute(name))
+        InsertIntoTable(UnresolvedRelation(tableIdent), cols, partitionKeys, query, true, exists)
       case dir: InsertOverwriteDirContext =>
         val (isLocal, storage, provider) = visitInsertOverwriteDir(dir)
         InsertIntoDir(isLocal, storage, provider, query, overwrite = true)
@@ -227,8 +229,9 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       ctx: InsertIntoTableContext): InsertTableParams = withOrigin(ctx) {
     val tableIdent = visitTableIdentifier(ctx.tableIdentifier)
     val partitionKeys = Option(ctx.partitionSpec).map(visitPartitionSpec).getOrElse(Map.empty)
+    val cols = Option(ctx.identifierList).map(visitIdentifierList).getOrElse(Nil)
 
-    (tableIdent, partitionKeys, false)
+    (tableIdent, cols, partitionKeys, false)
   }
 
   /**
@@ -245,8 +248,9 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       throw new ParseException(s"Dynamic partitions do not support IF NOT EXISTS. Specified " +
         "partitions with value: " + dynamicPartitionKeys.keys.mkString("[", ",", "]"), ctx)
     }
+    val cols = Option(ctx.identifierList).map(visitIdentifierList).getOrElse(Nil)
 
-    (tableIdent, partitionKeys, ctx.EXISTS() != null)
+    (tableIdent, cols, partitionKeys, ctx.EXISTS() != null)
   }
 
   /**
@@ -1816,6 +1820,24 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val cleanedDataType = HiveStringType.replaceCharType(rawDataType)
     if (rawDataType != cleanedDataType) {
       builder.putString(HIVE_TYPE_STRING, rawDataType.catalogString)
+    }
+
+    if (ctx.defaultValue != null) {
+      visit(ctx.defaultValue) match {
+        case l: Literal if l.dataType.sameType(NullType) => builder.putNull(DEFAULT_VALUE)
+        case l: Literal if l.dataType.sameType(rawDataType) =>
+          builder.putString(DEFAULT_VALUE, l.value.toString)
+        case c @ Cast(l: Literal, _, _) if c.dataType.sameType(rawDataType) =>
+          builder.putString(DEFAULT_VALUE, l.value.toString)
+        case u: UnresolvedAttribute if rawDataType.sameType(DateType) &&
+          conf.resolver(u.name, CurrentDate.prettyName) =>
+          builder.putString(DEFAULT_VALUE, CurrentDate.prettyName)
+        case u: UnresolvedAttribute if rawDataType.sameType(TimestampType) &&
+          conf.resolver(u.name, CurrentTimestamp.prettyName) =>
+          builder.putString(DEFAULT_VALUE, CurrentTimestamp.prettyName)
+        case _ =>
+          throw new ParseException(s"Invalid default value: ${ctx.defaultValue.getText}.", ctx)
+      }
     }
 
     StructField(
