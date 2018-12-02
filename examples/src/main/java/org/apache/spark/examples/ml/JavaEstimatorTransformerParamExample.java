@@ -55,8 +55,8 @@ public class JavaEstimatorTransformerParamExample {
         RowFactory.create(1.0, Vectors.dense(0.0, 1.2, -0.5))
     );
     StructType schema = new StructType(new StructField[]{
-        new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
-        new StructField("features", new VectorUDT(), false, Metadata.empty())
+        new StructField("label", DataTypes.DoubleType, false, null, Metadata.empty()),
+        new StructField("features", new VectorUDT(), false, null, Metadata.empty())
     });
     Dataset<Row> training = spark.createDataFrame(dataTraining, schema);
 

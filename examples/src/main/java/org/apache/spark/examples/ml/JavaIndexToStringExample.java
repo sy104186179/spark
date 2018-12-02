@@ -53,8 +53,8 @@ public class JavaIndexToStringExample {
       RowFactory.create(5, "c")
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("category", DataTypes.StringType, false, Metadata.empty())
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("category", DataTypes.StringType, false, null, Metadata.empty())
     });
     Dataset<Row> df = spark.createDataFrame(data, schema);
 

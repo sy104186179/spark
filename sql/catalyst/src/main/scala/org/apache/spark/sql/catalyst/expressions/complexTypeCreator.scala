@@ -314,7 +314,7 @@ trait CreateNamedStructLike extends Expression {
           case ne: NamedExpression => ne.metadata
           case _ => Metadata.empty
         }
-        StructField(name.toString, expr.dataType, expr.nullable, metadata)
+        StructField(name.toString, expr.dataType, expr.nullable, metadata = metadata)
     }
     StructType(fields)
   }

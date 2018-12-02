@@ -56,8 +56,8 @@ public class JavaPolynomialExpansionSuite extends SharedSparkSession {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("features", new VectorUDT(), false, Metadata.empty()),
-      new StructField("expected", new VectorUDT(), false, Metadata.empty())
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty()),
+      new StructField("expected", new VectorUDT(), false, null, Metadata.empty())
     });
 
     Dataset<Row> dataset = spark.createDataFrame(data, schema);

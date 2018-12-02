@@ -49,9 +49,9 @@ public class JavaChiSqSelectorExample {
       RowFactory.create(9, Vectors.dense(1.0, 0.0, 15.0, 0.1), 0.0)
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("features", new VectorUDT(), false, Metadata.empty()),
-      new StructField("clicked", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty()),
+      new StructField("clicked", DataTypes.DoubleType, false, null, Metadata.empty())
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

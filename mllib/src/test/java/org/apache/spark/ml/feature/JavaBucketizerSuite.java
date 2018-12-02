@@ -39,7 +39,7 @@ public class JavaBucketizerSuite extends SharedSparkSession {
     double[] splits = {-0.5, 0.0, 0.5};
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("feature", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("feature", DataTypes.DoubleType, false, null, Metadata.empty())
     });
     Dataset<Row> dataset = spark.createDataFrame(
       Arrays.asList(
@@ -70,8 +70,8 @@ public class JavaBucketizerSuite extends SharedSparkSession {
     };
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("feature1", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("feature2", DataTypes.DoubleType, false, Metadata.empty()),
+      new StructField("feature1", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("feature2", DataTypes.DoubleType, false, null, Metadata.empty()),
     });
     Dataset<Row> dataset = spark.createDataFrame(
       Arrays.asList(

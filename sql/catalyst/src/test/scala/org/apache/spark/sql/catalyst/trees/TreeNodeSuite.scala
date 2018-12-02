@@ -402,6 +402,7 @@ class TreeNodeSuite extends SparkFunSuite {
         "name" -> "field",
         "dataType" -> "integer",
         "nullable" -> true,
+        "default" -> JNull,
         "metadata" -> JObject(Nil)))
 
     // Converts TableIdentifier to JSON
@@ -503,6 +504,7 @@ class TreeNodeSuite extends SparkFunSuite {
               "name" -> "a",
               "type" -> "integer",
               "nullable" -> true,
+              "default" -> JNull,
               "metadata" -> JObject(Nil)))),
         "partitionColumnNames" -> List.empty[String],
         "owner" -> "",

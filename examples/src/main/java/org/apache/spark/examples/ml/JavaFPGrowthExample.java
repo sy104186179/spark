@@ -51,7 +51,7 @@ public class JavaFPGrowthExample {
       RowFactory.create(Arrays.asList("1 2".split(" ")))
     );
     StructType schema = new StructType(new StructField[]{ new StructField(
-      "items", new ArrayType(DataTypes.StringType, true), false, Metadata.empty())
+      "items", new ArrayType(DataTypes.StringType, true), false, null, Metadata.empty())
     });
     Dataset<Row> itemsDF = spark.createDataFrame(data, schema);
 

@@ -48,10 +48,10 @@ public class JavaFeatureHasherExample {
       RowFactory.create(5.5, false, "4", "foo")
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("real", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("bool", DataTypes.BooleanType, false, Metadata.empty()),
-      new StructField("stringNum", DataTypes.StringType, false, Metadata.empty()),
-      new StructField("string", DataTypes.StringType, false, Metadata.empty())
+      new StructField("real", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("bool", DataTypes.BooleanType, false, null, Metadata.empty()),
+      new StructField("stringNum", DataTypes.StringType, false, null, Metadata.empty()),
+      new StructField("string", DataTypes.StringType, false, null, Metadata.empty())
     });
     Dataset<Row> dataset = spark.createDataFrame(data, schema);
 

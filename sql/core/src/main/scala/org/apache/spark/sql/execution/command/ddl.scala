@@ -328,8 +328,9 @@ case class AlterTableChangeColumnCommand(
 
     val newDataSchema = table.dataSchema.fields.map { field =>
       if (field.name == originColumn.name) {
+        val newField = field.copy(default = newColumn.default)
         // Create a new column from the origin column with the new comment.
-        addComment(field, newColumn.getComment)
+        addComment(newField, newColumn.getComment)
       } else {
         field
       }

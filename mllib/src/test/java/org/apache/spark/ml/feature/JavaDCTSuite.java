@@ -44,7 +44,7 @@ public class JavaDCTSuite extends SharedSparkSession {
     Dataset<Row> dataset = spark.createDataFrame(
       Arrays.asList(RowFactory.create(Vectors.dense(input))),
       new StructType(new StructField[]{
-        new StructField("vec", (new VectorUDT()), false, Metadata.empty())
+        new StructField("vec", (new VectorUDT()), false, null, Metadata.empty())
       }));
 
     double[] expectedResult = input.clone();

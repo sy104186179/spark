@@ -44,8 +44,8 @@ public class JavaHashingTFSuite extends SharedSparkSession {
       RowFactory.create(1.0, "Logistic regression models are neat")
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("sentence", DataTypes.StringType, false, Metadata.empty())
+      new StructField("label", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("sentence", DataTypes.StringType, false, null, Metadata.empty())
     });
 
     Dataset<Row> sentenceData = spark.createDataFrame(data, schema);

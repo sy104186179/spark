@@ -723,7 +723,7 @@ object DataSource extends Logging {
   private def validateSchema(schema: StructType): Unit = {
     def hasEmptySchema(schema: StructType): Boolean = {
       schema.size == 0 || schema.find {
-        case StructField(_, b: StructType, _, _) => hasEmptySchema(b)
+        case StructField(_, b: StructType, _, _, _) => hasEmptySchema(b)
         case _ => false
       }.isDefined
     }

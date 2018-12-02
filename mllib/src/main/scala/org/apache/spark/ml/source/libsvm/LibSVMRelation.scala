@@ -111,7 +111,8 @@ private[libsvm] class LibSVMFileFormat
     Some(
       StructType(
         StructField("label", DoubleType, nullable = false) ::
-        StructField("features", new VectorUDT(), nullable = false, featuresMetadata) :: Nil))
+        StructField("features", new VectorUDT(), nullable = false, metadata = featuresMetadata) ::
+          Nil))
   }
 
   override def prepareWrite(
@@ -166,7 +167,7 @@ private[libsvm] class LibSVMFileFormat
 
       val converter = RowEncoder(dataSchema)
       val fullOutput = dataSchema.map { f =>
-        AttributeReference(f.name, f.dataType, f.nullable, f.metadata)()
+        AttributeReference(f.name, f.dataType, f.nullable, f.default, f.metadata)()
       }
       val requiredOutput = fullOutput.filter { a =>
         requiredSchema.fieldNames.contains(a.name)

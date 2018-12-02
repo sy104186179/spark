@@ -48,7 +48,7 @@ public class JavaDCTExample {
       RowFactory.create(Vectors.dense(14.0, -2.0, -5.0, 1.0))
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("features", new VectorUDT(), false, Metadata.empty()),
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty()),
     });
     Dataset<Row> df = spark.createDataFrame(data, schema);
 

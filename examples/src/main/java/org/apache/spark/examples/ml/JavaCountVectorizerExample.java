@@ -44,7 +44,8 @@ public class JavaCountVectorizerExample {
       RowFactory.create(Arrays.asList("a", "b", "b", "c", "a"))
     );
     StructType schema = new StructType(new StructField [] {
-      new StructField("text", new ArrayType(DataTypes.StringType, true), false, Metadata.empty())
+      new StructField("text",
+        new ArrayType(DataTypes.StringType, true), false, null, Metadata.empty())
     });
     Dataset<Row> df = spark.createDataFrame(data, schema);
 

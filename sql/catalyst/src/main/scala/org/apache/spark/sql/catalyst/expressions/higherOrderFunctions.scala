@@ -47,7 +47,7 @@ case class NamedLambdaVariable(
     copy(exprId = NamedExpression.newExprId, value = new AtomicReference())
 
   override def toAttribute: Attribute = {
-    AttributeReference(name, dataType, nullable, Metadata.empty)(exprId, Seq.empty)
+    AttributeReference(name, dataType, nullable, metadata = Metadata.empty)(exprId, Seq.empty)
   }
 
   override def eval(input: InternalRow): Any = value.get

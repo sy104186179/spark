@@ -174,27 +174,27 @@ public class JavaDataFrameSuite {
 
   void validateDataFrameWithBeans(Bean bean, Dataset<Row> df) {
     StructType schema = df.schema();
-    Assert.assertEquals(new StructField("a", DoubleType$.MODULE$, false, Metadata.empty()),
+    Assert.assertEquals(new StructField("a", DoubleType$.MODULE$, false, null, Metadata.empty()),
       schema.apply("a"));
     Assert.assertEquals(
-      new StructField("b", new ArrayType(IntegerType$.MODULE$, true), true, Metadata.empty()),
+      new StructField("b", new ArrayType(IntegerType$.MODULE$, true), true, null, Metadata.empty()),
       schema.apply("b"));
     ArrayType valueType = new ArrayType(DataTypes.IntegerType, false);
     MapType mapType = new MapType(DataTypes.StringType, valueType, true);
     Assert.assertEquals(
-      new StructField("c", mapType, true, Metadata.empty()),
+      new StructField("c", mapType, true, null, Metadata.empty()),
       schema.apply("c"));
     Assert.assertEquals(
-      new StructField("d", new ArrayType(DataTypes.StringType, true), true, Metadata.empty()),
+      new StructField("d", new ArrayType(DataTypes.StringType, true), true, null, Metadata.empty()),
       schema.apply("d"));
-    Assert.assertEquals(new StructField("e", DataTypes.createDecimalType(38,0), true,
+    Assert.assertEquals(new StructField("e", DataTypes.createDecimalType(38,0), true, null,
       Metadata.empty()), schema.apply("e"));
     StructType nestedBeanType =
       DataTypes.createStructType(Collections.singletonList(new StructField(
-        "a", IntegerType$.MODULE$, false, Metadata.empty())));
-    Assert.assertEquals(new StructField("f", nestedBeanType, true, Metadata.empty()),
+        "a", IntegerType$.MODULE$, false, null, Metadata.empty())));
+    Assert.assertEquals(new StructField("f", nestedBeanType, true, null, Metadata.empty()),
       schema.apply("f"));
-    Assert.assertEquals(new StructField("g", nestedBeanType, true, Metadata.empty()),
+    Assert.assertEquals(new StructField("g", nestedBeanType, true, null, Metadata.empty()),
       schema.apply("g"));
     Row first = df.select("a", "b", "c", "d", "e", "f", "g").first();
     Assert.assertEquals(bean.getA(), first.getDouble(0), 0.0);
@@ -250,12 +250,12 @@ public class JavaDataFrameSuite {
   @Test
   public void testCreateStructTypeFromList(){
     List<StructField> fields1 = new ArrayList<>();
-    fields1.add(new StructField("id", DataTypes.StringType, true, Metadata.empty()));
+    fields1.add(new StructField("id", DataTypes.StringType, true, null, Metadata.empty()));
     StructType schema1 = StructType$.MODULE$.apply(fields1);
     Assert.assertEquals(0, schema1.fieldIndex("id"));
 
     List<StructField> fields2 =
-        Arrays.asList(new StructField("id", DataTypes.StringType, true, Metadata.empty()));
+        Arrays.asList(new StructField("id", DataTypes.StringType, true, null, Metadata.empty()));
     StructType schema2 = StructType$.MODULE$.apply(fields2);
     Assert.assertEquals(0, schema2.fieldIndex("id"));
   }

@@ -254,7 +254,9 @@ class DataTypeSuite extends SparkFunSuite {
   val structType = StructType(Seq(
     StructField("a", IntegerType, nullable = true),
     StructField("b", ArrayType(DoubleType), nullable = false),
-    StructField("c", DoubleType, nullable = false, metadata)))
+    StructField("c", DoubleType, nullable = false, metadata = metadata),
+    StructField("d", IntegerType, nullable = false, "10"),
+    StructField("g", IntegerType, nullable = false, "10", metadata = metadata)))
   checkDataTypeFromJson(structType)
   checkDataTypeFromDDL(structType)
 
@@ -308,7 +310,7 @@ class DataTypeSuite extends SparkFunSuite {
   checkDefaultSize(ArrayType(StringType, false), 20)
   checkDefaultSize(MapType(IntegerType, StringType, true), 24)
   checkDefaultSize(MapType(IntegerType, ArrayType(DoubleType), false), 12)
-  checkDefaultSize(structType, 20)
+  checkDefaultSize(structType, 28)
 
   def checkEqualsIgnoreCompatibleNullability(
       from: DataType,

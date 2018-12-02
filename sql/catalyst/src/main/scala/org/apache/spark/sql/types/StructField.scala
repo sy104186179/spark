@@ -21,6 +21,7 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL._
 
 import org.apache.spark.annotation.Stable
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp}
 import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdentifier}
 
 /**
@@ -28,6 +29,7 @@ import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdenti
  * @param name The name of this field.
  * @param dataType The data type of this field.
  * @param nullable Indicates if values of this field can be `null` values.
+ * @param default Default string value.
  * @param metadata The metadata of this field. The metadata should be preserved during
  *                 transformation if the content of the column is not modified, e.g, in selection.
  *
@@ -38,6 +40,7 @@ case class StructField(
     name: String,
     dataType: DataType,
     nullable: Boolean = true,
+    default: String = null,
     metadata: Metadata = Metadata.empty) {
 
   /** No-arg constructor for kryo. */
@@ -49,12 +52,13 @@ case class StructField(
   }
 
   // override the default toString to be compatible with legacy parquet files.
-  override def toString: String = s"StructField($name,$dataType,$nullable)"
+  override def toString: String = s"StructField($name,$dataType,$nullable,$default)"
 
   private[sql] def jsonValue: JValue = {
     ("name" -> name) ~
       ("type" -> dataType.jsonValue) ~
       ("nullable" -> nullable) ~
+      ("default" -> default) ~
       ("metadata" -> metadata.jsonValue)
   }
 
@@ -87,6 +91,31 @@ case class StructField(
       .map(escapeSingleQuotedString)
       .map(" COMMENT '" + _ + "'")
 
-    s"${quoteIdentifier(name)} ${dataType.sql}${comment.getOrElse("")}"
+    val defaultValue = if (default != null) {
+      (default, dataType) match {
+        case (null, _) => " DEFAULT null"
+        case (CurrentDate.prettyName, DateType) =>
+          s" DEFAULT ${CurrentDate.prettyName}"
+        case (CurrentTimestamp.prettyName, TimestampType) =>
+          s" DEFAULT ${CurrentTimestamp.prettyName}"
+        case (_, BooleanType) => s" DEFAULT $default"
+        case (_, ByteType) => s" DEFAULT ${default}Y"
+        case (_, ShortType) => s" DEFAULT ${default}S"
+        case (_, IntegerType) => s" DEFAULT $default"
+        case (_, LongType) => s" DEFAULT ${default}L"
+        case (_, FloatType) => s" DEFAULT ${default}F"
+        case (_, DoubleType) => s" DEFAULT ${default}D"
+        case (_, DecimalType()) => s" DEFAULT ${default}BD"
+        case (_, StringType) => s" DEFAULT '$default'"
+        case (_, DateType) => s" DEFAULT date '$default'"
+        case (_, TimestampType) => s" DEFAULT timestamp '$default'"
+        case other =>
+          ""
+      }
+    } else {
+      ""
+    }
+
+    s"${quoteIdentifier(name)} ${dataType.sql}${defaultValue}${comment.getOrElse("")}"
   }
 }

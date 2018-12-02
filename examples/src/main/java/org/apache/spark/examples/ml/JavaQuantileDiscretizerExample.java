@@ -49,8 +49,8 @@ public class JavaQuantileDiscretizerExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("hour", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("hour", DataTypes.DoubleType, false, null, Metadata.empty())
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

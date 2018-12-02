@@ -65,8 +65,8 @@ public class JavaNaiveBayesSuite extends SharedSparkSession {
       RowFactory.create(2.0, Vectors.dense(0.0, 0.0, 2.0)));
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("features", new VectorUDT(), false, Metadata.empty())
+      new StructField("label", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty())
     });
 
     Dataset<Row> dataset = spark.createDataFrame(data, schema);

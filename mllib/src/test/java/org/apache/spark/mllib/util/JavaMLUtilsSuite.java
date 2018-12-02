@@ -55,8 +55,8 @@ public class JavaMLUtilsSuite extends SharedSparkSession {
   public void testConvertMatrixColumnsToAndFromML() {
     Matrix x = Matrices.dense(2, 1, new double[]{1.0, 2.0});
     StructType schema = new StructType(new StructField[]{
-      new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("features", new MatrixUDT(), false, Metadata.empty())
+      new StructField("label", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("features", new MatrixUDT(), false, null, Metadata.empty())
     });
     Dataset<Row> dataset = spark.createDataFrame(
       Arrays.asList(

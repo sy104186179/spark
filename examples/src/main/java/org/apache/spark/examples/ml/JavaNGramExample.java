@@ -48,9 +48,9 @@ public class JavaNGramExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
       new StructField(
-        "words", DataTypes.createArrayType(DataTypes.StringType), false, Metadata.empty())
+        "words", DataTypes.createArrayType(DataTypes.StringType), false, null, Metadata.empty())
     });
 
     Dataset<Row> wordDataFrame = spark.createDataFrame(data, schema);

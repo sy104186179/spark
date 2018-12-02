@@ -73,6 +73,7 @@ class TableSchemaParserSuite extends SparkFunSuite {
             StructField("arrAy", ArrayType(DoubleType)) ::
             StructField("anotherArray", ArrayType(StringType)) :: Nil),
           nullable = true,
+          default = null,
           builder.build()) :: Nil)
 
     assert(parse(tableSchemaString) === expectedDataType)

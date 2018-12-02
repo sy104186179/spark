@@ -75,7 +75,11 @@ case class CurrentDate(timeZoneId: Option[String] = None)
     DateTimeUtils.millisToDays(System.currentTimeMillis(), timeZone)
   }
 
-  override def prettyName: String = "current_date"
+  override def prettyName: String = CurrentDate.prettyName
+}
+
+object CurrentDate {
+  final val prettyName: String = "current_date"
 }
 
 /**
@@ -97,7 +101,11 @@ case class CurrentTimestamp() extends LeafExpression with CodegenFallback {
     System.currentTimeMillis() * 1000L
   }
 
-  override def prettyName: String = "current_timestamp"
+  override def prettyName: String = CurrentTimestamp.prettyName
+}
+
+object CurrentTimestamp {
+  final val prettyName: String = "current_timestamp"
 }
 
 /**

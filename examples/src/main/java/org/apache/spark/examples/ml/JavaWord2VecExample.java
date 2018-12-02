@@ -46,7 +46,7 @@ public class JavaWord2VecExample {
       RowFactory.create(Arrays.asList("Logistic regression models are neat".split(" ")))
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("text", new ArrayType(DataTypes.StringType, true), false, Metadata.empty())
+      new StructField("text", new ArrayType(DataTypes.StringType, true), false, null, Metadata.empty())
     });
     Dataset<Row> documentDF = spark.createDataFrame(data, schema);
 

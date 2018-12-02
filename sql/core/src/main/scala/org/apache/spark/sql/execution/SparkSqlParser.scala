@@ -429,6 +429,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       Option(ctx.partitionColumnNames)
         .map(visitIdentifierList(_).toArray)
         .getOrElse(Array.empty[String])
+    schema.foreach(checkPartitionColumnContainsDefaultValue(_, partitionColumnNames, ctx))
     val properties = Option(ctx.tableProps).map(visitPropertyKeyValues).getOrElse(Map.empty)
     val bucketSpec = ctx.bucketSpec().asScala.headOption.map(visitBucketSpec)
 

@@ -356,7 +356,7 @@ case class ScalaUDAF(
   private[this] lazy val childrenSchema: StructType = {
     val inputFields = children.zipWithIndex.map {
       case (child, index) =>
-        StructField(s"input$index", child.dataType, child.nullable, Metadata.empty)
+        StructField(s"input$index", child.dataType, child.nullable, null, Metadata.empty)
     }
     StructType(inputFields)
   }

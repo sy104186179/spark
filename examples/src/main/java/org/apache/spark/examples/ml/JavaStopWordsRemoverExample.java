@@ -53,7 +53,7 @@ public class JavaStopWordsRemoverExample {
 
     StructType schema = new StructType(new StructField[]{
       new StructField(
-        "raw", DataTypes.createArrayType(DataTypes.StringType), false, Metadata.empty())
+        "raw", DataTypes.createArrayType(DataTypes.StringType), false, null, Metadata.empty())
     });
 
     Dataset<Row> dataset = spark.createDataFrame(data, schema);

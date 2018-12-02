@@ -50,9 +50,9 @@ public class JavaPowerIterationClusteringExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("src", DataTypes.LongType, false, Metadata.empty()),
-      new StructField("dst", DataTypes.LongType, false, Metadata.empty()),
-      new StructField("weight", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("src", DataTypes.LongType, false, null, Metadata.empty()),
+      new StructField("dst", DataTypes.LongType, false, null, Metadata.empty()),
+      new StructField("weight", DataTypes.DoubleType, false, null, Metadata.empty())
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

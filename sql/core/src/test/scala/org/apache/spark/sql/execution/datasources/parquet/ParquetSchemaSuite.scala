@@ -356,7 +356,7 @@ class ParquetSchemaSuite extends ParquetSchemaTest {
       "StructType(List(StructField(c1,IntegerType,false), StructField(c2,BinaryType,true)))"
 
     // scalastyle:off
-    val jsonString = """{"type":"struct","fields":[{"name":"c1","type":"integer","nullable":false,"metadata":{}},{"name":"c2","type":"binary","nullable":true,"metadata":{}}]}"""
+    val jsonString = """{"type":"struct","fields":[{"name":"c1","type":"integer","nullable":false,"default":null,"metadata":{}},{"name":"c2","type":"binary","nullable":true,"default": null,"metadata":{}}]}"""
     // scalastyle:on
 
     val fromCaseClassString = StructType.fromString(caseClassString)

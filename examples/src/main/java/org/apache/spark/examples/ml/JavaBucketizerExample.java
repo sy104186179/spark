@@ -59,7 +59,7 @@ public class JavaBucketizerExample {
       RowFactory.create(999.9)
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("features", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("features", DataTypes.DoubleType, false, null, Metadata.empty())
     });
     Dataset<Row> dataFrame = spark.createDataFrame(data, schema);
 
@@ -91,8 +91,8 @@ public class JavaBucketizerExample {
       RowFactory.create(999.9, 999.9)
     );
     StructType schema2 = new StructType(new StructField[]{
-      new StructField("features1", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("features2", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("features1", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("features2", DataTypes.DoubleType, false, null, Metadata.empty())
     });
     Dataset<Row> dataFrame2 = spark.createDataFrame(data2, schema2);
 

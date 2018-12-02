@@ -53,8 +53,8 @@ public class JavaOneHotEncoderExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("categoryIndex1", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("categoryIndex2", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("categoryIndex1", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("categoryIndex2", DataTypes.DoubleType, false, null, Metadata.empty())
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

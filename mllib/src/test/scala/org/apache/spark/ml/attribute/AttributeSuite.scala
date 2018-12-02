@@ -212,14 +212,14 @@ class AttributeSuite extends SparkFunSuite {
 
   test("attribute from struct field") {
     val metadata = NumericAttribute.defaultAttr.withName("label").toMetadata()
-    val fldWithoutMeta = new StructField("x", DoubleType, false, Metadata.empty)
+    val fldWithoutMeta = new StructField("x", DoubleType, false, null, Metadata.empty)
     assert(Attribute.fromStructField(fldWithoutMeta) == UnresolvedAttribute)
-    val fldWithMeta = new StructField("x", DoubleType, false, metadata)
+    val fldWithMeta = new StructField("x", DoubleType, false, null, metadata)
     assert(Attribute.fromStructField(fldWithMeta).isNumeric)
     // Attribute.fromStructField should accept any NumericType, not just DoubleType
-    val longFldWithMeta = new StructField("x", LongType, false, metadata)
+    val longFldWithMeta = new StructField("x", LongType, false, null, metadata)
     assert(Attribute.fromStructField(longFldWithMeta).isNumeric)
-    val decimalFldWithMeta = new StructField("x", DecimalType(38, 18), false, metadata)
+    val decimalFldWithMeta = new StructField("x", DecimalType(38, 18), false, null, metadata)
     assert(Attribute.fromStructField(decimalFldWithMeta).isNumeric)
   }
 

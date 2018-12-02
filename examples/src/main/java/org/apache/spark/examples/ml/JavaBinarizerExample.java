@@ -47,8 +47,8 @@ public class JavaBinarizerExample {
       RowFactory.create(2, 0.2)
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("feature", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("feature", DataTypes.DoubleType, false, null, Metadata.empty())
     });
     Dataset<Row> continuousDataFrame = spark.createDataFrame(data, schema);
 

@@ -42,9 +42,9 @@ public class JavaSQLTransformerExample {
       RowFactory.create(2, 2.0, 5.0)
     );
     StructType schema = new StructType(new StructField [] {
-      new StructField("id", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("v1", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("v2", DataTypes.DoubleType, false, Metadata.empty())
+      new StructField("id", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("v1", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("v2", DataTypes.DoubleType, false, null, Metadata.empty())
     });
     Dataset<Row> df = spark.createDataFrame(data, schema);
 

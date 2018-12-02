@@ -67,52 +67,51 @@ private[execution] object SelectedField {
   private def selectField(expr: Expression, fieldOpt: Option[StructField]): Option[StructField] = {
     expr match {
       // No children. Returns a StructField with the attribute name or None if fieldOpt is None.
-      case AttributeReference(name, dataType, nullable, metadata) =>
+      case AttributeReference(name, dataType, nullable, default, metadata) =>
         fieldOpt.map(field =>
-          StructField(name, wrapStructType(dataType, field), nullable, metadata))
+          StructField(name, wrapStructType(dataType, field), nullable, default, metadata))
       // Handles case "expr0.field[n]", where "expr0" is of struct type and "expr0.field" is of
       // array type.
       case GetArrayItem(x @ GetStructFieldObject(child, field @ StructField(name,
-          dataType, nullable, metadata)), _) =>
+          dataType, nullable, default, metadata)), _) =>
         val childField = fieldOpt.map(field => StructField(name,
-          wrapStructType(dataType, field), nullable, metadata)).getOrElse(field)
+          wrapStructType(dataType, field), nullable, default, metadata)).getOrElse(field)
         selectField(child, Some(childField))
       // Handles case "expr0.field[n]", where "expr0.field" is of array type.
       case GetArrayItem(child, _) =>
         selectField(child, fieldOpt)
       // Handles case "expr0.field.subfield", where "expr0" and "expr0.field" are of array type.
       case GetArrayStructFields(child: GetArrayStructFields,
-          field @ StructField(name, dataType, nullable, metadata), _, _, _) =>
+          field @ StructField(name, dataType, nullable, default, metadata), _, _, _) =>
         val childField = fieldOpt.map(field => StructField(name,
             wrapStructType(dataType, field),
-            nullable, metadata)).orElse(Some(field))
+            nullable, default, metadata)).orElse(Some(field))
         selectField(child, childField)
       // Handles case "expr0.field", where "expr0" is of array type.
       case GetArrayStructFields(child,
-          field @ StructField(name, dataType, nullable, metadata), _, _, _) =>
+          field @ StructField(name, dataType, nullable, default, metadata), _, _, _) =>
         val childField =
           fieldOpt.map(field => StructField(name,
             wrapStructType(dataType, field),
-            nullable, metadata)).orElse(Some(field))
+            nullable, default, metadata)).orElse(Some(field))
         selectField(child, childField)
       // Handles case "expr0.field[key]", where "expr0" is of struct type and "expr0.field" is of
       // map type.
       case GetMapValue(x @ GetStructFieldObject(child, field @ StructField(name,
-          dataType,
-          nullable, metadata)), _) =>
+          dataType, nullable, default, metadata)), _) =>
         val childField = fieldOpt.map(field => StructField(name,
           wrapStructType(dataType, field),
-          nullable, metadata)).orElse(Some(field))
+          nullable, default, metadata)).orElse(Some(field))
         selectField(child, childField)
       // Handles case "expr0.field[key]", where "expr0.field" is of map type.
       case GetMapValue(child, _) =>
         selectField(child, fieldOpt)
       // Handles case "expr0.field", where expr0 is of struct type.
       case GetStructFieldObject(child,
-        field @ StructField(name, dataType, nullable, metadata)) =>
+        field @ StructField(name, dataType, nullable, default, metadata)) =>
         val childField = fieldOpt.map(field => StructField(name,
           wrapStructType(dataType, field),
-          nullable, metadata)).orElse(Some(field))
+          nullable, default, metadata)).orElse(Some(field))
         selectField(child, childField)
       case _ =>
         None

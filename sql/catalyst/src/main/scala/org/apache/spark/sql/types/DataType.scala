@@ -22,7 +22,7 @@ import java.util.Locale
 import scala.util.control.NonFatal
 
 import org.json4s._
-import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.{JNull, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 
@@ -197,11 +197,19 @@ object DataType {
 
   private def parseStructField(json: JValue): StructField = json match {
     case JSortedObject(
+    ("default", JNull),
     ("metadata", metadata: JObject),
     ("name", JString(name)),
     ("nullable", JBool(nullable)),
     ("type", dataType: JValue)) =>
-      StructField(name, parseDataType(dataType), nullable, Metadata.fromJObject(metadata))
+      StructField(name, parseDataType(dataType), nullable, null, Metadata.fromJObject(metadata))
+    case JSortedObject(
+    ("default", JString(default)),
+    ("metadata", metadata: JObject),
+    ("name", JString(name)),
+    ("nullable", JBool(nullable)),
+    ("type", dataType: JValue)) =>
+      StructField(name, parseDataType(dataType), nullable, default, Metadata.fromJObject(metadata))
     // Support reading schema when 'metadata' is missing.
     case JSortedObject(
     ("name", JString(name)),

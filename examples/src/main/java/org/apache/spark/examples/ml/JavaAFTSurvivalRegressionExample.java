@@ -58,9 +58,9 @@ public class JavaAFTSurvivalRegressionExample {
       RowFactory.create(4.199, 0.0, Vectors.dense(0.795, -0.226))
     );
     StructType schema = new StructType(new StructField[]{
-      new StructField("label", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("censor", DataTypes.DoubleType, false, Metadata.empty()),
-      new StructField("features", new VectorUDT(), false, Metadata.empty())
+      new StructField("label", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("censor", DataTypes.DoubleType, false, null, Metadata.empty()),
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty())
     });
     Dataset<Row> training = spark.createDataFrame(data, schema);
     double[] quantileProbabilities = new double[]{0.3, 0.6};

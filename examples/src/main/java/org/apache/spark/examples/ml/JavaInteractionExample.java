@@ -49,13 +49,13 @@ public class JavaInteractionExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("id1", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id2", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id3", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id4", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id5", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id6", DataTypes.IntegerType, false, Metadata.empty()),
-      new StructField("id7", DataTypes.IntegerType, false, Metadata.empty())
+      new StructField("id1", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id2", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id3", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id4", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id5", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id6", DataTypes.IntegerType, false, null, Metadata.empty()),
+      new StructField("id7", DataTypes.IntegerType, false, null, Metadata.empty())
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

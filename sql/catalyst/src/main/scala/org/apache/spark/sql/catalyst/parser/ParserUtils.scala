@@ -26,6 +26,7 @@ import org.antlr.v4.runtime.tree.TerminalNode
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, Origin}
+import org.apache.spark.sql.types.StructType
 
 /**
  * A collection of utility methods for use during the parsing process.
@@ -52,6 +53,18 @@ object ParserUtils {
   def checkDuplicateKeys[T](keyPairs: Seq[(String, T)], ctx: ParserRuleContext): Unit = {
     keyPairs.groupBy(_._1).filter(_._2.size > 1).foreach { case (key, _) =>
       throw new ParseException(s"Found duplicate keys '$key'.", ctx)
+    }
+  }
+
+  def checkPartitionColumnContainsDefaultValue(
+      schema: StructType,
+      partitionColumnNames: Array[String],
+      ctx: ParserRuleContext): Unit = {
+    schema.foreach { col =>
+      if (partitionColumnNames.contains(col.name) && col.default != null) {
+        throw new ParseException(
+          s"Could not set default value to partition column: ${col.name}", ctx)
+      }
     }
   }
 

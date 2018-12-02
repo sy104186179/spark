@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{First, Last}
 import org.apache.spark.sql.catalyst.parser.SqlBaseParser._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.CalendarInterval
@@ -1818,10 +1819,33 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       builder.putString(HIVE_TYPE_STRING, rawDataType.catalogString)
     }
 
+    var default: String = null
+    if (ctx.defaultValue != null) {
+      (rawDataType, visit(ctx.defaultValue)) match {
+        case (_, _ @ Literal(_, _: NullType)) => default = null
+        case (dt: DecimalType, _ @ Literal(v, dataType: NumericType)) if dt.isWiderThan(dataType) =>
+          default = v.toString
+        case (_: DateType, _ @ Literal(v, _: DateType)) =>
+          default = DateTimeUtils.dateToString(v.asInstanceOf[Int])
+        case (_: TimestampType, l @ Literal(v, _: TimestampType)) =>
+          default = DateTimeUtils.timestampToString(v.asInstanceOf[Long])
+        case (dt, _ @ Literal(v, dataType)) if dataType.sameType(dt) => default = v.toString
+        case (_: DateType, u: UnresolvedAttribute)
+          if conf.resolver(u.name, CurrentDate.prettyName) =>
+          default = CurrentDate.prettyName
+        case (_: TimestampType, u: UnresolvedAttribute)
+          if conf.resolver(u.name, CurrentTimestamp.prettyName) =>
+          default = CurrentTimestamp.prettyName
+        case _ =>
+          throw new ParseException(s"Invalid default value: ${ctx.defaultValue.getText}.", ctx)
+      }
+    }
+
     StructField(
       identifier.getText,
       cleanedDataType,
       nullable = true,
+      default,
       builder.build())
   }
 

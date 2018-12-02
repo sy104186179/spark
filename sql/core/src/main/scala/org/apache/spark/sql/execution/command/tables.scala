@@ -507,11 +507,11 @@ case class DescribeTableCommand(
 
   override val output: Seq[Attribute] = Seq(
     // Column names are based on Hive.
-    AttributeReference("col_name", StringType, nullable = false,
+    AttributeReference("col_name", StringType, nullable = false, default = null,
       new MetadataBuilder().putString("comment", "name of the column").build())(),
-    AttributeReference("data_type", StringType, nullable = false,
+    AttributeReference("data_type", StringType, nullable = false, default = null,
       new MetadataBuilder().putString("comment", "data type of the column").build())(),
-    AttributeReference("comment", StringType, nullable = true,
+    AttributeReference("comment", StringType, nullable = true, default = null,
       new MetadataBuilder().putString("comment", "comment of the column").build())()
   )
 
@@ -637,9 +637,9 @@ case class DescribeColumnCommand(
 
   override val output: Seq[Attribute] = {
     Seq(
-      AttributeReference("info_name", StringType, nullable = false,
+      AttributeReference("info_name", StringType, nullable = false, default = null,
         new MetadataBuilder().putString("comment", "name of the column info").build())(),
-      AttributeReference("info_value", StringType, nullable = false,
+      AttributeReference("info_value", StringType, nullable = false, default = null,
         new MetadataBuilder().putString("comment", "value of the column info").build())()
     )
   }

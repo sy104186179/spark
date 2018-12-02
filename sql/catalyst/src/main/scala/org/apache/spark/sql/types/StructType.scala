@@ -149,7 +149,7 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
    *   .add("c", StringType)
    */
   def add(name: String, dataType: DataType): StructType = {
-    StructType(fields :+ StructField(name, dataType, nullable = true, Metadata.empty))
+    StructType(fields :+ StructField(name, dataType, nullable = true, metadata = Metadata.empty))
   }
 
   /**
@@ -161,7 +161,7 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
    *   .add("c", StringType, true)
    */
   def add(name: String, dataType: DataType, nullable: Boolean): StructType = {
-    StructType(fields :+ StructField(name, dataType, nullable, Metadata.empty))
+    StructType(fields :+ StructField(name, dataType, nullable, metadata = Metadata.empty))
   }
 
   /**
@@ -178,7 +178,7 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
       dataType: DataType,
       nullable: Boolean,
       metadata: Metadata): StructType = {
-    StructType(fields :+ StructField(name, dataType, nullable, metadata))
+    StructType(fields :+ StructField(name, dataType, nullable, metadata = metadata))
   }
 
   /**
@@ -310,7 +310,7 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
   }
 
   protected[sql] def toAttributes: Seq[AttributeReference] =
-    map(f => AttributeReference(f.name, f.dataType, f.nullable, f.metadata)())
+    map(f => AttributeReference(f.name, f.dataType, f.nullable, metadata = f.metadata)())
 
   def treeString: String = {
     val builder = new StringBuilder
@@ -403,8 +403,8 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
 
   override private[spark] def asNullable: StructType = {
     val newFields = fields.map {
-      case StructField(name, dataType, nullable, metadata) =>
-        StructField(name, dataType.asNullable, nullable = true, metadata)
+      case StructField(name, dataType, nullable, default, metadata) =>
+        StructField(name, dataType.asNullable, nullable = true, default, metadata)
     }
 
     StructType(newFields)
@@ -456,7 +456,8 @@ object StructType extends AbstractDataType {
   }
 
   private[sql] def fromAttributes(attributes: Seq[Attribute]): StructType =
-    StructType(attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+    StructType(
+      attributes.map(a => StructField(a.name, a.dataType, a.nullable, metadata = a.metadata)))
 
   private[sql] def removeMetadata(key: String, dt: DataType): DataType =
     dt match {
@@ -490,9 +491,9 @@ object StructType extends AbstractDataType {
 
         val rightMapped = fieldsMap(rightFields)
         leftFields.foreach {
-          case leftField @ StructField(leftName, leftType, leftNullable, _) =>
+          case leftField @ StructField(leftName, leftType, leftNullable, _, _) =>
             rightMapped.get(leftName)
-              .map { case rightField @ StructField(rightName, rightType, rightNullable, _) =>
+              .map { case rightField @ StructField(rightName, rightType, rightNullable, _, _) =>
                 try {
                   leftField.copy(
                     dataType = merge(leftType, rightType),

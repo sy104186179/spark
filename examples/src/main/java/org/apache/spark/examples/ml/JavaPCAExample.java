@@ -50,7 +50,7 @@ public class JavaPCAExample {
     );
 
     StructType schema = new StructType(new StructField[]{
-      new StructField("features", new VectorUDT(), false, Metadata.empty()),
+      new StructField("features", new VectorUDT(), false, null, Metadata.empty()),
     });
 
     Dataset<Row> df = spark.createDataFrame(data, schema);

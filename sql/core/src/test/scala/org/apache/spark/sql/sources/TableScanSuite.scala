@@ -224,8 +224,8 @@ class TableScanSuite extends DataSourceTest with SharedSQLContext {
       StructField("decimalField2", DecimalType(9, 2), true) ::
       StructField("dateField", DateType, true) ::
       StructField("timestampField", TimestampType, true) ::
-      StructField("varcharField", StringType, true, hiveMetadata("varchar(12)")) ::
-      StructField("charField", StringType, true, hiveMetadata("char(18)")) ::
+      StructField("varcharField", StringType, true, null, hiveMetadata("varchar(12)")) ::
+      StructField("charField", StringType, true, null, hiveMetadata("char(18)")) ::
       StructField("arrayFieldSimple", ArrayType(IntegerType), true) ::
       StructField("arrayFieldComplex",
         ArrayType(

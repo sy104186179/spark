@@ -159,7 +159,7 @@ class AttributeGroup private (
 
   /** Converts to a StructField with some existing metadata. */
   def toStructField(existingMetadata: Metadata): StructField = {
-    StructField(name, new VectorUDT, nullable = false, toMetadata(existingMetadata))
+    StructField(name, new VectorUDT, nullable = false, metadata = toMetadata(existingMetadata))
   }
 
   /** Converts to a StructField. */

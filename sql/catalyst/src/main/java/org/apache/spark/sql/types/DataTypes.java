@@ -170,6 +170,7 @@ public class DataTypes {
       String name,
       DataType dataType,
       boolean nullable,
+      String defaultValue,
       Metadata metadata) {
     if (name == null) {
       throw new IllegalArgumentException("name should not be null.");
@@ -180,16 +181,27 @@ public class DataTypes {
     if (metadata == null) {
       throw new IllegalArgumentException("metadata should not be null.");
     }
-    return new StructField(name, dataType, nullable, metadata);
+    return new StructField(name, dataType, nullable, defaultValue, metadata);
   }
 
   /**
    * Creates a StructField with empty metadata.
    *
-   * @see #createStructField(String, DataType, boolean, Metadata)
+   * @see #createStructField(String, DataType, boolean, String, Metadata)
+   */
+  public static StructField createStructField(
+      String name, DataType dataType, boolean nullable, String defaultValue) {
+    return createStructField(
+      name, dataType, nullable, defaultValue, (new MetadataBuilder()).build());
+  }
+
+  /**
+   * Creates a StructField with empty metadata and null default value.
+   *
+   * @see #createStructField(String, DataType, boolean, String, Metadata)
    */
   public static StructField createStructField(String name, DataType dataType, boolean nullable) {
-    return createStructField(name, dataType, nullable, (new MetadataBuilder()).build());
+    return createStructField(name, dataType, nullable, null, (new MetadataBuilder()).build());
   }
 
   /**
