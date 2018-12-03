@@ -107,6 +107,7 @@ case class StructField(
         case (_, DoubleType) => s" DEFAULT ${default}D"
         case (_, DecimalType()) => s" DEFAULT ${default}BD"
         case (_, StringType) => s" DEFAULT '$default'"
+        case (_, BinaryType) => s" DEFAULT X'$default'"
         case (_, DateType) => s" DEFAULT date '$default'"
         case (_, TimestampType) => s" DEFAULT timestamp '$default'"
         case other =>

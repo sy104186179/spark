@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import java.util.Locale
+import javax.xml.bind.DatatypeConverter
 
 import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.analysis._
@@ -326,6 +327,8 @@ case class AddDefaultValueIfNecessary(conf: SQLConf) extends Rule[LogicalPlan] {
       case (DateType, CurrentDate.prettyName) =>
         Alias(CurrentDate(Option(conf.sessionLocalTimeZone)), attr.name)()
       case (TimestampType, CurrentTimestamp.prettyName) => Alias(CurrentTimestamp(), attr.name)()
+      case (BinaryType, value) =>
+        Alias(Literal(DatatypeConverter.parseHexBinary(value), BinaryType), attr.name)()
       case (dt, value) => Alias(Literal.fromString(value, dt), attr.name)()
       case _ => Alias(Literal(null), attr.name)()
     }

@@ -21,6 +21,7 @@ import java.io.File
 import java.net.URI
 import java.sql.Date
 import java.util.{Locale, TimeZone}
+import javax.xml.bind.DatatypeConverter
 
 import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterEach
@@ -31,7 +32,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchPartitionException, NoSuchTableException, TempTableAlreadyExistsException}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{CurrentDate, EmptyRow, Literal}
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, EmptyRow}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
@@ -2761,6 +2762,7 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
       s"$defaultColumn double default 1D" -> "1.0",
       // s"$defaultColumn float default 1F" -> "1",
       s"$defaultColumn string default 'str'" -> "str",
+      s"$defaultColumn binary default x'2379ACFE'" -> "2379ACFE",
       s"$defaultColumn date default date '2018-01-01'" -> "2018-01-01",
       s"$defaultColumn date default current_date" -> "current_date",
       s"$defaultColumn date default current_DATE" -> "current_date",
@@ -2847,6 +2849,7 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
       s"$defaultColumn double default 1D" -> 1.0,
       // s"$defaultColumn float default 1F" -> "1",
       s"$defaultColumn string default 'str'" -> "str",
+      s"$defaultColumn binary default x'2379ACFE'" -> DatatypeConverter.parseHexBinary("2379ACFE"),
       s"$defaultColumn date default date '2018-01-01'" -> Date.valueOf("2018-01-01"),
       s"$defaultColumn date default current_date" -> date1,
       s"$defaultColumn timestamp default timestamp '2018-01-01 00:01:00'" -> ts1,

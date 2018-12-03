@@ -1829,10 +1829,12 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
         case (_, _ @ Literal(_, _: NullType)) => default = null
         case (dt: DecimalType, _ @ Literal(v, dataType: NumericType)) if dt.isWiderThan(dataType) =>
           default = v.toString
-        case (_: DateType, _ @ Literal(v, _: DateType)) =>
-          default = DateTimeUtils.dateToString(v.asInstanceOf[Int])
-        case (_: TimestampType, l @ Literal(v, _: TimestampType)) =>
-          default = DateTimeUtils.timestampToString(v.asInstanceOf[Long])
+        case (_: DateType, _ @ Literal(v: Int, _: DateType)) =>
+          default = DateTimeUtils.dateToString(v)
+        case (_: TimestampType, l @ Literal(v: Long, _: TimestampType)) =>
+          default = DateTimeUtils.timestampToString(v)
+        case (_: BinaryType, l @ Literal(v: Array[Byte], _: BinaryType)) =>
+          default = DatatypeConverter.printHexBinary(v)
         case (dt, _ @ Literal(v, dataType)) if dataType.sameType(dt) => default = v.toString
         case (_: DateType, u: UnresolvedAttribute)
           if conf.resolver(u.name, CurrentDate.prettyName) =>
