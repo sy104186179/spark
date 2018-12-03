@@ -38,6 +38,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeRef
 import org.apache.spark.sql.catalyst.util.toPrettySQL
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.SchemaUtils
 
 /**
  * A trivial [[Analyzer]] with a dummy [[SessionCatalog]] and [[EmptyFunctionRegistry]].
@@ -708,7 +709,7 @@ class Analyzer(
     }
 
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoTable(u: UnresolvedRelation, parts, child, _, _) if child.resolved =>
+      case i @ InsertIntoTable(u: UnresolvedRelation, _, _, child, _, _) if child.resolved =>
         EliminateSubqueryAliases(lookupTableFromCatalog(u)) match {
           case v: View =>
             u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
@@ -949,6 +950,24 @@ class Analyzer(
           g
         } else {
           Generate(newG.asInstanceOf[Generator], join, outer, qualifier, output, child)
+        }
+
+      case i @ InsertIntoTable(table, cols, _, _, _, _)
+        if table.resolved && cols.exists(!_.resolved) =>
+
+        SchemaUtils.checkColumnNameDuplication(cols.map(_.name), "in the insertion", resolver)
+
+        val resolvedColumns = cols.map {
+          case col @ (u: UnresolvedAttribute) =>
+            table.output.attrs.resolve(u.nameParts, resolver).map(_.toAttribute).getOrElse(col)
+          case other => other
+        }
+
+        if (resolvedColumns.forall(_.resolved)) {
+          i.copy(columns = resolvedColumns)
+        } else {
+          throw new AnalysisException(
+            s"Cannot resolve column name: ${cols.map(_.name).mkString(", ")}")
         }
 
       // Skips plan which contains deserializer expressions, as they should be resolved by another

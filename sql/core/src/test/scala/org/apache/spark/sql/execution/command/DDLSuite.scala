@@ -2820,7 +2820,6 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  /*
   test("Support specification of column names in INSERT INTO / INSERT OVERWRITE TABLE") {
     val defaultColumn = "c"
 
@@ -2837,23 +2836,26 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     val date1 = DateTimeUtils.toJavaDate(CurrentDate(Option(TimeZone.getDefault.getID))
       .eval(EmptyRow).asInstanceOf[Int])
     val ts1 = DateTimeUtils.toJavaTimestamp(DateTimeUtils.stringToTimestamp(
-      UTF8String.fromString("2018-01-01")).get)
+      UTF8String.fromString("2018-01-01 00:01:00")).get)
 
     Seq(
       s"$defaultColumn int default null" -> null,
+      s"$defaultColumn byte default 1Y" -> 1,
+      s"$defaultColumn short default 1S" -> 1,
       s"$defaultColumn int default 1" -> 1,
       s"$defaultColumn bigint default 1L" -> 1L,
       s"$defaultColumn double default 1D" -> 1.0,
-      s"$defaultColumn double default cast(1.0 as double)" -> 1.0,
-      s"$defaultColumn float default cast(1 as float)" -> 1F,
+      // s"$defaultColumn float default 1F" -> "1",
       s"$defaultColumn string default 'str'" -> "str",
-      s"$defaultColumn date default cast('2018-01-01' as date)" -> Date.valueOf("2018-01-01"),
+      s"$defaultColumn date default date '2018-01-01'" -> Date.valueOf("2018-01-01"),
       s"$defaultColumn date default current_date" -> date1,
-      s"$defaultColumn date default current_DATE" -> date1,
-      s"$defaultColumn timestamp default cast('2018-01-01' as timestamp)" -> ts1,
+      s"$defaultColumn timestamp default timestamp '2018-01-01 00:01:00'" -> ts1,
       s"$defaultColumn boolean default false" -> false,
-      s"$defaultColumn decimal default cast(1 as decimal)" -> 1,
-      s"$defaultColumn decimal(10, 4) default cast(1 as decimal(10, 4))" -> BigDecimal(1.0000)
+      s"$defaultColumn decimal default 1" -> BigDecimal(1),
+      s"$defaultColumn decimal default 1BD" -> BigDecimal(1),
+      s"$defaultColumn decimal(10, 4) default 1BD" -> BigDecimal(1.0000),
+      s"$defaultColumn decimal(10, 4) default 1.1234" -> BigDecimal(1.1234),
+      s"$defaultColumn decimal(10, 4) default 1.1234BD" -> BigDecimal(1.1234)
     ).foreach { case (k, v) =>
       testDefaultValue(k, v)
     }
@@ -2901,5 +2903,4 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
       assert(e.contains("Cannot resolve column name"))
     }
   }
-  */
 }

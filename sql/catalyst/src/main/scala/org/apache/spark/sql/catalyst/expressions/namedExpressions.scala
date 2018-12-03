@@ -90,6 +90,9 @@ trait NamedExpression extends Expression {
 
   def toAttribute: Attribute
 
+  /** Returns the default value. */
+  def default: String = null
+
   /** Returns the metadata when an expression is a reference to another expression with metadata. */
   def metadata: Metadata = Metadata.empty
 
@@ -231,7 +234,7 @@ case class AttributeReference(
     name: String,
     dataType: DataType,
     nullable: Boolean = true,
-    default: String = null,
+    override val default: String = null,
     override val metadata: Metadata = Metadata.empty)(
     val exprId: ExprId = NamedExpression.newExprId,
     val qualifier: Seq[String] = Seq.empty[String])
@@ -273,7 +276,7 @@ case class AttributeReference(
   }
 
   override def newInstance(): AttributeReference =
-    AttributeReference(name, dataType, nullable, metadata = metadata)(qualifier = qualifier)
+    AttributeReference(name, dataType, nullable, default, metadata)(qualifier = qualifier)
 
   /**
    * Returns a copy of this [[AttributeReference]] with changed nullability.
@@ -282,7 +285,7 @@ case class AttributeReference(
     if (nullable == newNullability) {
       this
     } else {
-      AttributeReference(name, dataType, newNullability, metadata = metadata)(exprId, qualifier)
+      AttributeReference(name, dataType, newNullability, default, metadata)(exprId, qualifier)
     }
   }
 
@@ -290,7 +293,7 @@ case class AttributeReference(
     if (name == newName) {
       this
     } else {
-      AttributeReference(newName, dataType, nullable, metadata = metadata)(exprId, qualifier)
+      AttributeReference(newName, dataType, nullable, default, metadata)(exprId, qualifier)
     }
   }
 
@@ -301,7 +304,7 @@ case class AttributeReference(
     if (newQualifier == qualifier) {
       this
     } else {
-      AttributeReference(name, dataType, nullable, metadata = metadata)(exprId, newQualifier)
+      AttributeReference(name, dataType, nullable, default, metadata)(exprId, newQualifier)
     }
   }
 
@@ -309,12 +312,12 @@ case class AttributeReference(
     if (exprId == newExprId) {
       this
     } else {
-      AttributeReference(name, dataType, nullable, metadata = metadata)(newExprId, qualifier)
+      AttributeReference(name, dataType, nullable, default, metadata)(newExprId, qualifier)
     }
   }
 
   override def withMetadata(newMetadata: Metadata): Attribute = {
-    AttributeReference(name, dataType, nullable, metadata = newMetadata)(exprId, qualifier)
+    AttributeReference(name, dataType, nullable, default, newMetadata)(exprId, qualifier)
   }
 
   override protected final def otherCopyArgs: Seq[AnyRef] = {

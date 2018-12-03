@@ -772,7 +772,7 @@ class SparkSession private(
   private def getSchema(beanClass: Class[_]): Seq[AttributeReference] = {
     val (dataType, _) = JavaTypeInference.inferDataType(beanClass)
     dataType.asInstanceOf[StructType].fields.map { f =>
-      AttributeReference(f.name, f.dataType, f.nullable)()
+      AttributeReference(f.name, f.dataType, f.nullable, f.default)()
     }
   }
 

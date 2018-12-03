@@ -394,11 +394,6 @@ class InsertSuite extends QueryTest with TestHiveSingleton with BeforeAndAfter
           sql(s"INSERT INTO TABLE $tableName PARTITION (b=14, c=15, d=16) SELECT 13")
         }
 
-        // The data is missing a column.
-        intercept[AnalysisException] {
-          sql(s"INSERT INTO TABLE $tableName PARTITION (c=15, b=16) SELECT 13")
-        }
-
         // d is not a partitioning column.
         intercept[AnalysisException] {
           sql(s"INSERT INTO TABLE $tableName PARTITION (b=15, d=15) SELECT 13, 14")
@@ -467,17 +462,6 @@ class InsertSuite extends QueryTest with TestHiveSingleton with BeforeAndAfter
           sql(s"SELECT a, b, c, d FROM $tableName"),
           Row(2, 4, 5, 3)
         )
-      }
-  }
-
-  testPartitionedTable("insertInto() should reject missing columns") {
-    tableName =>
-      withTable("t") {
-        sql("CREATE TABLE t (a INT, b INT)")
-
-        intercept[AnalysisException] {
-          spark.table("t").write.insertInto(tableName)
-        }
       }
   }
 
