@@ -210,6 +210,13 @@ object DataType {
     ("nullable", JBool(nullable)),
     ("type", dataType: JValue)) =>
       StructField(name, parseDataType(dataType), nullable, default, Metadata.fromJObject(metadata))
+    // Support reading schema when 'default' is missing.
+    case JSortedObject(
+    ("metadata", metadata: JObject),
+    ("name", JString(name)),
+    ("nullable", JBool(nullable)),
+    ("type", dataType: JValue)) =>
+      StructField(name, parseDataType(dataType), nullable, null, Metadata.fromJObject(metadata))
     // Support reading schema when 'metadata' is missing.
     case JSortedObject(
     ("name", JString(name)),
