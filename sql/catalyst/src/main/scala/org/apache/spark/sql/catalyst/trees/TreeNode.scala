@@ -490,7 +490,6 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product {
   def treeNodeName(): String = {
     val writer = new StringBuilderWriter()
     try {
-      treeString(writer, verbose, addSuffix)
       generateTreeString(0, Nil, writer, verbose = false, onlyNodeName = true)
       writer.toString
     } finally {
