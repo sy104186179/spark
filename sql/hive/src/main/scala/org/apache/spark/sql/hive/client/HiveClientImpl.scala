@@ -422,6 +422,10 @@ private[hive] class HiveClientImpl(
   }
 
   override def createTable(table: CatalogTable, ignoreIfExists: Boolean): Unit = withHiveState {
+    logWarning(s"CurrentUser: ${UserGroupInformation.getCurrentUser.getUserName}, " +
+      s"${UserGroupInformation.getCurrentUser.getRealUser}")
+    logWarning(s"LoginUser: ${UserGroupInformation.getLoginUser.getUserName}, " +
+      s"${UserGroupInformation.getLoginUser.getRealUser}")
     client.createTable(toHiveTable(table), ignoreIfExists)
   }
 

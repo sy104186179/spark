@@ -18,6 +18,7 @@
 package org.apache.spark.scheduler
 
 import java.io.NotSerializableException
+import java.security.PrivilegedExceptionAction
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -31,6 +32,7 @@ import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 import org.apache.commons.lang3.SerializationUtils
+import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -190,7 +192,13 @@ class DAGScheduler(
   private val messageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("dag-scheduler-message")
 
-  private[scheduler] val eventProcessLoop = new DAGSchedulerEventProcessLoop(this)
+  // If security enabled for scheduler
+  def isSecurityEnabled(): Boolean = UserGroupInformation.isSecurityEnabled
+  private[scheduler] val eventProcessLoop = if (!isSecurityEnabled) {
+    new DAGSchedulerEventProcessLoop(this)
+  } else {
+    new DAGSchedulerEventProcessLoopSecure(this)
+  }
   taskScheduler.setDAGScheduler(this)
 
   /**
@@ -1686,6 +1694,24 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
   override def onStop(): Unit = {
     // Cancel any active jobs in postStop hook
     dagScheduler.cleanUpAfterSchedulerStop()
+  }
+}
+
+private[spark] class DAGSchedulerEventProcessLoopSecure(dagScheduler: DAGScheduler)
+  extends DAGSchedulerEventProcessLoop(dagScheduler) {
+
+  override def post(event: DAGSchedulerEvent): Unit = {
+    event.forwardUGI()
+    super.post(event)
+  }
+  override def onReceive(event: DAGSchedulerEvent): Unit = {
+    val ugi = event.getForwardedUGI()
+    val handleEvent = () => super.onReceive(event)
+    ugi.doAs(new PrivilegedExceptionAction[Unit]() {
+      override def run(): Unit = {
+        handleEvent()
+      }
+    })
   }
 }
 

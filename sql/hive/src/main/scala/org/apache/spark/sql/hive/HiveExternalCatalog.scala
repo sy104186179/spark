@@ -28,6 +28,7 @@ import scala.util.control.NonFatal
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hive.ql.metadata.HiveException
+import org.apache.hadoop.security.UserGroupInformation
 import org.apache.thrift.TException
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -94,6 +95,10 @@ private[spark] class HiveExternalCatalog(conf: SparkConf, hadoopConf: Configurat
    */
   private def withClient[T](body: => T): T = synchronized {
     try {
+      logWarning(s"CurrentUser: ${UserGroupInformation.getCurrentUser.getUserName}, " +
+        s"${UserGroupInformation.getCurrentUser.getRealUser}")
+      logWarning(s"LoginUser: ${UserGroupInformation.getLoginUser.getUserName}, " +
+        s"${UserGroupInformation.getLoginUser.getRealUser}")
       body
     } catch {
       case NonFatal(exception) if isClientException(exception) =>

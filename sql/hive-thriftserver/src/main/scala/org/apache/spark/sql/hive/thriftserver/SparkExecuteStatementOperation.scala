@@ -28,6 +28,8 @@ import scala.util.control.NonFatal
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema
 import org.apache.hadoop.hive.shims.Utils
+import org.apache.hadoop.security.UserGroupInformation
+import org.apache.hive.service.auth.HiveAuthFactory
 import org.apache.hive.service.cli._
 import org.apache.hive.service.cli.operation.ExecuteStatementOperation
 import org.apache.hive.service.cli.session.HiveSession
@@ -157,11 +159,26 @@ private[hive] class SparkExecuteStatementOperation(
   override def runInternal(): Unit = {
     setState(OperationState.PENDING)
     setHasResultSet(true) // avoid no resultset for async run
+    logWarning("SparkExecuteStatementOperation yumwang")
 
     if (!runInBackground) {
+      logWarning("SparkExecuteStatementOperation !runInBackground yumwang")
       execute()
     } else {
+      logWarning("SparkExecuteStatementOperation runInBackground yumwang")
       val sparkServiceUGI = Utils.getUGI()
+      logWarning(s"sparkServiceUGI.getUserName: ${sparkServiceUGI.getUserName}," +
+        s"${sparkServiceUGI.getRealUser}" )
+      HiveAuthFactory.loginFromKeytab(parentSession.getHiveConf)
+      val serviceUGI = Utils.getUGI()
+      logWarning(s"serviceUGI.getUserName: ${serviceUGI.getUserName}," +
+        s"${serviceUGI.getRealUser}" )
+
+
+      logWarning(s"CurrentUser: ${UserGroupInformation.getCurrentUser.getUserName}, " +
+        s"${UserGroupInformation.getCurrentUser.getRealUser}")
+      logWarning(s"LoginUser: ${UserGroupInformation.getLoginUser.getUserName}, " +
+        s"${UserGroupInformation.getLoginUser.getRealUser}")
 
       // Runnable impl to call runInternal asynchronously,
       // from a different thread

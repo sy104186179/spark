@@ -21,6 +21,8 @@ import java.util.Properties
 
 import scala.language.existentials
 
+import org.apache.hadoop.security.UserGroupInformation
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.{AccumulatorV2, CallSite}
@@ -31,7 +33,11 @@ import org.apache.spark.util.{AccumulatorV2, CallSite}
  * submitted) but there is a single "logic" thread that reads these events and takes decisions.
  * This greatly simplifies synchronization.
  */
-private[scheduler] sealed trait DAGSchedulerEvent
+private[scheduler] sealed abstract class DAGSchedulerEvent {
+  private var ugi: UserGroupInformation = null
+  def forwardUGI(): Unit = { ugi = UserGroupInformation.getCurrentUser }
+  def getForwardedUGI(): UserGroupInformation = ugi
+}
 
 /** A result-yielding job was submitted on a target RDD */
 private[scheduler] case class JobSubmitted(
