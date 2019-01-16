@@ -133,6 +133,7 @@
     <derby.version>10.12.1.1</derby.version>
     <parquet.version>1.10.0</parquet.version>
     <orc.version>1.5.4</orc.version>
+    <orc.classifier>nohive</orc.classifier>
     <hive.storage.api.version>2.7.0</hive.storage.api.version>
     <hive.parquet.version>1.10.0</hive.parquet.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
@@ -1920,6 +1921,7 @@
         <groupId>org.apache.orc</groupId>
         <artifactId>orc-core</artifactId>
         <version>${orc.version}</version>
+        <classifier>${orc.classifier}</classifier>
         <scope>${orc.deps.scope}</scope>
         <exclusions>
           <exclusion>
@@ -1944,6 +1946,7 @@
         <groupId>org.apache.orc</groupId>
         <artifactId>orc-mapreduce</artifactId>
         <version>${orc.version}</version>
+        <classifier>${orc.classifier}</classifier>
         <scope>${orc.deps.scope}</scope>
         <exclusions>
           <exclusion>
