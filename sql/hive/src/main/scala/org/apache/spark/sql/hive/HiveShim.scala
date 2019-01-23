@@ -28,15 +28,13 @@ import com.google.common.base.Objects
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.hive.ql.exec.{UDF, Utilities}
+import org.apache.hadoop.hive.ql.exec.UDF
 import org.apache.hadoop.hive.ql.plan.{FileSinkDesc, TableDesc}
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMacro
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils
 import org.apache.hadoop.hive.serde2.avro.{AvroGenericRecordWritable, AvroSerdeUtils}
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector
 import org.apache.hadoop.io.Writable
-import org.apache.hive.com.esotericsoftware.kryo.Kryo
-import org.apache.hive.com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.Decimal
@@ -146,34 +144,48 @@ private[hive] object HiveShim {
       case _ => false
     }
 
-    @transient
-    def deserializeObjectByKryo[T: ClassTag](
-        kryo: Kryo,
-        in: InputStream,
-        clazz: Class[_]): T = {
-      val inp = new Input(in)
-      val t: T = kryo.readObject(inp, clazz).asInstanceOf[T]
-      inp.close()
-      t
-    }
-
-    @transient
-    def serializeObjectByKryo(
-        kryo: Kryo,
-        plan: Object,
-        out: OutputStream) {
-      val output: Output = new Output(out)
-      kryo.writeObject(output, plan)
-      output.close()
-    }
-
     def deserializePlan[UDFType](is: java.io.InputStream, clazz: Class[_]): UDFType = {
-      deserializeObjectByKryo(Utilities.runtimeSerializationKryo.get(), is, clazz)
-        .asInstanceOf[UDFType]
+      if (HiveUtils.isHive2) {
+        val klass = Utils.classForName("org.apache.hadoop.hive.ql.exec.SerializationUtilities")
+        val borrowKryo = klass.getMethod("borrowKryo")
+        val kryo = borrowKryo.invoke(klass)
+        val deserializeObjectByKryo = klass.getDeclaredMethod("deserializeObjectByKryo",
+          kryo.getClass.getSuperclass, classOf[InputStream], classOf[Class[_]])
+        deserializeObjectByKryo.setAccessible(true)
+        deserializeObjectByKryo.invoke(null, kryo, is, clazz).asInstanceOf[UDFType]
+      } else {
+        val klass = Utils.classForName("org.apache.hadoop.hive.ql.exec.Utilities")
+        val runtimeSerializationKryo = klass.getField("runtimeSerializationKryo")
+        val threadLocalValue = runtimeSerializationKryo.get(klass)
+        val getMethod = threadLocalValue.getClass.getMethod("get")
+        val kryo = getMethod.invoke(threadLocalValue)
+        val deserializeObjectByKryo = klass.getDeclaredMethod(
+          "deserializeObjectByKryo", kryo.getClass, classOf[InputStream], classOf[Class[_]])
+        deserializeObjectByKryo.setAccessible(true)
+        deserializeObjectByKryo.invoke(null, kryo, is, clazz).asInstanceOf[UDFType]
+      }
     }
 
     def serializePlan(function: AnyRef, out: java.io.OutputStream): Unit = {
-      serializeObjectByKryo(Utilities.runtimeSerializationKryo.get(), function, out)
+      if (HiveUtils.isHive2) {
+        val klass = Utils.classForName("org.apache.hadoop.hive.ql.exec.SerializationUtilities")
+        val borrowKryo = klass.getMethod("borrowKryo")
+        val kryo = borrowKryo.invoke(klass)
+        val serializeObjectByKryo = klass.getDeclaredMethod("serializeObjectByKryo",
+          kryo.getClass.getSuperclass, classOf[Object], classOf[OutputStream])
+        serializeObjectByKryo.setAccessible(true)
+        serializeObjectByKryo.invoke(null, kryo, function, out)
+      } else {
+        val klass = Utils.classForName("org.apache.hadoop.hive.ql.exec.Utilities")
+        val runtimeSerializationKryo = klass.getField("runtimeSerializationKryo")
+        val threadLocalValue = runtimeSerializationKryo.get(klass)
+        val getMethod = threadLocalValue.getClass.getMethod("get")
+        val kryo = getMethod.invoke(threadLocalValue)
+        val serializeObjectByKryo = klass.getDeclaredMethod(
+          "serializeObjectByKryo", kryo.getClass, classOf[Object], classOf[OutputStream])
+        serializeObjectByKryo.setAccessible(true)
+        serializeObjectByKryo.invoke(null, kryo, function, out)
+      }
     }
 
     def writeExternal(out: java.io.ObjectOutput) {
