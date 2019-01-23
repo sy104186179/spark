@@ -2911,11 +2911,42 @@
         <hive.version>2.3.4</hive.version>
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>1.10.0</hive.parquet.version>
+        <orc.classifier></orc.classifier>
         <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
         <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
         <datanucleus-core.version>4.1.17</datanucleus-core.version>
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.google.code.maven-replacer-plugin</groupId>
+            <artifactId>replacer</artifactId>
+            <version>1.5.3</version>
+            <executions>
+              <execution>
+                <phase>test</phase>
+                <goals>
+                  <goal>replace</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <includes>
+                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcDeserializer.scala</include>
+                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcFilters.scala</include>
+                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcFileFormat.scala</include>
+                <include>${basedir}/sql/core/src/main/java/org/apache/spark/sql/execution/datasources/orc/OrcColumnarBatchReader.java</include>
+                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcSerializer.scala</include>
+                <include>${basedir}/sql/core/src/main/java/org/apache/spark/sql/execution/datasources/orc/OrcColumnVector.java</include>
+                <include>${basedir}/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcFilterSuite.scala</include>
+              </includes>
+              <token>org.apache.orc.storage.</token>
+              <value>org.apache.hadoop.hive.</value>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
       <dependencies>
         <dependency>
           <groupId>org.apache.hive</groupId>
