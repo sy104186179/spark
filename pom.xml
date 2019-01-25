@@ -132,7 +132,6 @@
     <!-- note that this should be compatible with Kafka brokers version 0.10 and up -->
     <kafka.version>2.1.0</kafka.version>
     <derby.version>10.12.1.1</derby.version>
-    <hive.storage.api.version>2.7.0</hive.storage.api.version>
     <parquet.version>1.10.0</parquet.version>
     <orc.version>1.5.4</orc.version>
     <orc.classifier>nohive</orc.classifier>
@@ -222,7 +221,6 @@
     -->
     <hadoop.deps.scope>compile</hadoop.deps.scope>
     <hive.deps.scope>compile</hive.deps.scope>
-    <orc.deps.scope>compile</orc.deps.scope>
     <parquet.deps.scope>compile</parquet.deps.scope>
     <parquet.test.deps.scope>test</parquet.test.deps.scope>
 
@@ -1366,10 +1364,6 @@
             <artifactId>hive-shims</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.apache.orc</groupId>
-            <artifactId>orc-core</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>org.eclipse.jetty.aggregate</groupId>
             <artifactId>jetty-all</artifactId>
           </exclusion>
@@ -1794,13 +1788,6 @@
           </exclusion>
         </exclusions>
       </dependency>
-
-      <dependency>
-        <groupId>org.apache.hive</groupId>
-        <artifactId>hive-storage-api</artifactId>
-        <version>${hive.storage.api.version}</version>
-      </dependency>
-
       <dependency>
         <groupId>net.sf.jpam</groupId>
         <artifactId>jpam</artifactId>
@@ -1920,7 +1907,7 @@
         <artifactId>orc-core</artifactId>
         <version>${orc.version}</version>
         <classifier>${orc.classifier}</classifier>
-        <scope>${orc.deps.scope}</scope>
+        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>javax.xml.bind</groupId>
@@ -1945,7 +1932,7 @@
         <artifactId>orc-mapreduce</artifactId>
         <version>${orc.version}</version>
         <classifier>${orc.classifier}</classifier>
-        <scope>${orc.deps.scope}</scope>
+        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2911,47 +2898,12 @@
         <hive.version>2.3.4</hive.version>
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>1.10.0</hive.parquet.version>
-        <orc.classifier></orc.classifier>
         <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
         <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
         <datanucleus-core.version>4.1.17</datanucleus-core.version>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.google.code.maven-replacer-plugin</groupId>
-            <artifactId>replacer</artifactId>
-            <version>1.5.3</version>
-            <executions>
-              <execution>
-                <phase>test</phase>
-                <goals>
-                  <goal>replace</goal>
-                </goals>
-              </execution>
-            </executions>
-            <configuration>
-              <includes>
-                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcDeserializer.scala</include>
-                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcFilters.scala</include>
-                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcFileFormat.scala</include>
-                <include>${basedir}/sql/core/src/main/java/org/apache/spark/sql/execution/datasources/orc/OrcColumnarBatchReader.java</include>
-                <include>${basedir}/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcSerializer.scala</include>
-                <include>${basedir}/sql/core/src/main/java/org/apache/spark/sql/execution/datasources/orc/OrcColumnVector.java</include>
-                <include>${basedir}/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcFilterSuite.scala</include>
-              </includes>
-              <token>org.apache.orc.storage.</token>
-              <value>org.apache.hadoop.hive.</value>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
       <dependencies>
-        <dependency>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-storage-api</artifactId>
-        </dependency>
       </dependencies>
     </profile>
 

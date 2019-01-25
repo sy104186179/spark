@@ -90,11 +90,13 @@
       <groupId>org.apache.orc</groupId>
       <artifactId>orc-core</artifactId>
       <classifier>${orc.classifier}</classifier>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.orc</groupId>
       <artifactId>orc-mapreduce</artifactId>
       <classifier>${orc.classifier}</classifier>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
@@ -156,6 +158,38 @@
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <configuration>
+          <shadedArtifactAttached>false</shadedArtifactAttached>
+          <artifactSet>
+            <includes>
+              <include>org.apache.orc:orc-core</include>
+              <include>org.apache.orc:orc-mapreduce</include>
+              <include>org.apache.orc:orc-shims</include>
+            </includes>
+          </artifactSet>
+          <relocations>
+            <relocation>
+              <pattern>org.apache.orc</pattern>
+              <shadedPattern>${spark.shade.packageName}.orc</shadedPattern>
+              <includes>
+                <include>org.apache.spark.**</include>
+                <include>org.apache.orc.**</include>
+              </includes>
+            </relocation>
+          </relocations>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
        <!--
             This plugin forces the generation of jar containing sql test classes,
             so that the tests classes of external modules can use them. The two execution profiles
