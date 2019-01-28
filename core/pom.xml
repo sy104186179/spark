@@ -413,16 +413,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.hive.shims</groupId>
-      <artifactId>hive-shims-common</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hive.shims</groupId>
-      <artifactId>hive-shims-0.23</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
       <scope>provided</scope>

@@ -508,11 +508,11 @@ private[hive] class TestHiveSparkSession(
     }
   }
 
-//  /**
-//   * Records the UDFs present when the server starts, so we can delete ones that are created by
-//   * tests.
-//   */
-//  protected val originalUDFs: JavaSet[String] = FunctionRegistry.getFunctionNames
+  /**
+   * Records the UDFs present when the server starts, so we can delete ones that are created by
+   * tests.
+   */
+  protected val originalUDFs: JavaSet[String] = FunctionRegistry.getFunctionNames
 
   /**
    * Resets the test instance by deleting any table, view, temp view, and UDF that have been created

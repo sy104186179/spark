@@ -135,6 +135,7 @@
     <parquet.version>1.10.0</parquet.version>
     <orc.version>1.5.4</orc.version>
     <orc.classifier>nohive</orc.classifier>
+    <orc.shade.phase>none</orc.shade.phase>
     <hive.parquet.group>com.twitter</hive.parquet.group>
     <hive.parquet.version>1.6.0</hive.parquet.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
@@ -221,6 +222,7 @@
     -->
     <hadoop.deps.scope>compile</hadoop.deps.scope>
     <hive.deps.scope>compile</hive.deps.scope>
+    <orc.deps.scope>compile</orc.deps.scope>
     <parquet.deps.scope>compile</parquet.deps.scope>
     <parquet.test.deps.scope>test</parquet.test.deps.scope>
 
@@ -1384,6 +1386,10 @@
             <artifactId>zookeeper</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
           </exclusion>
@@ -1805,56 +1811,6 @@
         Hive was built against. This dependency cuts out the YARN/hadoop dependency, which
         is needed by Hive to submit work to a YARN cluster.-->
       <dependency>
-        <groupId>org.apache.hive.shims</groupId>
-        <artifactId>hive-shims-common</artifactId>
-        <version>${hive.version.short}</version>
-        <scope>${hive.deps.scope}</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.thrift</groupId>
-            <artifactId>libthrift</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>curator-framework</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hive.shims</groupId>
-        <artifactId>hive-shims-0.23</artifactId>
-        <version>${hive.version.short}</version>
-        <scope>${hive.deps.scope}</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.hive.shims</groupId>
-            <artifactId>hive-shims-common</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
         <groupId>${hive.group}</groupId>
         <artifactId>hive-shims</artifactId>
         <version>${hive.version}</version>
@@ -1907,7 +1863,7 @@
         <artifactId>orc-core</artifactId>
         <version>${orc.version}</version>
         <classifier>${orc.classifier}</classifier>
-        <scope>provided</scope>
+        <scope>${orc.deps.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>javax.xml.bind</groupId>
@@ -1932,7 +1888,7 @@
         <artifactId>orc-mapreduce</artifactId>
         <version>${orc.version}</version>
         <classifier>${orc.classifier}</classifier>
-        <scope>provided</scope>
+        <scope>${orc.deps.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2898,12 +2854,72 @@
         <hive.version>2.3.4</hive.version>
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>1.10.0</hive.parquet.version>
+        <orc.deps.scope>provided</orc.deps.scope>
+        <orc.shade.phase>package</orc.shade.phase>
         <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
         <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
         <datanucleus-core.version>4.1.17</datanucleus-core.version>
       </properties>
       <dependencies>
+        <dependency>
+          <groupId>org.apache.hive.shims</groupId>
+          <artifactId>hive-shims-common</artifactId>
+          <version>${hive.version.short}</version>
+          <scope>${hive.deps.scope}</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-api</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-slf4j-impl</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.thrift</groupId>
+              <artifactId>libthrift</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.curator</groupId>
+              <artifactId>curator-framework</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.zookeeper</groupId>
+              <artifactId>zookeeper</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.hive.shims</groupId>
+          <artifactId>hive-shims-0.23</artifactId>
+          <version>${hive.version.short}</version>
+          <scope>${hive.deps.scope}</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive.shims</groupId>
+              <artifactId>hive-shims-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-api</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+          <version>2.6.2</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-llap-client</artifactId>
+        </dependency>
       </dependencies>
     </profile>
 

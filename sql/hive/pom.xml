@@ -95,20 +95,8 @@
       <artifactId>hive-serde</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-llap-client</artifactId>
-    </dependency>
-    <dependency>
       <groupId>${hive.group}</groupId>
       <artifactId>hive-shims</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hive.shims</groupId>
-      <artifactId>hive-shims-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hive.shims</groupId>
-      <artifactId>hive-shims-0.23</artifactId>
     </dependency>
     <!-- hive-serde already depends on avro, but this brings in customized config of avro deps from parent -->
     <dependency>
