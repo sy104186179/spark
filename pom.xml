@@ -1491,7 +1491,7 @@
           </exclusion>
           <exclusion>
             <groupId>org.apache.calcite.avatica</groupId>
-            <artifactId>avatica</artifactId>
+            <artifactId>avatica-metrics</artifactId>
           </exclusion>
           <!--  this is needed and must be explicitly included later-->
           <exclusion>
@@ -1717,6 +1717,10 @@
             <artifactId>hive-shims</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.eclipse.jetty.aggregate</groupId>
+            <artifactId>jetty-all</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-hadoop-bundle</artifactId>
           </exclusion>
@@ -1776,6 +1780,14 @@
         <artifactId>hive-llap-client</artifactId>
         <version>2.3.4</version>
         <exclusions>
+          <exclusion>
+            <groupId>${hive.group}</groupId>
+            <artifactId>hive-common</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>${hive.group}</groupId>
+            <artifactId>hive-serde</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
@@ -1961,7 +1973,7 @@
           </exclusion>
           <exclusion>
             <groupId>org.apache.calcite.avatica</groupId>
-            <artifactId>avatica</artifactId>
+            <artifactId>avatica-metrics</artifactId>
           </exclusion>
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -2846,9 +2858,10 @@
     <profile>
       <id>hadoop-3.1</id>
       <properties>
-        <hadoop.version>3.1.0</hadoop.version>
-        <curator.version>2.12.0</curator.version>
-        <zookeeper.version>3.4.9</zookeeper.version>
+        <!--Upgrade to 3.2.0 as hint HADOOP-15549 -->
+        <hadoop.version>3.2.0</hadoop.version>
+        <curator.version>2.13.0</curator.version>
+        <zookeeper.version>3.4.13</zookeeper.version>
         <hive.group>org.apache.hive</hive.group>
         <hive.classifier>core</hive.classifier>
         <hive.version>2.3.4</hive.version>

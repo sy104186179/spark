@@ -27,6 +27,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFilters.buildTree
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
+import org.apache.spark.util.Utils
 
 /**
  * Helper object for building ORC `SearchArgument`s, which are used for ORC predicate push-down.
@@ -202,12 +203,8 @@ private[orc] object OrcFilters extends Logging {
         val bd = builder.startAnd()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
-
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-//          Some(builder.startAnd().equals(attribute, getType(attribute), castedValue).end())
-
-          val m = klass.getMethod("equals",
-            classOf[String], classOf[Type], classOf[Object])
+          val m = klass.getMethod("equals", classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
           Some(m.invoke(bd, attribute, getType(attribute), castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
@@ -222,14 +219,11 @@ private[orc] object OrcFilters extends Logging {
         val bd = builder.startAnd()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
-          val m = klass.getMethod("nullSafeEquals",
-            classOf[String], classOf[Type], classOf[Object])
+          val m = klass.getMethod("nullSafeEquals", classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt, castedValue.asInstanceOf[Object])
+          Some(m.invoke(bd, attribute, dataType, castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("nullSafeEquals", classOf[String], classOf[Object])
@@ -242,14 +236,11 @@ private[orc] object OrcFilters extends Logging {
         val bd = builder.startAnd()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
-          val m = klass.getMethod("lessThan",
-            classOf[String], classOf[Type], classOf[Object])
+          val m = klass.getMethod("lessThan", classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt, castedValue.asInstanceOf[Object])
+          Some(m.invoke(bd, attribute, dataType, castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("lessThan", classOf[String], classOf[Object])
@@ -262,14 +253,11 @@ private[orc] object OrcFilters extends Logging {
         val bd = builder.startAnd()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
-          val m = klass.getMethod("lessThanEquals",
-            classOf[String], classOf[Type], classOf[Object])
+          val m = klass.getMethod("lessThanEquals", classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt, castedValue.asInstanceOf[Object])
+          Some(m.invoke(bd, attribute, dataType, castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("lessThanEquals", classOf[String], classOf[Object])
@@ -282,14 +270,11 @@ private[orc] object OrcFilters extends Logging {
         val bd = builder.startNot()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
-          val m = klass.getMethod("lessThanEquals",
-            classOf[String], classOf[Type], classOf[Object])
+          val m = klass.getMethod("lessThanEquals", classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt, castedValue.asInstanceOf[Object])
+          Some(m.invoke(bd, attribute, dataType, castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("lessThanEquals", classOf[String], classOf[Object])
@@ -305,11 +290,9 @@ private[orc] object OrcFilters extends Logging {
           val m = klass.getMethod("lessThan",
             classOf[String], classOf[Type], classOf[Object])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValue = castLiteralValue(value, dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt, castedValue.asInstanceOf[Object])
+          Some(m.invoke(bd, attribute, dataType, castedValue.asInstanceOf[Object])
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("lessThan", classOf[String], classOf[Object])
@@ -323,10 +306,9 @@ private[orc] object OrcFilters extends Logging {
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
           val m = klass.getMethod("isNull", classOf[String], classOf[Type])
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           m.setAccessible(true)
-          Some(m.invoke(bd, attribute, tt)
-            .asInstanceOf[SearchArgument.Builder].end())
+          Some(m.invoke(bd, attribute, dataType).asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("isNull", classOf[String])
           m.setAccessible(true)
@@ -339,10 +321,8 @@ private[orc] object OrcFilters extends Logging {
         if (HiveUtils.isHive2) {
           val m = klass.getMethod("isNull", classOf[String], classOf[Type])
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
-          Some(m.invoke(bd, attribute, tt)
-            .asInstanceOf[SearchArgument.Builder].end())
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
+          Some(m.invoke(bd, attribute, dataType).asInstanceOf[SearchArgument.Builder].end())
         } else {
           val m = klass.getMethod("isNull", classOf[String])
           m.setAccessible(true)
@@ -350,22 +330,20 @@ private[orc] object OrcFilters extends Logging {
         }
 
       case In(attribute, values) if isSearchableType(dataTypeMap(attribute)) =>
-        val bd = builder.startNot()
+        val bd = builder.startAnd()
         val klass = bd.getClass
         if (HiveUtils.isHive2) {
           val m = klass.getMethod("in",
-            classOf[String], classOf[Type], classOf[Object])
+            classOf[String], classOf[Type], Utils.classForName("[Ljava.lang.Object;"))
           m.setAccessible(true)
-          val tt = getPredicateLeafType(dataTypeMap(attribute))
-
+          val dataType = getPredicateLeafType(dataTypeMap(attribute))
           val castedValues = values.map(castLiteralValue(_, dataTypeMap(attribute)))
-
-          Some(m.invoke(bd, attribute, tt, castedValues.map(_.asInstanceOf[AnyRef]))
+          Some(m.invoke(bd, attribute, dataType, castedValues.map(_.asInstanceOf[AnyRef]))
             .asInstanceOf[SearchArgument.Builder].end())
         } else {
-          val m = klass.getMethod("in", classOf[String], classOf[Object])
+          val m = klass.getMethod("in", classOf[String], Utils.classForName("[Ljava.lang.Object;"))
           m.setAccessible(true)
-          Some(m.invoke(klass, attribute, values.map(_.asInstanceOf[AnyRef]))
+          Some(m.invoke(bd, attribute, values.map(_.asInstanceOf[AnyRef]))
             .asInstanceOf[SearchArgument.Builder].end())
         }
 
