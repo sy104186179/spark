@@ -1494,6 +1494,10 @@
           </exclusion>
           <!--  this is needed and must be explicitly included later-->
           <exclusion>
+            <groupId>org.apache.calcite.avatica</groupId>
+            <artifactId>avatica</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.calcite</groupId>
             <artifactId>calcite-core</artifactId>
           </exclusion>
@@ -1965,6 +1969,10 @@
         <artifactId>calcite-core</artifactId>
         <version>${calcite.version}</version>
         <exclusions>
+          <exclusion>
+            <groupId>org.apache.calcite.avatica</groupId>
+            <artifactId>avatica</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
@@ -2873,7 +2881,6 @@
         <hive.version>2.3.4</hive.version>
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>1.10.0</hive.parquet.version>
-        <orc.deps.scope>provided</orc.deps.scope>
         <orc.classifier></orc.classifier>
         <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
         <calcite.version>1.10.0</calcite.version>
