@@ -22,11 +22,11 @@ import org.apache.orc.TypeDescription
 import org.apache.orc.mapred.{OrcList, OrcMap, OrcStruct, OrcTimestamp}
 import org.apache.orc.storage.common.`type`.HiveDecimal
 import org.apache.orc.storage.serde2.io.{DateWritable, HiveDecimalWritable}
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.types._
+import org.apache.spark.util.Utils
 
 /**
  * A serializer to serialize Spark rows to ORC structs.

@@ -135,7 +135,6 @@
     <parquet.version>1.10.0</parquet.version>
     <orc.version>1.5.4</orc.version>
     <orc.classifier>nohive</orc.classifier>
-    <orc.shade.phase>none</orc.shade.phase>
     <hive.parquet.group>com.twitter</hive.parquet.group>
     <hive.parquet.version>1.6.0</hive.parquet.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
@@ -1806,6 +1805,13 @@
           </exclusion>
         </exclusions>
       </dependency>
+
+      <dependency>
+        <groupId>org.apache.hive</groupId>
+        <artifactId>hive-storage-api</artifactId>
+        <version>${hive.storage.api.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>net.sf.jpam</groupId>
         <artifactId>jpam</artifactId>
@@ -2868,7 +2874,7 @@
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>1.10.0</hive.parquet.version>
         <orc.deps.scope>provided</orc.deps.scope>
-        <orc.shade.phase>package</orc.shade.phase>
+        <orc.classifier></orc.classifier>
         <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
         <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
@@ -2932,6 +2938,10 @@
         <dependency>
           <groupId>org.apache.hive</groupId>
           <artifactId>hive-llap-client</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-storage-api</artifactId>
         </dependency>
       </dependencies>
     </profile>
