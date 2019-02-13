@@ -110,12 +110,17 @@ private[orc] object OrcFilters extends Logging {
       value.asInstanceOf[Number].longValue
     case FloatType | DoubleType =>
       value.asInstanceOf[Number].doubleValue()
-      // TODO: do it later
-//    case _: DecimalType =>
-//      val decimal = value.asInstanceOf[java.math.BigDecimal]
-//      val decimalWritable = new HiveDecimalWritable(decimal.longValue)
-//      decimalWritable.mutateEnforcePrecisionScale(decimal.precision, decimal.scale)
-//      decimalWritable
+    case _: DecimalType =>
+      val decimal = value.asInstanceOf[java.math.BigDecimal]
+      val l: java.lang.Long = decimal.longValue
+      val p: Integer = decimal.precision
+      val s: Integer = decimal.scale
+      val clazz = Utils.classForName("org.apache.hadoop.hive.serde2.io.HiveDecimalWritable")
+      val decimalWritable = clazz.getConstructor(java.lang.Long.TYPE)
+        .newInstance(l)
+      val m = clazz.getMethod("mutateEnforcePrecisionScale", Integer.TYPE, Integer.TYPE)
+      m.invoke(decimalWritable, p, s)
+      decimalWritable
     case _ => value
   }
 
