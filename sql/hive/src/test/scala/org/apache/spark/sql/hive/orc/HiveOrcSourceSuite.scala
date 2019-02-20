@@ -149,12 +149,7 @@ class HiveOrcSourceSuite extends OrcSuite with TestHiveSingleton {
   test("Check BloomFilter creation") {
     Seq(true, false).foreach { convertMetastore =>
       withSQLConf(HiveUtils.CONVERT_METASTORE_ORC.key -> s"$convertMetastore") {
-        if (HiveUtils.isHive2) {
-          testBloomFilterCreation(org.apache.orc.OrcProto.Stream.Kind.BLOOM_FILTER_UTF8)
-        } else {
-          // Before ORC-101
-          testBloomFilterCreation(org.apache.orc.OrcProto.Stream.Kind.BLOOM_FILTER)
-        }
+        testBloomFilterCreation(org.apache.orc.OrcProto.Stream.Kind.BLOOM_FILTER) // Before ORC-101
       }
     }
   }
@@ -162,7 +157,7 @@ class HiveOrcSourceSuite extends OrcSuite with TestHiveSingleton {
   test("Enforce direct encoding column-wise selectively") {
     Seq(true, false).foreach { convertMetastore =>
       withSQLConf(HiveUtils.CONVERT_METASTORE_ORC.key -> s"$convertMetastore") {
-        testSelectiveDictionaryEncoding(isSelective = false, isHive2 = HiveUtils.isHive2)
+        testSelectiveDictionaryEncoding(isSelective = false)
       }
     }
   }

@@ -30,7 +30,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.orc.OrcTest
-import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.hive.test.TestHiveSingleton
 import org.apache.spark.sql.types._
 
@@ -291,66 +290,41 @@ class HiveOrcFilterSuite extends OrcTest with TestHiveSingleton {
 
   test("filter pushdown - combinations with logical operators") {
     withOrcDataFrame((1 to 4).map(i => Tuple1(Option(i)))) { implicit df =>
-      if (HiveUtils.isHive2) {
-        checkFilterPredicate(
-          '_1.isNotNull,
-          "leaf-0 = (IS_NULL _1), expr = (not leaf-0)"
-        )
-        checkFilterPredicate(
-          '_1 =!= 1,
-          "leaf-0 = (IS_NULL _1), leaf-1 = (EQUALS _1 1), expr = (and (not leaf-0) (not leaf-1))"
-        )
-        checkFilterPredicate(
-          !('_1 < 4),
-          "leaf-0 = (IS_NULL _1), leaf-1 = (LESS_THAN _1 4), expr = (and (not leaf-0) (not leaf-1))"
-        )
-        checkFilterPredicate(
-          '_1 < 2 || '_1 > 3,
-          "leaf-0 = (LESS_THAN _1 2), leaf-1 = (LESS_THAN_EQUALS _1 3), " +
-            "expr = (or leaf-0 (not leaf-1))"
-        )
-        checkFilterPredicate(
-          '_1 < 2 && '_1 > 3,
-          "leaf-0 = (IS_NULL _1), leaf-1 = (LESS_THAN _1 2), " +
-            "leaf-2 = (LESS_THAN_EQUALS _1 3), expr = (and (not leaf-0) leaf-1 (not leaf-2))"
-        )
-      } else {
-        // Because `ExpressionTree` is not accessible at Hive 1.2.x, this should be checked
-        // in string form in order to check filter creation including logical operators
-        // such as `and`, `or` or `not`. So, this function uses `SearchArgument.toString()`
-        // to produce string expression and then compare it to given string expression below.
-        // This might have to be changed after Hive version is upgraded.
-        checkFilterPredicate(
-          '_1.isNotNull,
-          """leaf-0 = (IS_NULL _1)
-            |expr = (not leaf-0)""".stripMargin.trim
-        )
-        checkFilterPredicate(
-          '_1 =!= 1,
-          """leaf-0 = (IS_NULL _1)
-            |leaf-1 = (EQUALS _1 1)
-            |expr = (and (not leaf-0) (not leaf-1))""".stripMargin.trim
-        )
-        checkFilterPredicate(
-          !('_1 < 4),
-          """leaf-0 = (IS_NULL _1)
-            |leaf-1 = (LESS_THAN _1 4)
-            |expr = (and (not leaf-0) (not leaf-1))""".stripMargin.trim
-        )
-        checkFilterPredicate(
-          '_1 < 2 || '_1 > 3,
-          """leaf-0 = (LESS_THAN _1 2)
-            |leaf-1 = (LESS_THAN_EQUALS _1 3)
-            |expr = (or leaf-0 (not leaf-1))""".stripMargin.trim
-        )
-        checkFilterPredicate(
-          '_1 < 2 && '_1 > 3,
-          """leaf-0 = (IS_NULL _1)
-            |leaf-1 = (LESS_THAN _1 2)
-            |leaf-2 = (LESS_THAN_EQUALS _1 3)
-            |expr = (and (not leaf-0) leaf-1 (not leaf-2))""".stripMargin.trim
-        )
-      }
+      // Because `ExpressionTree` is not accessible at Hive 1.2.x, this should be checked
+      // in string form in order to check filter creation including logical operators
+      // such as `and`, `or` or `not`. So, this function uses `SearchArgument.toString()`
+      // to produce string expression and then compare it to given string expression below.
+      // This might have to be changed after Hive version is upgraded.
+      checkFilterPredicate(
+        '_1.isNotNull,
+        """leaf-0 = (IS_NULL _1)
+          |expr = (not leaf-0)""".stripMargin.trim
+      )
+      checkFilterPredicate(
+        '_1 =!= 1,
+        """leaf-0 = (IS_NULL _1)
+          |leaf-1 = (EQUALS _1 1)
+          |expr = (and (not leaf-0) (not leaf-1))""".stripMargin.trim
+      )
+      checkFilterPredicate(
+        !('_1 < 4),
+        """leaf-0 = (IS_NULL _1)
+          |leaf-1 = (LESS_THAN _1 4)
+          |expr = (and (not leaf-0) (not leaf-1))""".stripMargin.trim
+      )
+      checkFilterPredicate(
+        '_1 < 2 || '_1 > 3,
+        """leaf-0 = (LESS_THAN _1 2)
+          |leaf-1 = (LESS_THAN_EQUALS _1 3)
+          |expr = (or leaf-0 (not leaf-1))""".stripMargin.trim
+      )
+      checkFilterPredicate(
+        '_1 < 2 && '_1 > 3,
+        """leaf-0 = (IS_NULL _1)
+          |leaf-1 = (LESS_THAN _1 2)
+          |leaf-2 = (LESS_THAN_EQUALS _1 3)
+          |expr = (and (not leaf-0) leaf-1 (not leaf-2))""".stripMargin.trim
+      )
     }
   }
 
@@ -384,6 +358,31 @@ class HiveOrcFilterSuite extends OrcTest with TestHiveSingleton {
       Array(
         StructField("a", IntegerType, nullable = true),
         StructField("b", StringType, nullable = true)))
+    assertResult(
+      """leaf-0 = (LESS_THAN a 10)
+        |expr = leaf-0
+      """.stripMargin.trim
+    ) {
+      OrcFilters.createFilter(schema, Array(
+        LessThan("a", 10),
+        StringContains("b", "prefix")
+      )).get.toString
+    }
+
+    // The `LessThan` should be converted while the whole inner `And` shouldn't
+    assertResult(
+      """leaf-0 = (LESS_THAN a 10)
+        |expr = leaf-0
+      """.stripMargin.trim
+    ) {
+      OrcFilters.createFilter(schema, Array(
+        LessThan("a", 10),
+        Not(And(
+          GreaterThan("a", 1),
+          StringContains("b", "prefix")
+        ))
+      )).get.toString
+    }
 
     // Can not remove unsupported `StringContains` predicate since it is under `Or` operator.
     assert(OrcFilters.createFilter(schema, Array(
@@ -395,116 +394,37 @@ class HiveOrcFilterSuite extends OrcTest with TestHiveSingleton {
         )
       )
     )).isEmpty)
-    if (HiveUtils.isHive2) {
-      assertResult(
-        "leaf-0 = (LESS_THAN a 10), expr = leaf-0"
-      ) {
-        OrcFilters.createFilter(schema, Array(
+
+    // Safely remove unsupported `StringContains` predicate and push down `LessThan`
+    assertResult(
+      """leaf-0 = (LESS_THAN a 10)
+        |expr = leaf-0
+      """.stripMargin.trim
+    ) {
+      OrcFilters.createFilter(schema, Array(
+        And(
           LessThan("a", 10),
           StringContains("b", "prefix")
-        )).get.toString
-      }
+        )
+      )).get.toString
+    }
 
-      // The `LessThan` should be converted while the whole inner `And` shouldn't
-      assertResult(
-        "leaf-0 = (LESS_THAN a 10), expr = leaf-0"
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          LessThan("a", 10),
-          Not(And(
-            GreaterThan("a", 1),
-            StringContains("b", "prefix")
-          ))
-        )).get.toString
-      }
-
-      // Safely remove unsupported `StringContains` predicate and push down `LessThan`
-      assertResult(
-        "leaf-0 = (LESS_THAN a 10), expr = leaf-0"
-      ) {
-        OrcFilters.createFilter(schema, Array(
+    // Safely remove unsupported `StringContains` predicate, push down `LessThan` and `GreaterThan`.
+    assertResult(
+      """leaf-0 = (LESS_THAN a 10)
+        |leaf-1 = (LESS_THAN_EQUALS a 1)
+        |expr = (and leaf-0 (not leaf-1))
+      """.stripMargin.trim
+    ) {
+      OrcFilters.createFilter(schema, Array(
+        And(
           And(
             LessThan("a", 10),
             StringContains("b", "prefix")
-          )
-        )).get.toString
-      }
-
-      // Safely remove unsupported `StringContains` predicate,
-      // push down `LessThan` and `GreaterThan`.
-      assertResult(
-        "leaf-0 = (LESS_THAN a 10), leaf-1 = (LESS_THAN_EQUALS a 1), " +
-          "expr = (and leaf-0 (not leaf-1))"
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          And(
-            And(
-              LessThan("a", 10),
-              StringContains("b", "prefix")
-            ),
-            GreaterThan("a", 1)
-          )
-        )).get.toString
-      }
-    } else {
-      assertResult(
-        """leaf-0 = (LESS_THAN a 10)
-          |expr = leaf-0
-        """.stripMargin.trim
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          LessThan("a", 10),
-          StringContains("b", "prefix")
-        )).get.toString
-      }
-
-      // The `LessThan` should be converted while the whole inner `And` shouldn't
-      assertResult(
-        """leaf-0 = (LESS_THAN a 10)
-          |expr = leaf-0
-        """.stripMargin.trim
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          LessThan("a", 10),
-          Not(And(
-            GreaterThan("a", 1),
-            StringContains("b", "prefix")
-          ))
-        )).get.toString
-      }
-
-      // Safely remove unsupported `StringContains` predicate and push down `LessThan`
-      assertResult(
-        """leaf-0 = (LESS_THAN a 10)
-          |expr = leaf-0
-        """.stripMargin.trim
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          And(
-            LessThan("a", 10),
-            StringContains("b", "prefix")
-          )
-        )).get.toString
-      }
-
-      // Safely remove unsupported `StringContains` predicate,
-      // push down `LessThan` and `GreaterThan`.
-      assertResult(
-        """leaf-0 = (LESS_THAN a 10)
-          |leaf-1 = (LESS_THAN_EQUALS a 1)
-          |expr = (and leaf-0 (not leaf-1))
-        """.stripMargin.trim
-      ) {
-        OrcFilters.createFilter(schema, Array(
-          And(
-            And(
-              LessThan("a", 10),
-              StringContains("b", "prefix")
-            ),
-            GreaterThan("a", 1)
-          )
-        )).get.toString
-      }
+          ),
+          GreaterThan("a", 1)
+        )
+      )).get.toString
     }
   }
 }
