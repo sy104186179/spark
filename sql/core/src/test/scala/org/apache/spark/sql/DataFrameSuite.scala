@@ -19,11 +19,13 @@ package org.apache.spark.sql
 
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.security.PrivilegedExceptionAction
 import java.sql.{Date, Timestamp}
 import java.util.UUID
 
 import scala.util.Random
 
+import org.apache.hadoop.security.UserGroupInformation
 import org.scalatest.Matchers._
 
 import org.apache.spark.SparkException
@@ -2109,5 +2111,23 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
         """.stripMargin)
       checkAnswer(res, Row("1-1", 6, 6))
     }
+  }
+
+  test("test CARMEL-363") {
+    val ugi = UserGroupInformation.createRemoteUser("testUserE")
+
+    ugi.doAs(new PrivilegedExceptionAction[Unit] {
+      def run: Unit = {
+//        spark.range(10).write
+//          .parquet(s"hdfs://spark-dev-3089350:8020/tmp/uuid/${System.currentTimeMillis()}")
+        spark.read
+          .parquet(s"hdfs://spark-dev-3089350:8020/tmp/uuid/parquet").show(1)
+        spark.read
+          .csv(s"hdfs://spark-dev-3089350:8020/tmp/uuid/csv").show(1)
+        spark.read
+          .orc(s"hdfs://spark-dev-3089350:8020/tmp/uuid/orc").show(1)
+
+      }
+    })
   }
 }

@@ -18,7 +18,10 @@
 package org.apache.spark.scheduler
 
 import java.nio.ByteBuffer
+import java.security.PrivilegedAction
 import java.util.Properties
+
+import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.spark._
 import org.apache.spark.executor.TaskMetrics
@@ -118,7 +121,11 @@ private[spark] abstract class Task[T](
       Option(attemptNumber)).setCurrentContext()
 
     try {
-      runTask(context)
+      val ugi = UserGroupInformation.createRemoteUser(
+        localProperties.getProperty("spark.job.userName"))
+      ugi.doAs(new PrivilegedAction[T] {
+        def run: T = runTask(context)
+      })
     } catch {
       case e: Throwable =>
         // Catch all errors; run task failure callbacks, and rethrow the exception.
