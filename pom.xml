@@ -2840,7 +2840,8 @@
         <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
         <datanucleus-core.version>4.1.17</datanucleus-core.version>
-        <jetty.version>9.3.24.v20180605</jetty.version>
+        <!-- See HADOOP-16152 -->
+        <!-- <jetty.version>9.3.24.v20180605</jetty.version> -->
       </properties>
       <dependencies>
         <dependency>
