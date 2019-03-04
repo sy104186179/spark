@@ -18,6 +18,7 @@
 package org.apache.spark.sql.hive
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -31,7 +32,9 @@ import org.apache.spark.sql.types.StructType
 class HiveExternalCatalogSuite extends ExternalCatalogSuite {
 
   private val externalCatalog: HiveExternalCatalog = {
-    val catalog = new HiveExternalCatalog(new SparkConf, new Configuration)
+    val conf = new Configuration
+    conf.setBoolean(ConfVars.HIVE_CBO_ENABLED.varname, false)
+    val catalog = new HiveExternalCatalog(new SparkConf, conf)
     catalog.client.reset()
     catalog
   }
