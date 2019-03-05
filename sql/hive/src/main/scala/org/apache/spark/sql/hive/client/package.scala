@@ -96,11 +96,11 @@ package object client {
         "org.pentaho:pentaho-aggdesigner-algorithm"))
 
     // Since Hive 3.0, HookUtils uses org.apache.logging.log4j.util.Strings
+    // Hive.java dependency calcite-core from HIVE-14496
     case object v3_1 extends HiveVersion("3.1.1",
       extraDeps = Seq("org.apache.logging.log4j:log4j-api:2.10.0",
         "org.apache.derby:derby:10.14.1.0"),
-      exclusions = Seq("org.apache.calcite:calcite-core",
-        "org.apache.calcite:calcite-druid",
+      exclusions = Seq("org.apache.calcite:calcite-druid",
         "org.apache.calcite.avatica:avatica",
         "org.apache.curator:*",
         "org.pentaho:pentaho-aggdesigner-algorithm"))
