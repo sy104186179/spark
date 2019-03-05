@@ -67,7 +67,7 @@ object TestHive
         // LocalRelation will exercise the optimization rules better by disabling it as
         // this rule may potentially block testing of other optimization rules such as
         // ConstantPropagation etc.
-        .set(s"spark.hadoop.${ConfVars.HIVE_CBO_ENABLED.varname}", "false")
+        // .set(s"spark.hadoop.${ConfVars.HIVE_CBO_ENABLED.varname}", "false")
         .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)))
 
 

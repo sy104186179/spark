@@ -33,7 +33,7 @@ class HiveExternalCatalogSuite extends ExternalCatalogSuite {
 
   private val externalCatalog: HiveExternalCatalog = {
     val conf = new Configuration
-    conf.setBoolean(ConfVars.HIVE_CBO_ENABLED.varname, false)
+    // conf.setBoolean(ConfVars.HIVE_CBO_ENABLED.varname, false)
     val catalog = new HiveExternalCatalog(new SparkConf, conf)
     catalog.client.reset()
     catalog
