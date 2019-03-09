@@ -170,6 +170,21 @@ hive_thriftserver = Module(
     ]
 )
 
+hive_thriftserver2 = Module(
+    name="hive-thriftserver2",
+    dependencies=[hive],
+    source_file_regexes=[
+        "sql/hive-thriftserver2",
+        "sbin/start-thriftserver.sh",
+    ],
+    build_profile_flags=[
+        "-Phive-thriftserver2",
+    ],
+    sbt_test_goals=[
+        "hive-thriftserver2/test",
+    ]
+)
+
 avro = Module(
     name="avro",
     dependencies=[sql],
