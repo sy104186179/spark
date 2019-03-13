@@ -359,7 +359,12 @@ def build_apache_spark(build_tool, hadoop_version):
 def detect_binary_inop_with_mima(hadoop_version):
     build_profiles = get_hadoop_profiles(hadoop_version) + modules.root.build_profile_flags
     set_title_and_block("Detecting binary incompatibilities with MiMa", "BLOCK_MIMA")
-    run_cmd([os.path.join(SPARK_HOME, "dev", "mima")] + build_profiles)
+    # The same profiles used for building are used to run Checkstyle by SBT as well because
+    # the previous build looks reused for Checkstyle and affecting Checkstyle. See SPARK-27130.
+    profiles = " ".join(build_profiles)
+    print("[info] Detecting binary incompatibilities with MiMa using SBT with these profiles: ",
+          profiles)
+    run_cmd([os.path.join(SPARK_HOME, "dev", "mima"), profiles])
 
 
 def run_scala_tests_maven(test_profiles):
