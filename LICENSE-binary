@@ -260,9 +260,6 @@ net.sf.supercsv:super-csv
 org.apache.arrow:arrow-format
 org.apache.arrow:arrow-memory
 org.apache.arrow:arrow-vector
-org.apache.calcite:calcite-avatica
-org.apache.calcite:calcite-core
-org.apache.calcite:calcite-linq4j
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-annotations
@@ -372,7 +369,6 @@ org.eclipse.jetty:jetty-servlets
 org.eclipse.jetty:jetty-util
 org.eclipse.jetty:jetty-webapp
 org.eclipse.jetty:jetty-xml
-com.sun.xml.fastinfoset:FastInfoset
 
 core/src/main/java/org/apache/spark/util/collection/TimSort.java
 core/src/main/resources/org/apache/spark/ui/static/bootstrap*
@@ -493,9 +489,7 @@ Eclipse Distribution License (EDL) 1.0
 
 org.glassfish.jaxb:jaxb-runtime
 jakarta.xml.bind:jakarta.xml.bind-api
-org.glassfish.jaxb:txw2
 com.sun.istack:istack-commons-runtime
-org.jvnet.staxex:stax-ex
 jakarta.activation:jakarta.activation-api
 
 

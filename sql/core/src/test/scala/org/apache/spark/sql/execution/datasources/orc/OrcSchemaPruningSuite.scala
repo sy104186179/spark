@@ -15,29 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.kafka010
+package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.{SparkConf, SparkFunSuite}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.SchemaPruningSuite
+import org.apache.spark.sql.internal.SQLConf
 
-class KafkaSecurityHelperSuite extends SparkFunSuite with KafkaDelegationTokenTest {
-  test("isTokenAvailable without token should return false") {
-    assert(!KafkaSecurityHelper.isTokenAvailable())
-  }
+class OrcSchemaPruningSuite extends SchemaPruningSuite {
+  override protected val dataSourceName: String = "orc"
+  override protected val vectorizedReaderEnabledKey: String =
+    SQLConf.ORC_VECTORIZED_READER_ENABLED.key
 
-  test("isTokenAvailable with token should return true") {
-    addTokenToUGI()
-
-    assert(KafkaSecurityHelper.isTokenAvailable())
-  }
-
-  test("getTokenJaasParams with token should return scram module") {
-    addTokenToUGI()
-
-    val jaasParams = KafkaSecurityHelper.getTokenJaasParams(new SparkConf())
-
-    assert(jaasParams.contains("ScramLoginModule required"))
-    assert(jaasParams.contains("tokenauth=true"))
-    assert(jaasParams.contains(tokenId))
-    assert(jaasParams.contains(tokenPassword))
-  }
+  override protected def sparkConf: SparkConf =
+    super
+      .sparkConf
+      .set(SQLConf.USE_V1_SOURCE_READER_LIST, "orc")
+      .set(SQLConf.USE_V1_SOURCE_WRITER_LIST, "orc")
 }

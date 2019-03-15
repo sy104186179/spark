@@ -171,6 +171,16 @@ object SQLConf {
       .intConf
       .createWithDefault(10)
 
+  val OPTIMIZER_INSET_SWITCH_THRESHOLD =
+    buildConf("spark.sql.optimizer.inSetSwitchThreshold")
+      .internal()
+      .doc("Configures the max set size in InSet for which Spark will generate code with " +
+        "switch statements. This is applicable only to bytes, shorts, ints, dates.")
+      .intConf
+      .checkValue(threshold => threshold >= 0 && threshold <= 600, "The max set size " +
+        "for using switch statements in InSet must be non-negative and less than or equal to 600")
+      .createWithDefault(400)
+
   val OPTIMIZER_PLAN_CHANGE_LOG_LEVEL = buildConf("spark.sql.optimizer.planChangeLog.level")
     .internal()
     .doc("Configures the log level for logging the change from the original plan to the new " +
@@ -267,6 +277,7 @@ object SQLConf {
       "Note: For structured streaming, this configuration cannot be changed between query " +
       "restarts from the same checkpoint location.")
     .intConf
+    .checkValue(_ > 0, "The value of spark.sql.shuffle.partitions must be positive")
     .createWithDefault(200)
 
   val SHUFFLE_TARGET_POSTSHUFFLE_INPUT_SIZE =
@@ -573,19 +584,17 @@ object SQLConf {
   }
 
   val HIVE_CASE_SENSITIVE_INFERENCE = buildConf("spark.sql.hive.caseSensitiveInferenceMode")
-    .doc("Sets the action to take when a case-sensitive schema cannot be read from a Hive " +
-      "table's properties. Although Spark SQL itself is not case-sensitive, Hive compatible file " +
-      "formats such as Parquet are. Spark SQL must use a case-preserving schema when querying " +
-      "any table backed by files containing case-sensitive field names or queries may not return " +
-      "accurate results. Valid options include INFER_AND_SAVE (the default mode-- infer the " +
-      "case-sensitive schema from the underlying data files and write it back to the table " +
-      "properties), INFER_ONLY (infer the schema but don't attempt to write it to the table " +
-      "properties) and NEVER_INFER (fallback to using the case-insensitive metastore schema " +
-      "instead of inferring).")
+    .internal()
+    .doc("Sets the action to take when a case-sensitive schema cannot be read from a Hive Serde " +
+      "table's properties when reading the table with Spark native data sources. Valid options " +
+      "include INFER_AND_SAVE (infer the case-sensitive schema from the underlying data files " +
+      "and write it back to the table properties), INFER_ONLY (infer the schema but don't " +
+      "attempt to write it to the table properties) and NEVER_INFER (the default mode-- fallback " +
+      "to using the case-insensitive metastore schema instead of inferring).")
     .stringConf
     .transform(_.toUpperCase(Locale.ROOT))
     .checkValues(HiveCaseSensitiveInferenceMode.values.map(_.toString))
-    .createWithDefault(HiveCaseSensitiveInferenceMode.INFER_AND_SAVE.toString)
+    .createWithDefault(HiveCaseSensitiveInferenceMode.NEVER_INFER.toString)
 
   val OPTIMIZER_METADATA_ONLY = buildConf("spark.sql.optimizer.metadataOnly")
     .internal()
@@ -1530,8 +1539,8 @@ object SQLConf {
       .internal()
       .doc("Prune nested fields from a logical relation's output which are unnecessary in " +
         "satisfying a query. This optimization allows columnar file format readers to avoid " +
-        "reading unnecessary nested column data. Currently Parquet is the only data source that " +
-        "implements this optimization.")
+        "reading unnecessary nested column data. Currently Parquet and ORC v1 are the " +
+        "data sources that implement this optimization.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1682,6 +1691,17 @@ object SQLConf {
     .intConf
     .createWithDefault(25)
 
+  val MAX_PLAN_STRING_LENGTH = buildConf("spark.sql.maxPlanStringLength")
+    .doc("Maximum number of characters to output for a plan string.  If the plan is " +
+      "longer, further output will be truncated.  The default setting always generates a full " +
+      "plan.  Set this to a lower value such as 8k if plan strings are taking up too much " +
+      "memory or are causing OutOfMemory errors in the driver or UI processes.")
+    .bytesConf(ByteUnit.BYTE)
+    .checkValue(i => i >= 0 && i <= ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH, "Invalid " +
+      "value for 'spark.sql.maxPlanStringLength'.  Length must be a valid string length " +
+      "(nonnegative and shorter than the maximum size).")
+    .createWithDefault(ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH)
+
   val SET_COMMAND_REJECTS_SPARK_CORE_CONFS =
     buildConf("spark.sql.legacy.setCommandRejectsSparkCoreConfs")
       .internal()
@@ -1690,11 +1710,13 @@ object SQLConf {
       .booleanConf
       .createWithDefault(true)
 
-  val TIMESTAMP_EXTERNAL_TYPE = buildConf("spark.sql.catalyst.timestampType")
-    .doc("Java class to/from which an instance of TimestampType is converted.")
-    .stringConf
-    .checkValues(Set("Timestamp", "Instant"))
-    .createWithDefault("Timestamp")
+  val DATETIME_JAVA8API_EANBLED = buildConf("spark.sql.datetime.java8API.enabled")
+    .doc("If the configuration property is set to true, java.time.Instant and " +
+      "java.time.LocalDate classes of Java 8 API are used as external types for " +
+      "Catalyst's TimestampType and DateType. If it is set to false, java.sql.Timestamp " +
+      "and java.sql.Date are used for the same purpose.")
+    .booleanConf
+    .createWithDefault(false)
 }
 
 /**
@@ -1722,6 +1744,8 @@ class SQLConf extends Serializable with Logging {
   def optimizerMaxIterations: Int = getConf(OPTIMIZER_MAX_ITERATIONS)
 
   def optimizerInSetConversionThreshold: Int = getConf(OPTIMIZER_INSET_CONVERSION_THRESHOLD)
+
+  def optimizerInSetSwitchThreshold: Int = getConf(OPTIMIZER_INSET_SWITCH_THRESHOLD)
 
   def optimizerPlanChangeLogLevel: String = getConf(OPTIMIZER_PLAN_CHANGE_LOG_LEVEL)
 
@@ -1882,7 +1906,7 @@ class SQLConf extends Serializable with Logging {
 
   def fastHashAggregateRowMaxCapacityBit: Int = getConf(FAST_HASH_AGGREGATE_MAX_ROWS_CAPACITY_BIT)
 
-  def timestampExternalType: String = getConf(TIMESTAMP_EXTERNAL_TYPE)
+  def datetimeJava8ApiEnabled: Boolean = getConf(DATETIME_JAVA8API_EANBLED)
 
   /**
    * Returns the [[Resolver]] for the current configuration, which can be used to determine if two
@@ -2132,6 +2156,8 @@ class SQLConf extends Serializable with Logging {
     getConf(SQLConf.NAME_NON_STRUCT_GROUPING_KEY_AS_VALUE)
 
   def maxToStringFields: Int = getConf(SQLConf.MAX_TO_STRING_FIELDS)
+
+  def maxPlanStringLength: Int = getConf(SQLConf.MAX_PLAN_STRING_LENGTH).toInt
 
   def setCommandRejectsSparkCoreConfs: Boolean =
     getConf(SQLConf.SET_COMMAND_REJECTS_SPARK_CORE_CONFS)
