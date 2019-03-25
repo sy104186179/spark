@@ -91,7 +91,17 @@ object HiveThriftServer2 extends Logging {
 
     try {
       val server = new HiveThriftServer2(SparkSQLEnv.sqlContext)
-      server.init(executionHive.conf)
+      val hiveconf = executionHive.conf
+      hiveconf.set("hive.metastore.uris", "thrift://quickstart.cloudera:9083")
+      hiveconf.set("hive.server2.enable.doAs", "true")
+      hiveconf.set("hive.server2.thrift.port", "10000")
+      hiveconf.set("hive.metastore.sasl.enabled", "true")
+      hiveconf.set("hive.server2.authentication", "kerberos")
+      hiveconf.set("hive.metastore.kerberos.principal", "hive/_HOST@CLOUDERA")
+      hiveconf.set("hive.server2.authentication.kerberos.principal", "hive/_HOST@CLOUDERA")
+      hiveconf.set("hive.server2.authentication.kerberos.keytab", "hive.keytab")
+      hiveconf.set("hive.metastore.execute.setugi", "true")
+      server.init(hiveconf)
       server.start()
       logInfo("HiveThriftServer2 started")
       listener = new HiveThriftServer2Listener(server, SparkSQLEnv.sqlContext.conf)

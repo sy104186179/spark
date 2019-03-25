@@ -261,6 +261,7 @@ private[hive] class HiveClientImpl(
     if (clientLoader.cachedHive != null) {
       clientLoader.cachedHive.asInstanceOf[Hive]
     } else {
+      conf.set("hive.metastore.token.signature", "HiveServer2ImpersonationToken")
       val c = Hive.get(conf)
       clientLoader.cachedHive = c
       c
