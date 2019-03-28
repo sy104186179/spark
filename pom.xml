@@ -1420,10 +1420,6 @@
             <artifactId>jetty-all</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.eclipse.jetty.orbit</groupId>
-            <artifactId>javax.servlet</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>com.github.joshelser</groupId>
             <artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
           </exclusion>
@@ -1552,15 +1548,11 @@
           <!-- Hive 2.3.4 -->
           <exclusion>
             <groupId>${hive.group}</groupId>
-            <artifactId>hive-vector-code-gen</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>${hive.group}</groupId>
           <artifactId>hive-llap-tez</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.apache.orc</groupId>
-            <artifactId>orc-tools</artifactId>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-druid</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.calcite.avatica</groupId>
@@ -1741,18 +1733,6 @@
           </exclusion>
           <!-- Hive 2.3.4 -->
           <exclusion>
-            <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase-client</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>HikariCP</artifactId>
-            <groupId>com.zaxxer</groupId>
-          </exclusion>
-          <exclusion>
-            <groupId>co.cask.tephra</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>org.eclipse.jetty.aggregate</groupId>
             <artifactId>jetty-all</artifactId>
           </exclusion>
@@ -1761,12 +1741,8 @@
             <artifactId>parquet-hadoop-bundle</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>tomcat</groupId>
-            <artifactId>jasper-compiler</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>tomcat</groupId>
-            <artifactId>jasper-runtime</artifactId>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -2761,28 +2737,12 @@
           <scope>${hive.deps.scope}</scope>
           <exclusions>
             <exclusion>
-              <groupId>${hive.group}</groupId>
-              <artifactId>hive-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>${hive.group}</groupId>
-              <artifactId>hive-serde</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.zookeeper</groupId>
-              <artifactId>zookeeper</artifactId>
-            </exclusion>
-            <exclusion>
               <groupId>org.apache.curator</groupId>
               <artifactId>curator-framework</artifactId>
             </exclusion>
             <exclusion>
               <groupId>org.apache.curator</groupId>
               <artifactId>apache-curator</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-api</artifactId>
             </exclusion>
           </exclusions>
         </dependency>
