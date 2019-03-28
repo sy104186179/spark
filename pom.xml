@@ -1725,10 +1725,6 @@
           </exclusion>
           <!-- Hive 2.3.4 -->
           <exclusion>
-            <groupId>org.eclipse.jetty.aggregate</groupId>
-            <artifactId>jetty-all</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-hadoop-bundle</artifactId>
           </exclusion>
