@@ -1556,10 +1556,6 @@
           </exclusion>
           <exclusion>
             <groupId>org.apache.calcite.avatica</groupId>
-            <artifactId>avatica-metrics</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.calcite.avatica</groupId>
             <artifactId>avatica</artifactId>
           </exclusion>
           <exclusion>
