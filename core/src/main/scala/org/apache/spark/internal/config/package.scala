@@ -1134,7 +1134,7 @@ package object config {
         "lz4, lzf, snappy, and zstd. You can also use fully qualified class names to specify " +
         "the codec")
       .stringConf
-      .createWithDefaultString("lz4")
+      .createWithDefaultString("snappy")
 
   private[spark] val IO_COMPRESSION_ZSTD_BUFFERSIZE =
     ConfigBuilder("spark.io.compression.zstd.bufferSize")
@@ -1210,7 +1210,7 @@ package object config {
       "or StorageLevel.MEMORY_ONLY in Python). Can save substantial " +
       "space at the cost of some extra CPU time. " +
       "Compression will use spark.io.compression.codec")
-    .booleanConf.createWithDefault(false)
+    .booleanConf.createWithDefault(true)
 
   private[spark] val RDD_PARALLEL_LISTING_THRESHOLD =
     ConfigBuilder("spark.rdd.parallelListingThreshold")

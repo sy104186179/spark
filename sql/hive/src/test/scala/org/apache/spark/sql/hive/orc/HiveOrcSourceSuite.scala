@@ -25,6 +25,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcSuite
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.hive.test.TestHiveSingleton
 import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 
 class HiveOrcSourceSuite extends OrcSuite with TestHiveSingleton {
@@ -159,6 +160,27 @@ class HiveOrcSourceSuite extends OrcSuite with TestHiveSingleton {
       withSQLConf(HiveUtils.CONVERT_METASTORE_ORC.key -> s"$convertMetastore") {
         testSelectiveDictionaryEncoding(isSelective = false)
       }
+    }
+  }
+
+  test("SPARK-27267") {
+    val location = Utils.createTempDir()
+    val uri = location.toURI
+    try {
+      hiveClient.runSqlHive("USE default")
+      hiveClient.runSqlHive(
+        """
+          |CREATE EXTERNAL TABLE hive_orc(id int)
+          |STORED AS orc""".stripMargin)
+      // Hive throws an exception if I assign the location in the create table statement.
+      hiveClient.runSqlHive(
+        s"ALTER TABLE hive_orc SET LOCATION 'file:///user/hive/warehouse/spark_27267'")
+      spark.table("hive_orc").persist(StorageLevel.MEMORY_ONLY)
+      spark.table("hive_orc").show
+    } finally {
+      hiveClient.runSqlHive("DROP TABLE IF EXISTS hive_orc")
+      hiveClient.runSqlHive("DROP TABLE IF EXISTS spark_orc")
+      Utils.deleteRecursively(location)
     }
   }
 }
