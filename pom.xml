@@ -130,6 +130,12 @@
     <hive.version>1.2.1.spark2</hive.version>
     <!-- Version used for internal directory structure -->
     <hive.version.short>1.2.1</hive.version.short>
+    <!-- deps that Hive 2.3.4 needed but Hive 1.2.1 do not needed -->
+    <hive.extra.deps.scope>provided</hive.extra.deps.scope>
+    <!--
+      To control hive-common, hive-serde, hive-shims and hive-llap-client
+    -->
+    <hive2.extra.deps.scope>provided</hive2.extra.deps.scope>
     <!-- note that this should be compatible with Kafka brokers version 0.10 and up -->
     <kafka.version>2.2.0</kafka.version>
     <derby.version>10.12.1.1</derby.version>
@@ -1388,7 +1394,7 @@
         <groupId>${hive.group}</groupId>
         <artifactId>hive-common</artifactId>
         <version>${hive.version}</version>
-        <scope>${hive.deps.scope}</scope>
+        <scope>${hive.extra.deps.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>${hive.group}</groupId>
@@ -1739,7 +1745,7 @@
         <groupId>${hive.group}</groupId>
         <artifactId>hive-serde</artifactId>
         <version>${hive.version}</version>
-        <scope>${hive.deps.scope}</scope>
+        <scope>${hive.extra.deps.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>${hive.group}</groupId>
@@ -1828,7 +1834,7 @@
         <groupId>${hive.group}</groupId>
         <artifactId>hive-shims</artifactId>
         <version>${hive.version}</version>
-        <scope>${hive.deps.scope}</scope>
+        <scope>${hive.extra.deps.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -2771,61 +2777,16 @@
         <hive.group>org.apache.hive</hive.group>
         <hive.classifier>core</hive.classifier>
         <hive.version>2.3.4</hive.version>
+        <hive.extra.deps.scope>${hive.deps.scope}</hive.extra.deps.scope>
         <hive.version.short>${hive.version}</hive.version.short>
         <hive.parquet.version>${parquet.version}</hive.parquet.version>
         <orc.classifier></orc.classifier>
-        <calcite-avatica.artifactId>calcite-druid</calcite-avatica.artifactId>
-        <calcite.version>1.10.0</calcite.version>
         <hive.parquet.group>org.apache.parquet</hive.parquet.group>
         <datanucleus-core.version>4.1.17</datanucleus-core.version>
         <jetty.version>9.3.24.v20180605</jetty.version>
       </properties>
       <dependencies>
-        <dependency>
-          <groupId>${hive.group}</groupId>
-          <artifactId>hive-common</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>${hive.group}</groupId>
-          <artifactId>hive-serde</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>${hive.group}</groupId>
-          <artifactId>hive-shims</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>${hive.group}</groupId>
-          <artifactId>hive-llap-client</artifactId>
-          <version>${hive.version}</version>
-          <scope>${hive.deps.scope}</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>${hive.group}</groupId>
-              <artifactId>hive-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>${hive.group}</groupId>
-              <artifactId>hive-serde</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.zookeeper</groupId>
-              <artifactId>zookeeper</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.curator</groupId>
-              <artifactId>curator-framework</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.curator</groupId>
-              <artifactId>apache-curator</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-api</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-
+        <!-- Need hive-storage-api because we exclude it from orc-mapreduce -->
         <dependency>
           <groupId>org.apache.hive</groupId>
           <artifactId>hive-storage-api</artifactId>
