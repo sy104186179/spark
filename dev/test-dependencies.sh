@@ -26,58 +26,21 @@ cd "$FWDIR"
 # See https://stackoverflow.com/questions/28881 for more details.
 export LC_ALL=C
 
-# TODO: This would be much nicer to do in SBT, once SBT supports Maven-style resolution.
-
 # NOTE: These should match those in the release publishing script
-HADOOP2_MODULE_PROFILES="-Phive-thriftserver -Pmesos -Pkubernetes -Pyarn -Phive"
-MVN="build/mvn"
+HADOOP2_MODULE_PROFILES="-Pmesos -Pkubernetes -Pyarn -Phive"
+SBT="build/sbt"
 HADOOP_PROFILES=(
     hadoop-2.7
     hadoop-3.2
 )
 
-# We'll switch the version to a temp. one, publish POMs using that new version, then switch back to
-# the old version. We need to do this because the `dependency:build-classpath` task needs to
-# resolve Spark's internal submodule dependencies.
-
-# From http://stackoverflow.com/a/26514030
-set +e
-OLD_VERSION=$($MVN -q \
-    -Dexec.executable="echo" \
-    -Dexec.args='${project.version}' \
-    --non-recursive \
-    org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
-if [ $? != 0 ]; then
-    echo -e "Error while getting version string from Maven:\n$OLD_VERSION"
-    exit 1
-fi
-set -e
-TEMP_VERSION="spark-$(python -S -c "import random; print(random.randrange(100000, 999999))")"
-
-function reset_version {
-  # Delete the temporary POMs that we wrote to the local Maven repo:
-  find "$HOME/.m2/" | grep "$TEMP_VERSION" | xargs rm -rf
-
-  # Restore the original version number:
-  $MVN -q versions:set -DnewVersion=$OLD_VERSION -DgenerateBackupPoms=false > /dev/null
-}
-trap reset_version EXIT
-
-$MVN -q versions:set -DnewVersion=$TEMP_VERSION -DgenerateBackupPoms=false > /dev/null
-
 # Generate manifests for each Hadoop profile:
 for HADOOP_PROFILE in "${HADOOP_PROFILES[@]}"; do
-  echo "Performing Maven install for $HADOOP_PROFILE"
-  $MVN $HADOOP2_MODULE_PROFILES -P$HADOOP_PROFILE jar:jar jar:test-jar install:install clean -q
-
-  echo "Performing Maven validate for $HADOOP_PROFILE"
-  $MVN $HADOOP2_MODULE_PROFILES -P$HADOOP_PROFILE validate -q
-
   echo "Generating dependency manifest for $HADOOP_PROFILE"
   mkdir -p dev/pr-deps
-  $MVN $HADOOP2_MODULE_PROFILES -P$HADOOP_PROFILE dependency:build-classpath -pl assembly \
-    | grep "Dependencies classpath:" -A 1 \
-    | tail -n 1 | tr ":" "\n" | rev | cut -d "/" -f 1 | rev | sort \
+  $SBT $HADOOP2_MODULE_PROFILES -P$HADOOP_PROFILE "show assembly/compile:dependencyClasspath" \
+    | grep "Attributed(" \
+    | awk -F "/" '{print $NF}' | sed 's/'\)'//g' | sort \
     | grep -v spark > dev/pr-deps/spark-deps-$HADOOP_PROFILE
 done
 
