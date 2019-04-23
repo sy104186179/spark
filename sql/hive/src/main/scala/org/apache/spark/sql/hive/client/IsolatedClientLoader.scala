@@ -52,6 +52,12 @@ private[hive] object IsolatedClientLoader extends Logging {
       sharedPrefixes: Seq[String] = Seq.empty,
       barrierPrefixes: Seq[String] = Seq.empty,
       sharesHadoopClasses: Boolean = true): IsolatedClientLoader = synchronized {
+
+    // scalastyle:off
+    println("##################################")
+    println("hadoopVersion: " + hadoopVersion)
+    println("##################################")
+
     val resolvedVersion = hiveVersion(hiveMetastoreVersion)
     // We will first try to share Hadoop classes. If we cannot resolve the Hadoop artifact
     // with the given version, we will use Hadoop 2.7 and then will not share Hadoop classes.
