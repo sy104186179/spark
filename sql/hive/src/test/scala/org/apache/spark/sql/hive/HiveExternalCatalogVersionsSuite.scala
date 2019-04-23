@@ -45,7 +45,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   private val tmpDataDir = Utils.createTempDir(namePrefix = "test-data")
   // For local test, you can set `sparkTestingDir` to a static value like `/tmp/test-spark`, to
   // avoid downloading Spark of different versions in each run.
-  private val sparkTestingDir = new File("/tmp/test-spark")
+  private val sparkTestingDir = Utils.createTempDir(namePrefix = "test-spark")
   private val unusedJar = TestUtils.createJarWithClasses(Seq.empty)
 
   override def afterAll(): Unit = {
