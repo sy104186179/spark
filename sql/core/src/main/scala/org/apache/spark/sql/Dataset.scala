@@ -200,10 +200,13 @@ class Dataset[T] private[sql](
     // For various commands (like DDL) and queries with side effects, we force query execution
     // to happen right away to let these side effects take place eagerly.
     queryExecution.analyzed match {
-      case c: Command =>
-        LocalRelation(c.output, withAction("command", queryExecution)(_.executeCollect()))
+      case r: RunnableCommand =>
+        queryExecution.analyzed
+//      case c: Command =>
+//        LocalRelation(c.output, withAction("command", queryExecution)(_.executeCollect()))
       case u @ Union(children) if children.forall(_.isInstanceOf[Command]) =>
-        LocalRelation(u.output, withAction("command", queryExecution)(_.executeCollect()))
+        // LocalRelation(u.output, withAction("command", queryExecution)(_.executeCollect()))
+        queryExecution.analyzed
       case _ =>
         queryExecution.analyzed
     }
