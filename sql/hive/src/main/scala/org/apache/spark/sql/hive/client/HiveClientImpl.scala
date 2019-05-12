@@ -872,7 +872,7 @@ private[hive] class HiveClientImpl(
     mvs.foreach { table =>
       val tableName = table.getTableName
       logDebug(s"Deleting materialized view $tableName")
-      runSqlHive(s"DROP MATERIALIZED VIEW $tableName")
+      client.dropTable("default", table.getTableName)
     }
 
     others.foreach { table =>
