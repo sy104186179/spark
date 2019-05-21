@@ -31,7 +31,7 @@ import org.apache.spark.metrics.source.HiveCatalogMetrics
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.streaming.FileStreamSink
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.SerializableConfiguration
+import org.apache.spark.util.{SerializableConfiguration, ThreadUtils}
 
 
 /**
@@ -297,7 +297,9 @@ object InMemoryFileIndex extends Logging {
     val missingFiles = mutable.ArrayBuffer.empty[String]
     val filteredLeafStatuses = allLeafStatuses.filterNot(
       status => shouldFilterOut(status.getPath.getName))
-    val resolvedLeafStatuses = filteredLeafStatuses.flatMap {
+    val start1 = System.currentTimeMillis()
+    val resolvedLeafStatuses =
+      ThreadUtils.parmap(filteredLeafStatuses.toSeq, "resolveLeafStatuses", 8) {
       case f: LocatedFileStatus =>
         Some(f)
 
@@ -334,8 +336,49 @@ object InMemoryFileIndex extends Logging {
             missingFiles += f.getPath.toString
             None
         }
-    }
 
+    }.flatten
+    val start2 = System.currentTimeMillis()
+    val resolvedLeafStatuses2 = filteredLeafStatuses.par.flatMap {
+      case f: LocatedFileStatus =>
+        Some(f)
+
+      // NOTE:
+      //
+      // - Although S3/S3A/S3N file system can be quite slow for remote file metadata
+      //   operations, calling `getFileBlockLocations` does no harm here since these file system
+      //   implementations don't actually issue RPC for this method.
+      //
+      // - Here we are calling `getFileBlockLocations` in a sequential manner, but it should not
+      //   be a big deal since we always use to `bulkListLeafFiles` when the number of
+      //   paths exceeds threshold.
+      case f =>
+        // The other constructor of LocatedFileStatus will call FileStatus.getPermission(),
+        // which is very slow on some file system (RawLocalFileSystem, which is launch a
+        // subprocess and parse the stdout).
+        try {
+          val locations = fs.getFileBlockLocations(f, 0, f.getLen).map { loc =>
+            // Store BlockLocation objects to consume less memory
+            if (loc.getClass == classOf[BlockLocation]) {
+              loc
+            } else {
+              new BlockLocation(loc.getNames, loc.getHosts, loc.getOffset, loc.getLength)
+            }
+          }
+          val lfs = new LocatedFileStatus(f.getLen, f.isDirectory, f.getReplication, f.getBlockSize,
+            f.getModificationTime, 0, null, null, null, null, f.getPath, locations)
+          if (f.isSymlink) {
+            lfs.setSymlink(f.getSymlink)
+          }
+          Some(lfs)
+        } catch {
+          case _: FileNotFoundException =>
+            missingFiles += f.getPath.toString
+            None
+        }
+    }.arrayseq
+    val start3 = System.currentTimeMillis()
+    logWarning("Time1: " + (start2 - start1) + ", Time2: " + (start3 - start2))
     if (missingFiles.nonEmpty) {
       logWarning(
         s"the following files were missing during file scan:\n  ${missingFiles.mkString("\n  ")}")
