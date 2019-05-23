@@ -23,6 +23,7 @@ import scala.collection.mutable
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
+import org.apache.hadoop.hdfs.DistributedFileSystem
 import org.apache.hadoop.mapred.{FileInputFormat, JobConf}
 
 import org.apache.spark.SparkContext
@@ -31,7 +32,7 @@ import org.apache.spark.metrics.source.HiveCatalogMetrics
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.streaming.FileStreamSink
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.SerializableConfiguration
+import org.apache.spark.util.{SerializableConfiguration, ThreadUtils}
 
 
 /**
@@ -269,12 +270,220 @@ object InMemoryFileIndex extends Logging {
       filter: PathFilter,
       sessionOpt: Option[SparkSession]): Seq[FileStatus] = {
     logTrace(s"Listing $path")
+
+    val start1 = System.currentTimeMillis()
+    val d1 = benchmarkDefault(path, hadoopConf, filter, sessionOpt)
+    val start2 = System.currentTimeMillis()
+    val d2 = benchmarkParallelize1(path, hadoopConf, filter, sessionOpt)
+    val start3 = System.currentTimeMillis()
+    val d3 = benchmarkParallelize2(path, hadoopConf, filter, sessionOpt)
+    val end = System.currentTimeMillis()
+    logWarning(s"Elements: ${d3.size}. default time token: ${start2 - start1}, " +
+      s"listStatusIterator time token: ${start3 - start2}," +
+      s"listLocatedStatus time token: ${end - start3}")
+    d3
+  }
+
+  private def benchmarkDefault(
+      path: Path,
+      hadoopConf: Configuration,
+      filter: PathFilter,
+      sessionOpt: Option[SparkSession]): Seq[FileStatus] = {
     val fs = path.getFileSystem(hadoopConf)
 
     // [SPARK-17599] Prevent InMemoryFileIndex from failing if path doesn't exist
     // Note that statuses only include FileStatus for the files and dirs directly under path,
     // and does not include anything else recursively.
     val statuses = try fs.listStatus(path) catch {
+      case _: FileNotFoundException =>
+        logWarning(s"The directory $path was not found. Was it deleted very recently?")
+        Array.empty[FileStatus]
+    }
+
+    val filteredStatuses = statuses.filterNot(status => shouldFilterOut(status.getPath.getName))
+
+    val allLeafStatuses = {
+      val (dirs, topLevelFiles) = filteredStatuses.partition(_.isDirectory)
+      val nestedFiles: Seq[FileStatus] = sessionOpt match {
+        case Some(session) =>
+          bulkListLeafFiles(dirs.map(_.getPath), hadoopConf, filter, session).flatMap(_._2)
+        case _ =>
+          dirs.flatMap(dir => listLeafFiles(dir.getPath, hadoopConf, filter, sessionOpt))
+      }
+      val allFiles = topLevelFiles ++ nestedFiles
+      if (filter != null) allFiles.filter(f => filter.accept(f.getPath)) else allFiles
+    }
+
+    val missingFiles = mutable.ArrayBuffer.empty[String]
+    val filteredLeafStatuses = allLeafStatuses.filterNot(
+      status => shouldFilterOut(status.getPath.getName))
+    val resolvedLeafStatuses = filteredLeafStatuses.flatMap {
+      case f: LocatedFileStatus =>
+        Some(f)
+
+      // NOTE:
+      //
+      // - Although S3/S3A/S3N file system can be quite slow for remote file metadata
+      //   operations, calling `getFileBlockLocations` does no harm here since these file system
+      //   implementations don't actually issue RPC for this method.
+      //
+      // - Here we are calling `getFileBlockLocations` in a sequential manner, but it should not
+      //   be a big deal since we always use to `bulkListLeafFiles` when the number of
+      //   paths exceeds threshold.
+      case f =>
+        // The other constructor of LocatedFileStatus will call FileStatus.getPermission(),
+        // which is very slow on some file system (RawLocalFileSystem, which is launch a
+        // subprocess and parse the stdout).
+        try {
+          val locations = fs.getFileBlockLocations(f, 0, f.getLen).map { loc =>
+            // Store BlockLocation objects to consume less memory
+            if (loc.getClass == classOf[BlockLocation]) {
+              loc
+            } else {
+              new BlockLocation(loc.getNames, loc.getHosts, loc.getOffset, loc.getLength)
+            }
+          }
+          val lfs = new LocatedFileStatus(f.getLen, f.isDirectory, f.getReplication, f.getBlockSize,
+            f.getModificationTime, 0, null, null, null, null, f.getPath, locations)
+          if (f.isSymlink) {
+            lfs.setSymlink(f.getSymlink)
+          }
+          Some(lfs)
+        } catch {
+          case _: FileNotFoundException =>
+            missingFiles += f.getPath.toString
+            None
+        }
+    }
+
+    if (missingFiles.nonEmpty) {
+      logWarning(
+        s"the following files were missing during file scan:\n  ${missingFiles.mkString("\n  ")}")
+    }
+
+    resolvedLeafStatuses
+  }
+
+  private def benchmarkParallelize1(
+      path: Path,
+      hadoopConf: Configuration,
+      filter: PathFilter,
+      sessionOpt: Option[SparkSession]): Seq[FileStatus] = {
+    val fs = path.getFileSystem(hadoopConf)
+
+    // [SPARK-17599] Prevent InMemoryFileIndex from failing if path doesn't exist
+    // Note that statuses only include FileStatus for the files and dirs directly under path,
+    // and does not include anything else recursively.
+    val statuses: Array[FileStatus] = try {
+      fs match {
+        // DistributedFileSystem overrides listLocatedStatus to make 1 single call to namenode
+        // to retrieve the file status with the file block location. The reason to still fallback
+        // to listStatus is because the default implementation would potentially throw a
+        // FileNotFoundException which is better handled by doing the lookups manually below.
+        case _: DistributedFileSystem =>
+          val remoteIter = fs.listStatusIterator(path)
+          new Iterator[FileStatus]() {
+            def next(): FileStatus = remoteIter.next
+            def hasNext(): Boolean = remoteIter.hasNext
+          }.toArray
+        case _ => fs.listStatus(path)
+      }
+    } catch {
+      case _: FileNotFoundException =>
+        logWarning(s"The directory $path was not found. Was it deleted very recently?")
+        Array.empty[FileStatus]
+    }
+
+    val filteredStatuses = statuses.filterNot(status => shouldFilterOut(status.getPath.getName))
+
+    val allLeafStatuses = {
+      val (dirs, topLevelFiles) = filteredStatuses.partition(_.isDirectory)
+      val nestedFiles: Seq[FileStatus] = sessionOpt match {
+        case Some(session) =>
+          bulkListLeafFiles(dirs.map(_.getPath), hadoopConf, filter, session).flatMap(_._2)
+        case _ =>
+          dirs.flatMap(dir => listLeafFiles(dir.getPath, hadoopConf, filter, sessionOpt))
+      }
+      val allFiles = topLevelFiles ++ nestedFiles
+      if (filter != null) allFiles.filter(f => filter.accept(f.getPath)) else allFiles
+    }
+
+    val missingFiles = mutable.ArrayBuffer.empty[String]
+    val filteredLeafStatuses = allLeafStatuses.filterNot(
+      status => shouldFilterOut(status.getPath.getName))
+    val resolvedLeafStatuses = ThreadUtils.parmap(
+      filteredLeafStatuses.toSeq, "resolveLeafStatuses", 8) {
+      case f: LocatedFileStatus =>
+        Some(f)
+
+      // NOTE:
+      //
+      // - Although S3/S3A/S3N file system can be quite slow for remote file metadata
+      //   operations, calling `getFileBlockLocations` does no harm here since these file system
+      //   implementations don't actually issue RPC for this method.
+      //
+      // - Here we are calling `getFileBlockLocations` in a sequential manner, but it should not
+      //   be a big deal since we always use to `bulkListLeafFiles` when the number of
+      //   paths exceeds threshold.
+      case f =>
+        // The other constructor of LocatedFileStatus will call FileStatus.getPermission(),
+        // which is very slow on some file system (RawLocalFileSystem, which is launch a
+        // subprocess and parse the stdout).
+        try {
+          val locations = fs.getFileBlockLocations(f, 0, f.getLen).map { loc =>
+            // Store BlockLocation objects to consume less memory
+            if (loc.getClass == classOf[BlockLocation]) {
+              loc
+            } else {
+              new BlockLocation(loc.getNames, loc.getHosts, loc.getOffset, loc.getLength)
+            }
+          }
+          val lfs = new LocatedFileStatus(f.getLen, f.isDirectory, f.getReplication, f.getBlockSize,
+            f.getModificationTime, 0, null, null, null, null, f.getPath, locations)
+          if (f.isSymlink) {
+            lfs.setSymlink(f.getSymlink)
+          }
+          Some(lfs)
+        } catch {
+          case _: FileNotFoundException =>
+            missingFiles += f.getPath.toString
+            None
+        }
+    }.flatten
+
+    if (missingFiles.nonEmpty) {
+      logWarning(
+        s"the following files were missing during file scan:\n  ${missingFiles.mkString("\n  ")}")
+    }
+
+    resolvedLeafStatuses
+  }
+
+  private def benchmarkParallelize2(
+      path: Path,
+      hadoopConf: Configuration,
+      filter: PathFilter,
+      sessionOpt: Option[SparkSession]): Seq[FileStatus] = {
+    val fs = path.getFileSystem(hadoopConf)
+
+    // [SPARK-17599] Prevent InMemoryFileIndex from failing if path doesn't exist
+    // Note that statuses only include FileStatus for the files and dirs directly under path,
+    // and does not include anything else recursively.
+    val statuses: Array[FileStatus] = try {
+      fs match {
+        // DistributedFileSystem overrides listLocatedStatus to make 1 single call to namenode
+        // to retrieve the file status with the file block location. The reason to still fallback
+        // to listStatus is because the default implementation would potentially throw a
+        // FileNotFoundException which is better handled by doing the lookups manually below.
+        case _: DistributedFileSystem =>
+          val remoteIter = fs.listLocatedStatus(path)
+          new Iterator[LocatedFileStatus]() {
+            def next(): LocatedFileStatus = remoteIter.next
+            def hasNext(): Boolean = remoteIter.hasNext
+          }.toArray
+        case _ => fs.listStatus(path)
+      }
+    } catch {
       case _: FileNotFoundException =>
         logWarning(s"The directory $path was not found. Was it deleted very recently?")
         Array.empty[FileStatus]
