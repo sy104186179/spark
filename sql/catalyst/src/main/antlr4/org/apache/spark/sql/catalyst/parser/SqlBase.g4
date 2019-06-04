@@ -90,7 +90,7 @@ statement
     | ALTER database identifier SET DBPROPERTIES tablePropertyList     #setDatabaseProperties
     | DROP database (IF EXISTS)? identifier (RESTRICT | CASCADE)?      #dropDatabase
     | SHOW DATABASES (LIKE? pattern=STRING)?                           #showDatabases
-    | createTableHeader ('(' colTypeList ')')? tableProvider
+    | createTableHeader ('(' colTypeList ')')? tableProvider?
         ((OPTIONS options=tablePropertyList) |
         (PARTITIONED BY partitioning=transformList) |
         bucketSpec |
