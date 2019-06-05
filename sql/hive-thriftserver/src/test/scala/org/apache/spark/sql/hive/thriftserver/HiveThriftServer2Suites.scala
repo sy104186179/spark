@@ -100,7 +100,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
 
       withJdbcStatement("test_16563") { statement =>
         val queries = Seq(
-          "CREATE TABLE test_16563(key INT, val STRING)",
+          "CREATE TABLE test_16563(key INT, val STRING) USING HIVE",
           s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_16563")
 
         queries.foreach(statement.execute)
@@ -157,7 +157,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
     withJdbcStatement("test") { statement =>
       val queries = Seq(
         "SET spark.sql.shuffle.partitions=3",
-        "CREATE TABLE test(key INT, val STRING)",
+        "CREATE TABLE test(key INT, val STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test",
         "CACHE TABLE test")
 
@@ -183,7 +183,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-3004 regression: result set containing NULL") {
     withJdbcStatement("test_null") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_null(key INT, val STRING)",
+        "CREATE TABLE test_null(key INT, val STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKvWithNull}' OVERWRITE INTO TABLE test_null")
 
       queries.foreach(statement.execute)
@@ -203,7 +203,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-4292 regression: result set iterator issue") {
     withJdbcStatement("test_4292") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_4292(key INT, val STRING)",
+        "CREATE TABLE test_4292(key INT, val STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_4292")
 
       queries.foreach(statement.execute)
@@ -220,7 +220,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-4309 regression: Date type support") {
     withJdbcStatement("test_date") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_date(key INT, value STRING)",
+        "CREATE TABLE test_date(key INT, value STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_date")
 
       queries.foreach(statement.execute)
@@ -237,7 +237,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-4407 regression: Complex type support") {
     withJdbcStatement("test_map") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_map(key INT, value STRING)",
+        "CREATE TABLE test_map(key INT, value STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_map")
 
       queries.foreach(statement.execute)
@@ -260,7 +260,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-12143 regression: Binary type support") {
     withJdbcStatement("test_binary") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_binary(key INT, value STRING)",
+        "CREATE TABLE test_binary(key INT, value STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_binary")
 
       queries.foreach(statement.execute)
@@ -286,7 +286,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
       { statement =>
 
         val queries = Seq(
-            "CREATE TABLE test_map(key INT, value STRING)",
+            "CREATE TABLE test_map(key INT, value STRING) USING HIVE",
             s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_map",
             "CACHE TABLE test_table AS SELECT key FROM test_map ORDER BY key DESC",
             "CREATE DATABASE db1")
@@ -425,7 +425,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   ignore("test jdbc cancel") {
     withJdbcStatement("test_map") { statement =>
       val queries = Seq(
-        "CREATE TABLE test_map(key INT, value STRING)",
+        "CREATE TABLE test_map(key INT, value STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_map")
 
       queries.foreach(statement.execute)
@@ -493,7 +493,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
       {
         statement =>
           val queries = Seq(
-            "CREATE TABLE smallKV(key INT, val STRING)",
+            "CREATE TABLE smallKV(key INT, val STRING) USING HIVE",
             s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE smallKV",
             """CREATE TABLE addJar(key string)
               |ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
@@ -582,7 +582,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
         val dataPath = "../hive/src/test/resources/data/files/kv1.txt"
 
         Seq(
-          "CREATE TABLE test_udtf(key INT, value STRING)",
+          "CREATE TABLE test_udtf(key INT, value STRING) USING HIVE",
           s"LOAD DATA LOCAL INPATH '$dataPath' OVERWRITE INTO TABLE test_udtf"
         ).foreach(statement.execute)
 
@@ -750,7 +750,7 @@ class HiveThriftHttpServerSuite extends HiveThriftJdbcTest {
     withJdbcStatement("test") { statement =>
       val queries = Seq(
         "SET spark.sql.shuffle.partitions=3",
-        "CREATE TABLE test(key INT, val STRING)",
+        "CREATE TABLE test(key INT, val STRING) USING HIVE",
         s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test",
         "CACHE TABLE test")
 

@@ -82,7 +82,7 @@ class InMemoryCatalogedDDLSuite extends DDLSuite with SharedSQLContext with Befo
     val tabName = "tbl"
     withTable(tabName) {
       val e = intercept[AnalysisException] {
-        sql(s"CREATE TABLE $tabName (i INT, j STRING)")
+        sql(s"CREATE TABLE $tabName (i INT, j STRING) USING HIVE")
       }.getMessage
       assert(e.contains("Hive support is required to CREATE Hive TABLE"))
     }
@@ -110,13 +110,13 @@ class InMemoryCatalogedDDLSuite extends DDLSuite with SharedSQLContext with Befo
     import testImplicits._
     withTable("t", "t1") {
       var e = intercept[AnalysisException] {
-        sql("CREATE TABLE t SELECT 1 as a, 1 as b")
+        sql("CREATE TABLE t USING HIVE AS SELECT 1 as a, 1 as b")
       }.getMessage
       assert(e.contains("Hive support is required to CREATE Hive TABLE (AS SELECT)"))
 
       spark.range(1).select('id as 'a, 'id as 'b).write.saveAsTable("t1")
       e = intercept[AnalysisException] {
-        sql("CREATE TABLE t SELECT a, b from t1")
+        sql("CREATE TABLE t USING HIVE SELECT a, b from t1")
       }.getMessage
       assert(e.contains("Hive support is required to CREATE Hive TABLE (AS SELECT)"))
     }
@@ -2750,6 +2750,33 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
           checkAnswer(spark.table("foo.first"), Row("second"))
         }
       }
+    }
+  }
+
+  test("Change the default table to DataSource table") {
+    // Test default DataSource
+    withTable("tbl") {
+      sql("CREATE TABLE tbl(id STRING)")
+      val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("tbl"))
+      assert(table.tableType == CatalogTableType.MANAGED)
+      assert(table.provider == Some(conf.defaultDataSourceName))
+    }
+
+    // Test ORC
+    val orc = "orc"
+    withTable("tbl") {
+      sql(s"CREATE TABLE tbl(id STRING) USING ${orc}")
+      val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("tbl"))
+      assert(table.tableType == CatalogTableType.MANAGED)
+      assert(table.provider == Some(orc))
+    }
+
+    // Test change default DataSource
+    withSQLConf(SQLConf.DEFAULT_DATA_SOURCE_NAME.key -> orc) {
+      sql(s"CREATE TABLE tbl(id STRING)")
+      val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("tbl"))
+      assert(table.tableType == CatalogTableType.MANAGED)
+      assert(table.provider == Some(orc))
     }
   }
 }

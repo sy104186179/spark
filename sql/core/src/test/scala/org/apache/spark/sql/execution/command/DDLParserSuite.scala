@@ -406,9 +406,9 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
 
   test("create hive external table - location must be specified") {
     assertUnsupported(
-      sql = "CREATE EXTERNAL TABLE my_tab",
+      sql = "CREATE EXTERNAL TABLE my_tab USING HIVE",
       containsThesePhrases = Seq("create external table", "location"))
-    val query = "CREATE EXTERNAL TABLE my_tab LOCATION '/something/anything'"
+    val query = "CREATE EXTERNAL TABLE my_tab LOCATION '/something/anything' USING HIVE"
     val ct = parseAs[CreateTable](query)
     assert(ct.tableDesc.tableType == CatalogTableType.EXTERNAL)
     assert(ct.tableDesc.storage.locationUri == Some(new URI("/something/anything")))
@@ -425,7 +425,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
   }
 
   test("create hive table - location implies external") {
-    val query = "CREATE TABLE my_tab LOCATION '/something/anything'"
+    val query = "CREATE TABLE my_tab LOCATION '/something/anything' USING HIVE"
     val ct = parseAs[CreateTable](query)
     assert(ct.tableDesc.tableType == CatalogTableType.EXTERNAL)
     assert(ct.tableDesc.storage.locationUri == Some(new URI("/something/anything")))
@@ -433,7 +433,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
 
   test("Duplicate clauses - create hive table") {
     def createTableHeader(duplicateClause: String): String = {
-      s"CREATE TABLE my_tab(a INT, b STRING) STORED AS parquet $duplicateClause $duplicateClause"
+      s"CREATE TABLE my_tab(a INT, b STRING) STORED AS TEXTFILE $duplicateClause $duplicateClause"
     }
 
     intercept(createTableHeader("TBLPROPERTIES('test' = 'test2')"),
@@ -446,7 +446,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
       "Found duplicate clauses: CLUSTERED BY")
     intercept(createTableHeader("PARTITIONED BY (k int)"),
       "Found duplicate clauses: PARTITIONED BY")
-    intercept(createTableHeader("STORED AS parquet"),
+    intercept(createTableHeader("STORED AS TEXTFILE"),
       "Found duplicate clauses: STORED AS/BY")
     intercept(
       createTableHeader("ROW FORMAT SERDE 'parquet.hive.serde.ParquetHiveSerDe'"),
@@ -1146,7 +1146,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
   }
 
   test("Test CTAS #3") {
-    val s3 = """CREATE TABLE page_view AS SELECT * FROM src"""
+    val s3 = """CREATE TABLE page_view USING HIVE AS SELECT * FROM src"""
     val (desc, exists) = extractTableDesc(s3)
     assert(exists == false)
     assert(desc.identifier.database == None)
@@ -1319,7 +1319,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
   }
 
   test("create table - basic") {
-    val query = "CREATE TABLE my_table (id int, name string)"
+    val query = "CREATE TABLE my_table (id int, name string) USING HIVE"
     val (desc, allowExisting) = extractTableDesc(query)
     assert(!allowExisting)
     assert(desc.identifier.database.isEmpty)
@@ -1343,33 +1343,35 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
   }
 
   test("create table - with database name") {
-    val query = "CREATE TABLE dbx.my_table (id int, name string)"
+    val query = "CREATE TABLE dbx.my_table (id int, name string) USING HIVE"
     val (desc, _) = extractTableDesc(query)
     assert(desc.identifier.database == Some("dbx"))
     assert(desc.identifier.table == "my_table")
   }
 
   test("create table - temporary") {
-    val query = "CREATE TEMPORARY TABLE tab1 (id int, name string)"
+    val query = "CREATE TEMPORARY TABLE tab1 (id int, name string) USING HIVE"
     val e = intercept[ParseException] { parser.parsePlan(query) }
     assert(e.message.contains("CREATE TEMPORARY TABLE is not supported yet"))
   }
 
   test("create table - external") {
-    val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) LOCATION '/path/to/nowhere'"
+    val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) LOCATION '/path/to/nowhere' " +
+      "USING HIVE"
     val (desc, _) = extractTableDesc(query)
     assert(desc.tableType == CatalogTableType.EXTERNAL)
     assert(desc.storage.locationUri == Some(new URI("/path/to/nowhere")))
   }
 
   test("create table - if not exists") {
-    val query = "CREATE TABLE IF NOT EXISTS tab1 (id int, name string)"
+    val query = "CREATE TABLE IF NOT EXISTS tab1 (id int, name string) USING HIVE"
     val (_, allowExisting) = extractTableDesc(query)
     assert(allowExisting)
   }
 
   test("create table - comment") {
-    val query = "CREATE TABLE my_table (id int, name string) COMMENT 'its hot as hell below'"
+    val query = "CREATE TABLE my_table (id int, name string) COMMENT 'its hot as hell below' " +
+      "USING HIVE"
     val (desc, _) = extractTableDesc(query)
     assert(desc.comment == Some("its hot as hell below"))
   }
@@ -1396,7 +1398,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
          CLUSTERED BY($bucketedColumn)
        """
 
-    val query1 = s"$baseQuery INTO $numBuckets BUCKETS"
+    val query1 = s"$baseQuery INTO $numBuckets BUCKETS USING HIVE"
     val (desc1, _) = extractTableDesc(query1)
     assert(desc1.bucketSpec.isDefined)
     val bucketSpec1 = desc1.bucketSpec.get
@@ -1404,7 +1406,7 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
     assert(bucketSpec1.bucketColumnNames.head.equals(bucketedColumn))
     assert(bucketSpec1.sortColumnNames.isEmpty)
 
-    val query2 = s"$baseQuery SORTED BY($sortColumn) INTO $numBuckets BUCKETS"
+    val query2 = s"$baseQuery SORTED BY($sortColumn) INTO $numBuckets BUCKETS USING HIVE"
     val (desc2, _) = extractTableDesc(query2)
     assert(desc2.bucketSpec.isDefined)
     val bucketSpec2 = desc2.bucketSpec.get
@@ -1479,7 +1481,8 @@ class DDLParserSuite extends PlanTest with SharedSQLContext {
   }
 
   test("create table - properties") {
-    val query = "CREATE TABLE my_table (id int, name string) TBLPROPERTIES ('k1'='v1', 'k2'='v2')"
+    val query = "CREATE TABLE my_table (id int, name string) STORED AS TEXTFILE " +
+      "TBLPROPERTIES ('k1'='v1', 'k2'='v2')"
     val (desc, _) = extractTableDesc(query)
     assert(desc.properties == Map("k1" -> "v1", "k2" -> "v2"))
   }

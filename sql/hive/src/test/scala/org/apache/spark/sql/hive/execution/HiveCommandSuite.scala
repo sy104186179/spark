@@ -57,8 +57,9 @@ class HiveCommandSuite extends QueryTest with SQLTestUtils with TestHiveSingleto
         |STORED AS PARQUET
         |TBLPROPERTIES('prop1Key'="prop1Val", '`prop2Key`'="prop2Val")
       """.stripMargin)
-    sql("CREATE TABLE parquet_tab3(col1 int, `col 2` int)")
-    sql("CREATE TABLE parquet_tab4 (price int, qty int) partitioned by (year int, month int)")
+    sql("CREATE TABLE parquet_tab3(col1 int, `col 2` int) USING HIVE")
+    sql("CREATE TABLE parquet_tab4 (price int, qty int) partitioned by (year int, month int) " +
+      "USING HIVE")
     sql("INSERT INTO parquet_tab4 PARTITION(year = 2015, month = 1) SELECT 1, 1")
     sql("INSERT INTO parquet_tab4 PARTITION(year = 2015, month = 2) SELECT 2, 2")
     sql("INSERT INTO parquet_tab4 PARTITION(year = 2016, month = 2) SELECT 3, 3")
@@ -67,6 +68,7 @@ class HiveCommandSuite extends QueryTest with SQLTestUtils with TestHiveSingleto
       """
         |CREATE TABLE parquet_tab5 (price int, qty int)
         |PARTITIONED BY (year int, month int, hour int, minute int, sec int, extra int)
+        |USING HIVE
       """.stripMargin)
     sql(
       """
