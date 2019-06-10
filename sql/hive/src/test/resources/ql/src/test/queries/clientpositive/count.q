@@ -1,4 +1,4 @@
-create table abcd (a int, b int, c int, d int);
+create table abcd (a int, b int, c int, d int) USING hive;
 LOAD DATA LOCAL INPATH '../../data/files/in4.txt' INTO TABLE abcd;
 
 select * from abcd;

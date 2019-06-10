@@ -6,7 +6,7 @@ create table date_2 (
   FL_DATE date,
   ARR_DELAY float,
   FL_NUM int
-);
+) USING hive;
 
 LOAD DATA LOCAL INPATH '../../data/files/flights_tiny.txt.1' OVERWRITE INTO TABLE date_2;
 

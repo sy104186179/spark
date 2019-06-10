@@ -3,7 +3,7 @@ set hive.fetch.task.conversion=more;
 DESCRIBE FUNCTION unix_timestamp;
 DESCRIBE FUNCTION EXTENDED unix_timestamp;
 
-create table oneline(key int, value string);
+create table oneline(key int, value string) USING hive;
 load data local inpath '../../data/files/things.txt' into table oneline;
 
 SELECT

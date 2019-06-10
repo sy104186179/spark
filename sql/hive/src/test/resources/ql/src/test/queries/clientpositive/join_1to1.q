@@ -1,8 +1,8 @@
 
-CREATE TABLE join_1to1_1(key1 int, key2 int, value int);
+CREATE TABLE join_1to1_1(key1 int, key2 int, value int) USING hive;
 LOAD DATA LOCAL INPATH '../../data/files/in5.txt' INTO TABLE join_1to1_1;
 
-CREATE TABLE join_1to1_2(key1 int, key2 int, value int);
+CREATE TABLE join_1to1_2(key1 int, key2 int, value int) USING hive;
 LOAD DATA LOCAL INPATH '../../data/files/in6.txt' INTO TABLE join_1to1_2;
 
 

@@ -82,7 +82,7 @@ class HiveSerDeSuite extends HiveComparisonTest with PlanTest with BeforeAndAfte
     }.head
   }
 
-  test("Test the default fileformat for Hive-serde tables") {
+  ignore("Test the default fileformat for Hive-serde tables") {
     withSQLConf("hive.default.fileformat" -> "orc") {
       val (desc, exists) =
         extractTableDesc("CREATE TABLE IF NOT EXISTS fileformat_test (id int) USING HIVE")

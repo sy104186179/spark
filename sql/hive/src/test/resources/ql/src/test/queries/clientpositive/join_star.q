@@ -1,11 +1,11 @@
-create table fact(m1 int, m2 int, d1 int, d2 int);
-create table dim1(f1 int, f2 int);
-create table dim2(f3 int, f4 int);
-create table dim3(f5 int, f6 int);
-create table dim4(f7 int, f8 int);
-create table dim5(f9 int, f10 int);
-create table dim6(f11 int, f12 int);
-create table dim7(f13 int, f14 int);
+create table fact(m1 int, m2 int, d1 int, d2 int) USING hive;
+create table dim1(f1 int, f2 int) USING hive;
+create table dim2(f3 int, f4 int) USING hive;
+create table dim3(f5 int, f6 int) USING hive;
+create table dim4(f7 int, f8 int) USING hive;
+create table dim5(f9 int, f10 int) USING hive;
+create table dim6(f11 int, f12 int) USING hive;
+create table dim7(f13 int, f14 int) USING hive;
 
 LOAD DATA LOCAL INPATH '../../data/files/fact-data.txt' INTO TABLE fact;
 LOAD DATA LOCAL INPATH '../../data/files/dim-data.txt' INTO TABLE dim1;
