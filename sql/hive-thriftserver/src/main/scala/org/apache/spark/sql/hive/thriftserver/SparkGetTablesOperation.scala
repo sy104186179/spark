@@ -18,6 +18,7 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.util.{List => JList, UUID}
+import java.util.regex.Pattern
 
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
@@ -84,8 +85,8 @@ private[hive] class SparkGetTablesOperation(
     val executionHiveClassLoader = sqlContext.sharedState.jarClassLoader
     Thread.currentThread().setContextClassLoader(executionHiveClassLoader)
 
-    val schemaPattern = convertSchemaPattern(schemaName)
-    val matchingDbs = catalog.listDatabases(schemaPattern)
+    val tablePattern = convertIdentifierPattern(tableName, true)
+    val matchingDbs = catalog.listDatabases(convertSchemaPattern(schemaName))
 
     if (isAuthV2Enabled) {
       val privObjs =
@@ -94,24 +95,47 @@ private[hive] class SparkGetTablesOperation(
       authorizeMetaGets(HiveOperationType.GET_TABLES, privObjs, cmdStr)
     }
 
-    val tablePattern = convertIdentifierPattern(tableName, true)
+    // Tables and views
     matchingDbs.foreach { dbName =>
       catalog.listTables(dbName, tablePattern).foreach { tableIdentifier =>
         val catalogTable = catalog.getTableMetadata(tableIdentifier)
         val tableType = sparkToClientMapping(catalogTable.tableType)
         if (tableTypes == null || tableTypes.isEmpty || tableTypes.contains(tableType)) {
-          val rowData = Array[AnyRef](
-            "",
-            catalogTable.database,
-            catalogTable.identifier.table,
-            tableType,
-            catalogTable.comment.getOrElse(""))
-          rowSet.addRow(rowData)
+          addToRowSet(
+            catalogTable.database, catalogTable.identifier.table, tableType, catalogTable.comment)
+        }
+      }
+    }
+
+    // Temporary views and global temporary views
+    val globalTempViewDb = catalog.globalTempViewManager.database
+    val databasePattern = Pattern.compile(CLIServiceUtils.patternToRegex(schemaName))
+    if (databasePattern.matcher(globalTempViewDb).matches()) {
+      catalog.listTempViews(globalTempViewDb, tablePattern).foreach { views =>
+        catalog.getTempView(views.table).foreach { _ =>
+          addToRowSet("", views.table, VIEW.name, None)
+        }
+        catalog.globalTempViewManager.get(views.table).foreach { plan =>
+          addToRowSet(globalTempViewDb, views.table, VIEW.name, None)
         }
       }
     }
 
     setState(OperationState.FINISHED)
+  }
+
+  private def addToRowSet(
+      dbName: String,
+      tableName: String,
+      tableType: String,
+      comment: Option[String]): Unit = {
+    val rowData = Array[AnyRef](
+      "",
+      dbName,
+      tableName,
+      tableType,
+      comment.getOrElse(""))
+    rowSet.addRow(rowData)
   }
 
   override def getNextRowSet(order: FetchOrientation, maxRows: Long): RowSet = {

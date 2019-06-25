@@ -745,29 +745,40 @@ class SessionCatalog(
   def listTables(db: String): Seq[TableIdentifier] = listTables(db, "*")
 
   /**
-   * List all matching tables in the specified database, including local temporary views.
-   *
-   * Note that, if the specified database is global temporary view database, we will list global
-   * temporary views.
+   * List all matching tables in the specified database.
    */
   def listTables(db: String, pattern: String): Seq[TableIdentifier] = {
     val dbName = formatDatabaseName(db)
-    val dbTables = if (dbName == globalTempViewManager.database) {
-      globalTempViewManager.listViewNames(pattern).map { name =>
-        TableIdentifier(name, Some(globalTempViewManager.database))
-      }
-    } else {
-      requireDbExists(dbName)
-      externalCatalog.listTables(dbName, pattern).map { name =>
-        TableIdentifier(name, Some(dbName))
-      }
+    requireDbExists(dbName)
+    externalCatalog.listTables(dbName, pattern).map { name =>
+      TableIdentifier(name, Some(dbName))
     }
+  }
+
+  def listTempViews(db: String): Seq[TableIdentifier] = listTempViews(db, "*")
+
+  /**
+   * List all matching global temporary views, including local temporary views.
+   */
+  def listTempViews(db: String, pattern: String): Seq[TableIdentifier] = {
+    val globalTempViews = globalTempViewManager.listViewNames(pattern).map { name =>
+      TableIdentifier(name, Some(globalTempViewManager.database))
+    }
+
     val localTempViews = synchronized {
       StringUtils.filterPattern(tempViews.keys.toSeq, pattern).map { name =>
         TableIdentifier(name)
       }
     }
-    dbTables ++ localTempViews
+    globalTempViews ++ localTempViews
+  }
+
+  def listTableAndViews(db: String, pattern: String): Seq[TableIdentifier] = {
+    listTables(db, pattern) ++ listTempViews(db, pattern)
+  }
+
+  def listTableAndViews(db: String): Seq[TableIdentifier] = {
+    listTables(db) ++ listTempViews(db)
   }
 
   /**

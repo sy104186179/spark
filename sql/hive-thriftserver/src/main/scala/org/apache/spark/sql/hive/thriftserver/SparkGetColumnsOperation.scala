@@ -32,6 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
+import org.apache.spark.sql.types.StructType
 
 /**
  * Spark's own SparkGetColumnsOperation
@@ -147,47 +148,70 @@ private[hive] class SparkGetColumnsOperation(
     }
 
     try {
+      // Tables and views
       db2Tabs.foreach {
         case (dbName, tables) =>
-          tables.foreach { tableId =>
-            catalog.getTableMetadata(tableId).schema.foreach { column =>
-              if (columnPattern != null && !columnPattern.matcher(column.name).matches()) {
-              } else {
-                val rowData = Array[AnyRef](
-                  null,  // TABLE_CAT
-                  dbName, // TABLE_SCHEM
-                  tableId.table, // TABLE_NAME
-                  column.name, // COLUMN_NAME
-                  Type.getType(column.dataType.sql).toJavaSQLType.asInstanceOf[AnyRef], // DATA_TYPE
-                  column.dataType.sql, // TYPE_NAME
-                  null, // COLUMN_SIZE
-                  null, // BUFFER_LENGTH, unused
-                  null, // DECIMAL_DIGITS
-                  null, // NUM_PREC_RADIX
-                  (if (column.nullable) 1 else 0).asInstanceOf[AnyRef], // NULLABLE
-                  column.getComment().getOrElse(""), // REMARKS
-                  null, // COLUMN_DEF
-                  null, // SQL_DATA_TYPE
-                  null, // SQL_DATETIME_SUB
-                  null, // CHAR_OCTET_LENGTH
-                  null, // ORDINAL_POSITION
-                  "YES", // IS_NULLABLE
-                  null, // SCOPE_CATALOG
-                  null, // SCOPE_SCHEMA
-                  null, // SCOPE_TABLE
-                  null, // SOURCE_DATA_TYPE
-                  "NO" // IS_AUTO_INCREMENT
-                )
-                rowSet.addRow(rowData)
-              }
-            }
+          tables.foreach { table =>
+            addToRowSet(columnPattern, dbName, table.table, catalog.getTableMetadata(table).schema)
           }
+      }
+
+      // Temporary views and global temporary views
+      val globalTempViewDb = catalog.globalTempViewManager.database
+      val databasePattern = Pattern.compile(CLIServiceUtils.patternToRegex(schemaName))
+      if (databasePattern.matcher(globalTempViewDb).matches()) {
+        catalog.listTempViews(globalTempViewDb, tablePattern).foreach { views =>
+          catalog.getTempView(views.table).foreach { plan =>
+            addToRowSet(columnPattern, "", views.table, plan.schema)
+          }
+          catalog.globalTempViewManager.get(views.table).foreach { plan =>
+            addToRowSet(columnPattern, globalTempViewDb, views.table, plan.schema)
+          }
+        }
       }
       setState(OperationState.FINISHED)
     } catch {
       case e: HiveSQLException =>
       setState(OperationState.ERROR)
       throw e
+    }
+  }
+
+  private def addToRowSet(
+      columnPattern: Pattern,
+      dbName: String,
+      tableName: String,
+      schema: StructType): Unit = {
+    schema.foreach { column =>
+      if (columnPattern != null && !columnPattern.matcher(column.name).matches()) {
+      } else {
+        val rowData = Array[AnyRef](
+          null, // TABLE_CAT
+          dbName, // TABLE_SCHEM
+          tableName, // TABLE_NAME
+          column.name, // COLUMN_NAME
+          Type.getType(column.dataType.sql).toJavaSQLType.asInstanceOf[AnyRef], // DATA_TYPE
+          column.dataType.sql, // TYPE_NAME
+          null, // COLUMN_SIZE
+          null, // BUFFER_LENGTH, unused
+          null, // DECIMAL_DIGITS
+          null, // NUM_PREC_RADIX
+          (if (column.nullable) 1 else 0).asInstanceOf[AnyRef], // NULLABLE
+          column.getComment().getOrElse(""), // REMARKS
+          null, // COLUMN_DEF
+          null, // SQL_DATA_TYPE
+          null, // SQL_DATETIME_SUB
+          null, // CHAR_OCTET_LENGTH
+          null, // ORDINAL_POSITION
+          "YES", // IS_NULLABLE
+          null, // SCOPE_CATALOG
+          null, // SCOPE_SCHEMA
+          null, // SCOPE_TABLE
+          null, // SOURCE_DATA_TYPE
+          "NO" // IS_AUTO_INCREMENT
+        )
+        rowSet.addRow(rowData)
+      }
     }
   }
 
