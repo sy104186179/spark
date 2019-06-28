@@ -17,11 +17,12 @@
 
 package org.apache.spark.sql.execution.datasources
 
+import java.io.IOException
 import java.util.Locale
 
 import scala.collection.mutable
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -617,5 +618,38 @@ object DataSourceStrategy {
     val handledFilters = pushedFilters.toSet -- unhandledFilters
 
     (nonconvertiblePredicates ++ unhandledPredicates, pushedFilters, handledFilters)
+  }
+}
+
+/**
+ * Support for recalculating table statistics if table statistics are not available.
+ */
+class DetermineTableStats(session: SparkSession) extends Rule[LogicalPlan] {
+  def withStats(catalogTable: CatalogTable): CatalogTable = {
+    val sizeInBytes = if (session.sessionState.conf.fallBackToHdfsForStatsEnabled) {
+      try {
+        val hadoopConf = session.sessionState.newHadoopConf()
+        val tablePath = new Path(catalogTable.location)
+        val fs: FileSystem = tablePath.getFileSystem(hadoopConf)
+        fs.getContentSummary(tablePath).getLength
+      } catch {
+        case e: IOException =>
+          logWarning("Failed to get table size from hdfs.", e)
+          session.sessionState.conf.defaultSizeInBytes
+      }
+    } else {
+      session.sessionState.conf.defaultSizeInBytes
+    }
+    catalogTable.copy(stats = Some(CatalogStatistics(sizeInBytes = sizeInBytes)))
+  }
+
+  override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
+    case logicalRelation @ LogicalRelation(_, _, Some(catalogTable), _)
+      if DDLUtils.isDatasourceTable(catalogTable) && catalogTable.stats.isEmpty =>
+      logicalRelation.copy(catalogTable = Some(withStats(catalogTable)))
+
+    case relation: HiveTableRelation
+      if DDLUtils.isHiveTable(relation.tableMeta) && relation.tableMeta.stats.isEmpty =>
+      relation.copy(tableMeta = withStats(relation.tableMeta))
   }
 }
