@@ -645,9 +645,10 @@ class DetermineTableStats(session: SparkSession) extends Rule[LogicalPlan] {
   }
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
+    // Do not recalculate table statistics if the plan is cached, please see SPARK-22673.
     case logicalRelation @ LogicalRelation(_, _, Some(catalogTable), _)
       if DDLUtils.isDatasourceTable(catalogTable) && catalogTable.stats.isEmpty &&
-        session.sharedState.cacheManager.lookupCachedData(plan).nonEmpty =>
+        session.sharedState.cacheManager.lookupCachedData(plan).isEmpty =>
       logicalRelation.copy(catalogTable = Some(withStats(catalogTable)))
 
     case relation: HiveTableRelation
