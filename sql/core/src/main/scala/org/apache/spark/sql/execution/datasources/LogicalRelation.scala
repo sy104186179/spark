@@ -40,9 +40,13 @@ case class LogicalRelation(
     catalogTable = None)
 
   override def computeStats(): Statistics = {
-    catalogTable
+    val tableSize = catalogTable
       .flatMap(_.stats.map(_.toPlanStats(output, conf.cboEnabled)))
-      .getOrElse(Statistics(sizeInBytes = relation.sizeInBytes))
+    val fileSize = Statistics(sizeInBytes = relation.sizeInBytes)
+    // scalastyle:off
+    System.err.println(s"tableSize: ${tableSize.getOrElse(fileSize).sizeInBytes}, " +
+      s"fileSize: ${fileSize.sizeInBytes}")
+    fileSize
   }
 
   /** Used to lookup original attribute capitalization */

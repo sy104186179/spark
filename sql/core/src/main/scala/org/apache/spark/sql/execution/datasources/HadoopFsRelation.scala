@@ -71,7 +71,13 @@ case class HadoopFsRelation(
 
   override def sizeInBytes: Long = {
     val compressionFactor = sqlContext.conf.fileCompressionFactor
-    (location.sizeInBytes * compressionFactor).toLong
+    val start = System.currentTimeMillis()
+    val size = location.sizeInBytes
+    val end = System.currentTimeMillis()
+    val length = location.inputFiles.length
+    // scalastyle:off
+    System.err.println(s"HadoopFsRelation.sizeInBytes($length) time token: " + (end - start))
+    (size * compressionFactor).toLong
   }
 
 

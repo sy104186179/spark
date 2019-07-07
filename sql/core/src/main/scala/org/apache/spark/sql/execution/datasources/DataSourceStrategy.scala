@@ -641,11 +641,14 @@ class DetermineTableStats(session: SparkSession) extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case logical @ LogicalRelation(relation, _, Some(table), _)
-      if session.sessionState.conf.fallBackToHdfsForStatsEnabled &&
-        session.sessionState.conf.manageFilesourcePartitions && table.stats.isEmpty &&
-        table.tracksPartitionsInCatalog && table.partitionColumnNames.nonEmpty =>
+      if session.sessionState.conf.fallBackToHdfsForStatsEnabled =>
+      val start = System.currentTimeMillis()
+      val size = getHdfsSize(table)
+      val end = System.currentTimeMillis()
+      // scalastyle:off
+      println(s"getContentSummary time token: ${end - start}")
       val withStats =
-        table.copy(stats = Some(CatalogStatistics(sizeInBytes = BigInt(getHdfsSize(table)))))
+        table.copy(stats = Some(CatalogStatistics(sizeInBytes = BigInt(size))))
       logical.copy(catalogTable = Some(withStats))
 
     case relation: HiveTableRelation
