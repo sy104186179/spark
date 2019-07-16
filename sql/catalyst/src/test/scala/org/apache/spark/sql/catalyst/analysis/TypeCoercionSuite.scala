@@ -1555,7 +1555,7 @@ class TypeCoercionSuite extends AnalysisTest {
   }
 
   test("Decimal precision promotion for binary arithmetic with casted decimal type") {
-    val rules = Seq(DecimalPrecision, CastAfterCheckOverflow)
+    val rules = Seq(DecimalPrecision, CastAfterCheckOverflow(conf))
     val a = AttributeReference("a", DecimalType(38, 18))()
     val b = AttributeReference("b", DecimalType(38, 18))()
     val widerType = DecimalType(38, 18)

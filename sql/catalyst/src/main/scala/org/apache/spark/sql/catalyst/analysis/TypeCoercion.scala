@@ -51,7 +51,7 @@ object TypeCoercion {
       WidenSetOperationTypes ::
       PromoteStrings(conf) ::
       DecimalPrecision ::
-      CastAfterCheckOverflow ::
+      CastAfterCheckOverflow(conf) ::
       BooleanEquality ::
       FunctionArgumentConversion ::
       ConcatCoercion(conf) ::
@@ -1056,10 +1056,11 @@ object TypeCoercion {
   /**
    * Replace CheckOverflow's dataType with Cast's dataType.
    */
-  object CastAfterCheckOverflow extends TypeCoercionRule {
+  case class CastAfterCheckOverflow(conf: SQLConf) extends TypeCoercionRule {
     override protected def coerceTypes(
         plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
-      case c @ Cast(m @ CheckOverflow(_, _: DecimalType, _), resultDecimalType: DecimalType, _) =>
+      case c @ Cast(m @ CheckOverflow(_, _: DecimalType, _), resultDecimalType: DecimalType, _)
+        if conf.getConfString("spark.sql.customCheckOverflow").toBoolean =>
         c.copy(child = m.copy(dataType = resultDecimalType))
     }
   }
