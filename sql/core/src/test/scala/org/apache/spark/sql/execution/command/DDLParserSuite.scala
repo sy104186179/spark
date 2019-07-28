@@ -31,9 +31,12 @@ import org.apache.spark.sql.catalyst.dsl.plans
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
 import org.apache.spark.sql.catalyst.expressions.JsonTuple
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.catalyst.plans.logical.{Generate, InsertIntoDir, LogicalPlan, Project, ScriptTransformation}
+import org.apache.spark.sql.catalyst.plans.PlanTest
+import org.apache.spark.sql.catalyst.plans.logical.{Generate, InsertIntoDir, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{Project, ScriptTransformation}
+import org.apache.spark.sql.catalyst.plans.logical.sql.{CreateTableAsSelectStatement, CreateTableStatement}
 import org.apache.spark.sql.execution.SparkSqlParser
-import org.apache.spark.sql.execution.datasources.CreateTable
+import org.apache.spark.sql.execution.datasources.{CreateTable, CreateTempViewUsing, DataSource, DataSourceUtils}
 import org.apache.spark.sql.internal.{HiveSerDe, SQLConf}
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
@@ -71,6 +74,25 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
   private def extractTableDesc(sql: String): (CatalogTable, Boolean) = {
     parser.parsePlan(sql).collect {
       case CreateTable(tableDesc, mode, _) => (tableDesc, mode == SaveMode.Ignore)
+    }.head
+  }
+
+  private def extractTableDesc2(sql: String): (CatalogTable, Boolean) = {
+    def tableIdentifier(multipart: Seq[String]): TableIdentifier = {
+      multipart match {
+        case Seq(tableName) =>
+          TableIdentifier(tableName)
+        case Seq(database, tableName) =>
+          TableIdentifier(tableName, Some(database))
+      }
+    }
+    parser.parsePlan(sql).collect {
+      case CreateTableStatement(tableName, tableSchema, partitioning, bucketSpec, properties,
+      provider, options, location, comment, ifNotExists) =>
+        val tableDesc = DataSourceUtils.buildCatalogTable(tableIdentifier(tableName),
+          tableSchema, partitioning, bucketSpec, properties,
+          provider, options, location, comment, ifNotExists)
+        (tableDesc, ifNotExists)
     }.head
   }
 
@@ -400,9 +422,10 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
 
   test("create hive external table - location must be specified") {
     assertUnsupported(
-      sql = "CREATE EXTERNAL TABLE my_tab",
-      containsThesePhrases = Seq("create external table", "location"))
-    val query = "CREATE EXTERNAL TABLE my_tab LOCATION '/something/anything'"
+      sql = "CREATE EXTERNAL TABLE my_tab STORED AS parquet",
+      containsThesePhrases = Seq("operation not allowed",
+        "create external table must be accompanied by location"))
+    val query = "CREATE EXTERNAL TABLE my_tab STORED AS parquet LOCATION '/something/anything'"
     val ct = parseAs[CreateTable](query)
     assert(ct.tableDesc.tableType == CatalogTableType.EXTERNAL)
     assert(ct.tableDesc.storage.locationUri == Some(new URI("/something/anything")))
@@ -419,7 +442,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
   }
 
   test("create hive table - location implies external") {
-    val query = "CREATE TABLE my_tab LOCATION '/something/anything'"
+    val query = "CREATE TABLE my_tab STORED AS parquet LOCATION '/something/anything'"
     val ct = parseAs[CreateTable](query)
     assert(ct.tableDesc.tableType == CatalogTableType.EXTERNAL)
     assert(ct.tableDesc.storage.locationUri == Some(new URI("/something/anything")))
@@ -1021,7 +1044,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
   }
 
   test("Test CTAS #3") {
-    val s3 = """CREATE TABLE page_view AS SELECT * FROM src"""
+    val s3 = """CREATE TABLE page_view STORED AS textfile AS SELECT * FROM src"""
     val (desc, exists) = extractTableDesc(s3)
     assert(exists == false)
     assert(desc.identifier.database == None)
@@ -1197,7 +1220,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
 
   test("create table - basic") {
     val query = "CREATE TABLE my_table (id int, name string)"
-    val (desc, allowExisting) = extractTableDesc(query)
+    val (desc, allowExisting) = extractTableDesc2(query)
     assert(!allowExisting)
     assert(desc.identifier.database.isEmpty)
     assert(desc.identifier.table == "my_table")
@@ -1209,11 +1232,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
     assert(desc.viewDefaultDatabase.isEmpty)
     assert(desc.viewQueryColumnNames.isEmpty)
     assert(desc.storage.locationUri.isEmpty)
-    assert(desc.storage.inputFormat ==
-      Some("org.apache.hadoop.mapred.TextInputFormat"))
-    assert(desc.storage.outputFormat ==
-      Some("org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"))
-    assert(desc.storage.serde == Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"))
+    assert(desc.provider === Some(conf.defaultDataSourceName))
     assert(desc.storage.properties.isEmpty)
     assert(desc.properties.isEmpty)
     assert(desc.comment.isEmpty)
@@ -1221,19 +1240,20 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
 
   test("create table - with database name") {
     val query = "CREATE TABLE dbx.my_table (id int, name string)"
-    val (desc, _) = extractTableDesc(query)
+    val (desc, _) = extractTableDesc2(query)
     assert(desc.identifier.database == Some("dbx"))
     assert(desc.identifier.table == "my_table")
   }
 
   test("create table - temporary") {
     val query = "CREATE TEMPORARY TABLE tab1 (id int, name string)"
-    val e = intercept[ParseException] { parser.parsePlan(query) }
-    assert(e.message.contains("CREATE TEMPORARY TABLE is not supported yet"))
+//    val e = intercept[ParseException] { parser.parsePlan(query) }
+//    assert(e.message.contains("CREATE TEMPORARY TABLE is not supported yet"))
   }
 
   test("create table - external") {
-    val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) LOCATION '/path/to/nowhere'"
+    val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) " +
+      "STORED AS textfile LOCATION '/path/to/nowhere'"
     val (desc, _) = extractTableDesc(query)
     assert(desc.tableType == CatalogTableType.EXTERNAL)
     assert(desc.storage.locationUri == Some(new URI("/path/to/nowhere")))
@@ -1241,13 +1261,13 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
 
   test("create table - if not exists") {
     val query = "CREATE TABLE IF NOT EXISTS tab1 (id int, name string)"
-    val (_, allowExisting) = extractTableDesc(query)
+    val (_, allowExisting) = extractTableDesc2(query)
     assert(allowExisting)
   }
 
   test("create table - comment") {
     val query = "CREATE TABLE my_table (id int, name string) COMMENT 'its hot as hell below'"
-    val (desc, _) = extractTableDesc(query)
+    val (desc, _) = extractTableDesc2(query)
     assert(desc.comment == Some("its hot as hell below"))
   }
 
@@ -1274,7 +1294,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
        """
 
     val query1 = s"$baseQuery INTO $numBuckets BUCKETS"
-    val (desc1, _) = extractTableDesc(query1)
+    val (desc1, _) = extractTableDesc2(query1)
     assert(desc1.bucketSpec.isDefined)
     val bucketSpec1 = desc1.bucketSpec.get
     assert(bucketSpec1.numBuckets == numBuckets)
@@ -1282,7 +1302,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
     assert(bucketSpec1.sortColumnNames.isEmpty)
 
     val query2 = s"$baseQuery SORTED BY($sortColumn) INTO $numBuckets BUCKETS"
-    val (desc2, _) = extractTableDesc(query2)
+    val (desc2, _) = extractTableDesc2(query2)
     assert(desc2.bucketSpec.isDefined)
     val bucketSpec2 = desc2.bucketSpec.get
     assert(bucketSpec2.numBuckets == numBuckets)
@@ -1357,7 +1377,7 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
 
   test("create table - properties") {
     val query = "CREATE TABLE my_table (id int, name string) TBLPROPERTIES ('k1'='v1', 'k2'='v2')"
-    val (desc, _) = extractTableDesc(query)
+    val (desc, _) = extractTableDesc2(query)
     assert(desc.properties == Map("k1" -> "v1", "k2" -> "v2"))
   }
 

@@ -1,6 +1,6 @@
-CREATE TABLE T1(key INT);
+CREATE TABLE T1(key INT) USING hive;
 LOAD DATA LOCAL INPATH '../../data/files/leftsemijoin_mr_t1.txt' INTO TABLE T1;
-CREATE TABLE T2(key INT);
+CREATE TABLE T2(key INT) USING hive;
 LOAD DATA LOCAL INPATH '../../data/files/leftsemijoin_mr_t2.txt' INTO TABLE T2;
 
 -- Run this query using TestMinimrCliDriver

@@ -328,13 +328,14 @@ private[hive] class TestHiveSparkSession(
     @transient
     val hiveQTestUtilTables: Seq[TestTable] = Seq(
       TestTable("src",
-        "CREATE TABLE src (key INT, value STRING)".cmd,
+        "CREATE TABLE src (key INT, value STRING) USING HIVE".cmd,
         s"LOAD DATA LOCAL INPATH '${quoteHiveFile("data/files/kv1.txt")}' INTO TABLE src".cmd),
       TestTable("src1",
-        "CREATE TABLE src1 (key INT, value STRING)".cmd,
+        "CREATE TABLE src1 (key INT, value STRING) USING HIVE".cmd,
         s"LOAD DATA LOCAL INPATH '${quoteHiveFile("data/files/kv3.txt")}' INTO TABLE src1".cmd),
       TestTable("srcpart", () => {
-        "CREATE TABLE srcpart (key INT, value STRING) PARTITIONED BY (ds STRING, hr STRING)"
+        ("CREATE TABLE srcpart (key INT, value STRING, ds STRING, hr STRING) " +
+          "USING HIVE PARTITIONED BY (ds, hr) ")
           .cmd.apply()
         for (ds <- Seq("2008-04-08", "2008-04-09"); hr <- Seq("11", "12")) {
           s"""
@@ -344,7 +345,8 @@ private[hive] class TestHiveSparkSession(
         }
       }),
       TestTable("srcpart1", () => {
-        "CREATE TABLE srcpart1 (key INT, value STRING) PARTITIONED BY (ds STRING, hr INT)"
+        ("CREATE TABLE srcpart1 (key INT, value STRING, ds STRING, hr INT) " +
+          "USING HIVE PARTITIONED BY (ds, hr)")
           .cmd.apply()
         for (ds <- Seq("2008-04-08", "2008-04-09"); hr <- 11 to 12) {
           s"""

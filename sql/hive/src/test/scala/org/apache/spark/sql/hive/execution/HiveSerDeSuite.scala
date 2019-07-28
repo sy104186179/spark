@@ -84,7 +84,8 @@ class HiveSerDeSuite extends HiveComparisonTest with PlanTest with BeforeAndAfte
 
   test("Test the default fileformat for Hive-serde tables") {
     withSQLConf("hive.default.fileformat" -> "orc") {
-      val (desc, exists) = extractTableDesc("CREATE TABLE IF NOT EXISTS fileformat_test (id int)")
+      val (desc, exists) =
+        extractTableDesc("CREATE TABLE IF NOT EXISTS fileformat_test (id int) USING HIVE")
       assert(exists)
       assert(desc.storage.inputFormat == Some("org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"))
       assert(desc.storage.outputFormat == Some("org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"))
@@ -92,7 +93,8 @@ class HiveSerDeSuite extends HiveComparisonTest with PlanTest with BeforeAndAfte
     }
 
     withSQLConf("hive.default.fileformat" -> "parquet") {
-      val (desc, exists) = extractTableDesc("CREATE TABLE IF NOT EXISTS fileformat_test (id int)")
+      val (desc, exists) =
+        extractTableDesc("CREATE TABLE IF NOT EXISTS fileformat_test (id int) USING HIVE")
       assert(exists)
       val input = desc.storage.inputFormat
       val output = desc.storage.outputFormat

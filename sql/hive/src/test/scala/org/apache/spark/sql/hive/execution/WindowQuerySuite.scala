@@ -42,6 +42,7 @@ class WindowQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleto
         |  p_container STRING,
         |  p_retailprice DOUBLE,
         |  p_comment STRING)
+        |USING HIVE
       """.stripMargin)
     val testData1 = TestHive.getHiveFile("data/files/part_tiny.txt").toURI
     sql(

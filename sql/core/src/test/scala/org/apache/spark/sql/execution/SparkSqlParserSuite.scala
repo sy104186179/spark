@@ -18,11 +18,14 @@
 package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.catalog.v2.expressions.{FieldReference, IdentityTransform}
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedAlias, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogTableType}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Concat, SortOrder}
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project, RepartitionByExpression, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.sql.CreateTableStatement
 import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.{CreateTable, RefreshResource}
 import org.apache.spark.sql.internal.{HiveSerDe, SQLConf}
@@ -160,34 +163,57 @@ class SparkSqlParserSuite extends AnalysisTest {
 
   test("create table - schema") {
     assertEqual("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING)",
-      createTable(
-        table = "my_tab",
-        schema = (new StructType)
+      CreateTableStatement(
+        tableName = Seq("my_tab"),
+        tableSchema = (new StructType)
           .add("a", IntegerType, nullable = true, "test")
-          .add("b", StringType)
+          .add("b", StringType),
+        partitioning = Seq.empty,
+        bucketSpec = None,
+        properties = Map.empty[String, String],
+        provider = conf.defaultDataSourceName,
+        options = Map.empty[String, String],
+        location = None,
+        comment = None,
+        ifNotExists = false
       )
     )
-    assertEqual("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING) " +
-      "PARTITIONED BY (c INT, d STRING COMMENT 'test2')",
-      createTable(
-        table = "my_tab",
-        schema = (new StructType)
+    assertEqual("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING, " +
+      "c INT, d STRING COMMENT 'test2') PARTITIONED BY (c, d)",
+      CreateTableStatement(
+        tableName = Seq("my_tab"),
+        tableSchema = (new StructType)
           .add("a", IntegerType, nullable = true, "test")
           .add("b", StringType)
           .add("c", IntegerType)
           .add("d", StringType, nullable = true, "test2"),
-        partitionColumnNames = Seq("c", "d")
+        partitioning = Seq("c", "d").map(c => IdentityTransform(FieldReference(c))),
+        bucketSpec = None,
+        properties = Map.empty[String, String],
+        provider = conf.defaultDataSourceName,
+        options = Map.empty[String, String],
+        location = None,
+        comment = None,
+        ifNotExists = false
       )
     )
     assertEqual("CREATE TABLE my_tab(id BIGINT, nested STRUCT<col1: STRING,col2: INT>)",
-      createTable(
-        table = "my_tab",
-        schema = (new StructType)
+      CreateTableStatement(
+        tableName = Seq("my_tab"),
+        tableSchema = (new StructType)
           .add("id", LongType)
           .add("nested", (new StructType)
             .add("col1", StringType)
             .add("col2", IntegerType)
-          )
+          ),
+        partitioning = Seq.empty,
+        bucketSpec = None,
+        properties = Map.empty[String, String],
+        provider = conf.defaultDataSourceName,
+        options = Map.empty[String, String],
+        location = None,
+        comment = None,
+        ifNotExists = false
       )
     )
     // Partitioned by a StructType should be accepted by `SparkSqlParser` but will fail an analyze

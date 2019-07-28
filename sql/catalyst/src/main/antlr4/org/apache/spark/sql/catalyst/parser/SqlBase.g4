@@ -92,7 +92,7 @@ statement
     | DROP database (IF EXISTS)? db=errorCapturingIdentifier
         (RESTRICT | CASCADE)?                                          #dropDatabase
     | SHOW DATABASES (LIKE? pattern=STRING)?                           #showDatabases
-    | createTableHeader ('(' colTypeList ')')? tableProvider
+    | createTableHeader ('(' colTypeList ')')? tableProvider?
         ((OPTIONS options=tablePropertyList) |
         (PARTITIONED BY partitioning=transformList) |
         bucketSpec |

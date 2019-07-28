@@ -10,7 +10,7 @@ CREATE TABLE part(
     p_container STRING,
     p_retailprice DOUBLE,
     p_comment STRING
-);
+) USING hive;
 
 LOAD DATA LOCAL INPATH '../../data/files/part_tiny.txt' overwrite into table part;
 

@@ -2241,7 +2241,8 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val properties = Option(ctx.tableProps).map(visitPropertyKeyValues).getOrElse(Map.empty)
     val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
 
-    val provider = ctx.tableProvider.qualifiedName.getText
+    val provider =
+      Option(ctx.tableProvider).map(_.qualifiedName.getText).getOrElse(conf.defaultDataSourceName)
     val location = ctx.locationSpec.asScala.headOption.map(visitLocationSpec)
     val comment = Option(ctx.comment).map(string)
 

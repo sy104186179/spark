@@ -418,7 +418,8 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       }
 
       val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
-      val provider = ctx.tableProvider.qualifiedName.getText
+      val provider =
+        Option(ctx.tableProvider).map(_.qualifiedName.getText).getOrElse(conf.defaultDataSourceName)
       val schema = Option(ctx.colTypeList()).map(createSchema)
 
       logWarning(s"CREATE TEMPORARY TABLE ... USING ... is deprecated, please use " +

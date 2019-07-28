@@ -2,7 +2,7 @@ set hive.fetch.task.conversion=more;
 
 drop table if exists decimal_1;
 
-create table decimal_1 (t decimal(4,2), u decimal(5), v decimal);
+create table decimal_1 (t decimal(4,2), u decimal(5), v decimal) USING hive;
 alter table decimal_1 set serde 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe';
 
 desc decimal_1;
