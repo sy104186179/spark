@@ -85,7 +85,7 @@ private[sql] class JSONOptions(
   val dateFormat: String = parameters.getOrElse("dateFormat", "uuuu-MM-dd")
 
   val timestampFormat: String =
-    parameters.getOrElse("timestampFormat", "uuuu-MM-dd'T'HH:mm:ss.SSSXXX")
+    parameters.getOrElse("timestampFormat", "uuuu-MM-dd'T'HH:mm:ss.SSSZZ")
 
   val multiLine = parameters.get("multiLine").map(_.toBoolean).getOrElse(false)
 
