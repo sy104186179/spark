@@ -18,11 +18,12 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.io.File
-import java.sql.{DriverManager, Statement}
+import java.sql.{DriverManager, Statement, Timestamp}
 import java.util.Locale
 
 import org.apache.spark.sql.QueryTest
-import org.apache.spark.sql.test.SharedSQLContext
+import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
+import org.apache.spark.sql.internal.SQLConf
 
 // scalastyle:off
 import scala.concurrent.duration._
@@ -42,6 +43,9 @@ import org.apache.spark.util.Utils
 import scala.util.control.NonFatal
 
 class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSingleton with HiveThriftServer2Util {
+
+  private lazy val timestampFormatter = TimestampFormatter.getFractionFormatter(
+    DateTimeUtils.getZoneId(SQLConf.get.sessionLocalTimeZone))
 
   var localSparkSession: SparkSession = _
   var hiveServer2: HiveThriftServer2 = _
@@ -219,8 +223,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
     }
 
     try {
-      hiveServer2.getServices
-      // scalastyle:off
       println(sql)
       // statement.executeQuery(sql)
       //      val df = session.sql(sql)
@@ -239,31 +241,24 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
       //          .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
       //          .replaceAll("\\*\\(\\d+\\) ", "*"))  // remove the WholeStageCodegen codegenStageIds
 
-      // If the output is not pre-sorted, sort it.
-      //      if (isSorted(df.queryExecution.analyzed)) (schema, answer) else (schema, answer.sorted)
-
-      val isDFSorted = if(!sql.toLowerCase(Locale.ROOT).startsWith("create")) {
-        try {
-         isSorted(localSparkSession.sql(sql).queryExecution.analyzed)
-        } catch {
-          case NonFatal(e) =>
-            false
-        }
-      } else {
-        false
-      }
-
       val rs = statement.executeQuery(sql)
       val cols = rs.getMetaData.getColumnCount
       val buildStr = () => (for (i <- 1 to cols) yield {
-        val result = rs.getString(i)
-        if (result == null) {
-          // BeeLineOpts.DEFAULT_NULL_STRING
-          "NULL"
-        } else {
-          result
+        val result = rs.getObject(i)
+        result match {
+          case null =>
+            // BeeLineOpts.DEFAULT_NULL_STRING
+            "NULL"
+          case t: Timestamp =>
+            DateTimeUtils.timestampToString(timestampFormatter, DateTimeUtils.fromJavaTimestamp(t))
+          case d: java.math.BigDecimal =>
+            d.stripTrailingZeros().toPlainString
+          case other =>
+            other.toString
+
         }
       }).mkString("\t")
+
       val answer = Iterator.continually(rs.next()).takeWhile(identity).map(_ => buildStr()).toSeq
 
       answer.sorted
