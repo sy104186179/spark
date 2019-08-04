@@ -18,8 +18,10 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.sql.{DriverManager, Statement, Timestamp}
 import java.util.Locale
+import java.util.stream.Collectors
 
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
@@ -110,7 +112,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
   test("123") {
     withJdbcStatement {
         statement =>
-          val rs = statement.executeQuery("select null")
+          val rs = statement.executeQuery("""select '\'', '"', '\n', '\r', '\t', 'Z'""")
           rs.next()
           // scalastyle:off
           println(rs.getString(1))
@@ -189,7 +191,11 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
           QueryOutput(
             sql = segments(i * 3 + 1).trim,
             schema = segments(i * 3 + 2).trim,
-            output = segments(i * 3 + 3).split("\n").sorted.mkString("\n").trim
+            output = if (isNeedSort(segments(i * 3 + 1).trim)) {
+              segments(i * 3 + 3).split("\n").sorted.mkString("\n").trim
+            } else {
+              segments(i * 3 + 3).trim
+            }
           )
         }
       }
@@ -203,43 +209,38 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
         assertResult(expected.sql, s"SQL query did not match for query #$i\n${expected.sql}") {
           output.sql
         }
-        // Skip AnalysisException
-        if (!expected.output.contains("AnalysisException") && !output.output.contains("SQLException")) {
-          assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
-            output.output
-          }
+
+        expected match {
+          case d if d.sql.toUpperCase(Locale.ROOT).startsWith("DESC ")
+            || d.sql.toUpperCase(Locale.ROOT).startsWith("DESC\n")
+            || d.sql.toUpperCase(Locale.ROOT).startsWith("DESCRIBE ")
+            || d.sql.toUpperCase(Locale.ROOT).startsWith("DESCRIBE\n")=>
+          case s if s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW ")
+            || s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW\n") =>
+          case e if e.output.contains("AnalysisException") || output.output.contains("SQLException") =>
+          case s if s.sql.equals("""select '\'', '"', '\n', '\r', '\t', 'Z'""") =>
+          case _ =>
+            assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
+              output.output
+            }
         }
+
+
+        // Skip AnalysisException
+//        if (!expected.sql.toUpperCase(Locale.ROOT).startsWith("DESC ")
+//          && !expected.output.contains("AnalysisException") && !output.output.contains("SQLException")) {
+//          assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
+//            output.output
+//          }
+//        }
       }
     }
   }
 
   private def getNormalizedResult(statement: Statement, sql: String): Seq[String] = {
-    // Returns true if the plan is supposed to be sorted.
-    def isSorted(plan: LogicalPlan): Boolean = plan match {
-      case _: Join | _: Aggregate | _: Generate | _: Sample | _: Distinct => false
-      case _: DescribeCommandBase | _: DescribeColumnCommand => true
-      case PhysicalOperation(_, _, Sort(_, true, _)) => true
-      case _ => plan.children.iterator.exists(isSorted)
-    }
-
     try {
-      println(sql)
-      // statement.executeQuery(sql)
-      //      val df = session.sql(sql)
-      //      val schema = df.schema
       val notIncludedMsg = "[not included in comparison]"
       val clsName = this.getClass.getCanonicalName
-      // Get answer, but also get rid of the #1234 expression ids that show up in explain plans
-      //      val answer = hiveResultString(df.queryExecution.executedPlan)
-      //        .map(_.replaceAll("#\\d+", "#x")
-      //          .replaceAll(
-      //            s"Location.*/sql/core/spark-warehouse/$clsName/",
-      //            s"Location ${notIncludedMsg}sql/core/spark-warehouse/")
-      //          .replaceAll("Created By.*", s"Created By $notIncludedMsg")
-      //          .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
-      //          .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
-      //          .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
-      //          .replaceAll("\\*\\(\\d+\\) ", "*"))  // remove the WholeStageCodegen codegenStageIds
 
       val rs = statement.executeQuery(sql)
       val cols = rs.getMetaData.getColumnCount
@@ -253,6 +254,8 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
             DateTimeUtils.timestampToString(timestampFormatter, DateTimeUtils.fromJavaTimestamp(t))
           case d: java.math.BigDecimal =>
             d.stripTrailingZeros().toPlainString
+          case bin: Array[Byte] =>
+            new String(bin, StandardCharsets.UTF_8)
           case other =>
             other.toString
 
@@ -260,8 +263,20 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
       }).mkString("\t")
 
       val answer = Iterator.continually(rs.next()).takeWhile(identity).map(_ => buildStr()).toSeq
-
-      answer.sorted
+        .map(_.replaceAll("#\\d+", "#x")
+          .replaceAll(
+            s"Location.*/sql/core/spark-warehouse/$clsName/",
+            s"Location ${notIncludedMsg}sql/core/spark-warehouse/")
+          .replaceAll("Created By.*", s"Created By $notIncludedMsg")
+          .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
+          .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
+          .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
+          .replaceAll("\\*\\(\\d+\\) ", "*"))
+      if (isNeedSort(sql)) {
+        answer.sorted
+      } else {
+        answer
+      }
     } catch {
       case a: AnalysisException =>
         // Do not output the logical plan tree which contains expression IDs.
@@ -389,6 +404,14 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils with TestHiveSi
         |USING csv
         |  OPTIONS (path '${testFile("test-data/postgresql/tenk.data")}', header 'false', delimiter '\t')
       """.stripMargin)
+  }
+
+  // Returns true if sql is retrieve.
+  private def isNeedSort(sql: String): Boolean = {
+    val upper = sql.toUpperCase(Locale.ROOT)
+    upper.startsWith("SELECT ") || upper.startsWith("SELECT\n") ||
+      upper.startsWith("WITH ") || upper.startsWith("WITH\n") ||
+      upper.startsWith("VALUES ") || upper.startsWith("VALUES\n")
   }
 
 
