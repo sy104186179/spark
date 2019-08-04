@@ -19,11 +19,11 @@
 package org.apache.hive.service.cli;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Timestamp;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
-import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
 import org.apache.hadoop.hive.common.type.HiveIntervalYearMonth;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -139,11 +139,10 @@ public class ColumnValue {
     return TColumnValue.stringVal(tStringValue);
   }
 
-  private static TColumnValue stringValue(HiveDecimal value, TypeDescriptor typeDescriptor) {
+  private static TColumnValue stringValue(BigDecimal value, TypeDescriptor typeDescriptor) {
     TStringValue tStrValue = new TStringValue();
     if (value != null) {
-      int scale = typeDescriptor.getDecimalDigits();
-      tStrValue.setValue(value.toFormatString(scale));
+      tStrValue.setValue(value.toPlainString());
     }
     return TColumnValue.stringVal(tStrValue);
   }
@@ -197,9 +196,9 @@ public class ColumnValue {
     case INTERVAL_DAY_TIME_TYPE:
       return stringValue((HiveIntervalDayTime) value);
     case DECIMAL_TYPE:
-      return stringValue((HiveDecimal)value, typeDescriptor);
+      return stringValue((BigDecimal)value, typeDescriptor);
     case BINARY_TYPE:
-      return stringValue((String)value);
+      return stringValue(new String((byte[])value));
     case ARRAY_TYPE:
     case MAP_TYPE:
     case STRUCT_TYPE:

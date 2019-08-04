@@ -105,12 +105,7 @@ public class ColumnBasedSet implements RowSet {
     } else {
       for (int i = 0; i < fields.length; i++) {
         TypeDescriptor descriptor = descriptors[i];
-        Object field = fields[i];
-        if (field != null && descriptor.getType() == Type.DECIMAL_TYPE) {
-          int scale = descriptor.getDecimalDigits();
-          field = ((HiveDecimal) field).toFormatString(scale);
-        }
-        columns.get(i).addValue(descriptor.getType(), field);
+        columns.get(i).addValue(descriptor.getType(), fields[i]);
       }
     }
     return this;
