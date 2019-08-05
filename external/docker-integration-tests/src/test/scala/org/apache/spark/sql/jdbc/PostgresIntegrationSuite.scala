@@ -219,4 +219,20 @@ class PostgresIntegrationSuite extends DockerJDBCIntegrationSuite {
     assert(rows(0).getShort(0) === 1)
     assert(rows(0).getShort(1) === 2)
   }
+
+  test("get functions") {
+    def checkResult(rs: java.sql.ResultSet, functionCnt: Int): Unit = {
+      val functions =
+        Iterator.from(0).takeWhile(_ => rs.next()).map(_ => rs.getString("FUNCTION_NAME")).toList
+      // scalastyle:off
+      println(functions.mkString(", "))
+      assert(functions.size === functionCnt)
+    }
+    val metaData = java.sql.DriverManager.getConnection(jdbcUrl).getMetaData
+    checkResult(metaData.getFunctions(null, null, "length"), 8)
+    checkResult(metaData.getFunctions(null, null, "le*"), 12)
+    checkResult(metaData.getFunctions(null, "pg_catalog", "length*"), 8)
+    checkResult(metaData.getFunctions(null, null, "does-not-exist*"), 1)
+    checkResult(metaData.getFunctions(null, "default", "length"), 1)
+  }
 }
