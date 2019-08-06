@@ -88,16 +88,11 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  test("SPARK-28620") {
-    withJdbcStatement {
-      statement =>
-        val rs = statement.executeQuery(
-          "select make_date(-44, 3, 15)")
-        rs.next()
-        val dd = HiveResult.toHiveString((rs.getObject(1), DateType))
-        // scalastyle:off
-        println(rs.getString(1))
-      // scalastyle:on
+  test("check thriftserver can work") {
+    withJdbcStatement { statement =>
+      val rs = statement.executeQuery("select 1L")
+      rs.next()
+      assert(rs.getLong(1) === 1L)
     }
   }
 
@@ -114,10 +109,27 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
   /** List of test cases to ignore, in lower cases. */
   private val blackList = Set(
     "blacklist.sql",   // Do NOT remove this one. It is here to test the blacklist functionality.
-    "in-limit.sql", // Cannot recognize hive type string: decimal(2,-2)
-    // "date.sql", // SPARK-28624
-    "aggregates_part1.sql", "group-by.sql", // SPARK-28619
-    "float4.sql" // SPARK-28620
+    // Missing UDF
+    "pgSQL/boolean.sql",
+    "pgSQL/case.sql",
+    // SPARK-28624
+    "date.sql",
+    // SPARK-28619
+    "pgSQL/aggregates_part1.sql",
+    "group-by.sql",
+    // SPARK-28620
+    "pgSQL/float4.sql",
+    // SPARK-28636
+    "decimalArithmeticOperations.sql",
+    "literals.sql",
+    "subquery/scalar-subquery/scalar-subquery-predicate.sql",
+    "subquery/in-subquery/in-limit.sql",
+    "subquery/in-subquery/simple-in.sql",
+    "subquery/in-subquery/in-order-by.sql",
+    "subquery/in-subquery/in-set-operations.sql",
+    // SPARK-28637
+    "cast.sql",
+    "ansi/interval.sql"
   )
 
   listTestCases().foreach(createScalaTestCase)
@@ -327,14 +339,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     // Filter out test files with invalid extensions such as temp files created
     // by vi (.swp), Mac (.DS_Store) etc.
     val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
-//    val filteredFiles = files.filter(f => f.getName.endsWith("int4.sql")
-//      || f.getName.endsWith("float4.sql") || f.getName.endsWith("numeric.sql")
-//      || f.getName.endsWith("boolean.sql") || f.getName.endsWith("aggregates_part1.sql")
-//      || f.getName.endsWith("timestamp.sql") || f.getName.endsWith("cast.sql")
-//      || f.getName.endsWith("float8.sql") || f.getName.endsWith("int8.sql"))
-
-
-    // val filteredFiles = files.filter(f => f.getName.contains("group-by.sql"))
     filteredFiles ++ dirs.flatMap(listFilesRecursively)
   }
 
