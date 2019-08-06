@@ -18,16 +18,16 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.io.File
-import java.sql.{DriverManager, Statement, Timestamp}
+import java.sql.{DriverManager, SQLException, Statement, Timestamp}
 import java.util.Locale
 
 import scala.util.{Random, Try}
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars
+import org.apache.hive.service.cli.HiveSQLException
 
-import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.{AnalysisException, QueryTest, SQLQueryTestSuite}
 import org.apache.spark.sql.catalyst.util.fileToString
 import org.apache.spark.sql.execution.HiveResult
 import org.apache.spark.sql.hive.test.TestHiveSingleton
@@ -101,8 +101,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  // begin
-
   private val baseResourcePath = {
     val res = getClass.getClassLoader.getResource("sql-tests")
     new File(res.getFile)
@@ -117,7 +115,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
   private val blackList = Set(
     "blacklist.sql",   // Do NOT remove this one. It is here to test the blacklist functionality.
     "in-limit.sql", // Cannot recognize hive type string: decimal(2,-2)
-    "date.sql", // SPARK-28624
+    // "date.sql", // SPARK-28624
     "aggregates_part1.sql", "group-by.sql", // SPARK-28619
     "float4.sql" // SPARK-28620
   )
@@ -158,7 +156,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
         // We might need to do some query canonicalization in the future.
         QueryOutput(
           sql = sql,
-          output = output.mkString("\n").trim)
+          output = output.mkString("\n").replaceAll("\\s+$", ""))
       }
 
       // Read back the golden file.
@@ -171,13 +169,16 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
           s"Expected ${outputs.size * 3 + 1} blocks in result file but got ${segments.size}. " +
             s"Try regenerate the result files.")
         Seq.tabulate(outputs.size) { i =>
+          val sqlStr = segments(i * 3 + 1).trim
+          val outputStr = segments(i * 3 + 3)
+          val output = if (isNeedSort(sqlStr)) {
+            outputStr.split("\n").sorted.mkString("\n")
+          } else {
+            outputStr
+          }.replaceAll("\\s+$", "")
           QueryOutput(
-            sql = segments(i * 3 + 1).trim,
-            output = if (isNeedSort(segments(i * 3 + 1).trim)) {
-              segments(i * 3 + 3).split("\n").sorted.mkString("\n").trim
-            } else {
-              segments(i * 3 + 3).trim
-            }
+            sql = sqlStr,
+            output = output
           )
         }
       }
@@ -199,26 +200,22 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
             || d.sql.toUpperCase(Locale.ROOT).startsWith("DESCRIBE\n") =>
           case s if s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW ")
             || s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW\n") =>
-          case e if e.output.contains("AnalysisException")
-            || output.output.contains("SQLException") =>
+          case _ if output.output.startsWith(classOf[SQLException].getName) =>
+            // In this case, Spark SQL and Thriftserver usually throw exceptions
+            // but the format is different. We only assert the longest line here.
+            assert(expected.output.contains("Exception"),
+              s"Exception did not match for query #$i\n${expected.sql}, " +
+                s"expected: ${expected.output}, but got: ${output.output}")
+          case _ if output.output.startsWith(classOf[HiveSQLException].getName) =>
+            // This exception is usually a feature that Thriftserver cannot support.
+            // Please add SQL to blackList.
+            assert(false, s"${output.output} for query #$i\n${expected.sql}")
           case s if s.sql.equals("""select '\'', '"', '\n', '\r', '\t', 'Z'""") =>
-          case s if s.sql.contains(
-            "FROM (VALUES (100000003), (100000004), (100000006), (100000007)) v(x)") =>
           case _ =>
             assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
               output.output
             }
         }
-
-
-        // Skip AnalysisException
-//        if (!expected.sql.toUpperCase(Locale.ROOT).startsWith("DESC ")
-//          && !expected.output.contains("AnalysisException")
-        //          && !output.output.contains("SQLException")) {
-//          assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
-//            output.output
-//          }
-//        }
       }
     }
   }
@@ -226,7 +223,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
   private def getNormalizedResult(statement: Statement, sql: String): Seq[String] = {
     try {
       val notIncludedMsg = "[not included in comparison]"
-      val clsName = this.getClass.getCanonicalName
+      val clsName = classOf[SQLQueryTestSuite].getCanonicalName
 
       val rs = statement.executeQuery(sql)
       val cols = rs.getMetaData.getColumnCount
@@ -255,10 +252,10 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
         // Also implement a crude way of masking expression IDs in the error message
         // with a generic pattern "###".
         val msg = if (a.plan.nonEmpty) a.getSimpleMessage else a.getMessage
-        Seq(a.getClass.getName, msg.replaceAll("#\\d+", "#x")).sorted
+        Seq(a.getClass.getName, msg.replaceAll("#\\d+", "#x"))
       case NonFatal(e) =>
         // If there is an exception, put the exception class followed by the message.
-        Seq(e.getClass.getName, e.getMessage).sorted
+        Seq(e.getClass.getName, e.getMessage)
     }
   }
 
@@ -412,7 +409,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
       case null =>
         HiveResult.toHiveString((null, StringType))
       case d: java.sql.Date =>
-        val ddd = d.toLocalDate.toEpochDay
         HiveResult.toHiveString((d, DateType))
       case t: Timestamp =>
         HiveResult.toHiveString((t, TimestampType))
