@@ -50,7 +50,7 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
     var listeningPort = 10000 + Random.nextInt(10000)
 
     // Retries up to 3 times with different port numbers if the server fails to start
-    (1 to 3).foldLeft(Try(startThriftServer(listeningPort, 0))) { case (started, attempt) =>
+    (1 to 5).foldLeft(Try(startThriftServer(listeningPort, 0))) { case (started, attempt) =>
       started.orElse {
         listeningPort += 1
         Try(startThriftServer(listeningPort, attempt))
@@ -66,6 +66,8 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
     hiveServer2.stop()
     hiveServer2 = null
   }
+
+  override val isTestWithConfigSets = false
 
   /** List of test cases to ignore, in lower cases. */
   override def blackList: Set[String] = Set(
@@ -176,7 +178,6 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
             // This exception is usually a feature that Thriftserver cannot support.
             // Please add SQL to blackList.
             assert(false, s"${output.output} for query #$i\n${expected.sql}")
-          case s if s.sql.equals("""select '\'', '"', '\n', '\r', '\t', 'Z'""") =>
           case _ =>
             assertResult(expected.output, s"Result did not match for query #$i\n${expected.sql}") {
               output.output
