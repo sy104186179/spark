@@ -44,11 +44,10 @@ import org.apache.spark.sql.types._
 class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
 
   private var hiveServer2: HiveThriftServer2 = _
-  private var listeningPort: Int = _
 
   override def beforeEach(): Unit = {
     // Chooses a random port between 10000 and 19999
-    listeningPort = 10000 + Random.nextInt(10000)
+    var listeningPort = 10000 + Random.nextInt(10000)
 
     // Retries up to 3 times with different port numbers if the server fails to start
     (1 to 3).foldLeft(Try(startThriftServer(listeningPort, 0))) { case (started, attempt) =>
@@ -66,38 +65,6 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
   override def afterEach(): Unit = {
     hiveServer2.stop()
     hiveServer2 = null
-  }
-
-  private def startThriftServer(port: Int, attempt: Int): Unit = {
-    logInfo(s"Trying to start HiveThriftServer2: port=$port, attempt=$attempt")
-    val localSparkSession = spark.newSession()
-    val sqlContext = localSparkSession.sqlContext
-    sqlContext.setConf(ConfVars.HIVE_SERVER2_THRIFT_PORT.varname, port.toString)
-    hiveServer2 = HiveThriftServer2.startWithContext(sqlContext)
-  }
-
-  def withJdbcStatement(fs: (Statement => Unit)*) {
-    val user = System.getProperty("user.name")
-
-    val serverPort = hiveServer2.getHiveConf.get(ConfVars.HIVE_SERVER2_THRIFT_PORT.varname)
-    val connections =
-      fs.map { _ => DriverManager.getConnection(s"jdbc:hive2://localhost:$serverPort", user, "") }
-    val statements = connections.map(_.createStatement())
-
-    try {
-      statements.zip(fs).foreach { case (s, f) => f(s) }
-    } finally {
-      statements.foreach(_.close())
-      connections.foreach(_.close())
-    }
-  }
-
-  test("check thriftserver can work") {
-    withJdbcStatement { statement =>
-      val rs = statement.executeQuery("select 1L")
-      rs.next()
-      assert(rs.getLong(1) === 1L)
-    }
   }
 
   /** List of test cases to ignore, in lower cases. */
@@ -126,21 +93,11 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
     "ansi/interval.sql"
   )
 
-  private def runTest(testCase: TestCase): Unit = {
-    val input = fileToString(new File(testCase.inputFile))
-
-    val (comments, code) = input.split("\n").partition(_.startsWith("--"))
-    val queies = code.map(f => if (f.contains("--")) f.split("--").head else f)
-
-    // List of SQL queries to run
-    // note: this is not a robust way to split queries using semicolon, but works for now.
-    val queries = code.mkString("\n").split("(?<=[^\\\\]);").map(_.trim).filter(_ != "").toSeq
-
-    runQueries(queries, testCase)
-  }
-
-  private def runQueries(queries: Seq[String], testCase: TestCase): Unit = {
-    // Create a local SparkSession to have stronger isolation between different test cases.
+  override def runQueries(
+      queries: Seq[String],
+      testCase: TestCase,
+      configSet: Option[Seq[(String, String)]]): Unit = {
+    // We do not test with configSet.
     withJdbcStatement { statement =>
 
       loadTestData(statement)
@@ -229,6 +186,43 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
     }
   }
 
+  override def createScalaTestCase(testCase: TestCase): Unit = {
+    if (blackList.exists(t =>
+      testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))) {
+      // Create a test case to ignore this case.
+      ignore(testCase.name) { /* Do nothing */ }
+    } else {
+      // Create a test case to run this case.
+      test(testCase.name) {
+        runTest(testCase)
+      }
+    }
+  }
+
+  override def listTestCases(): Seq[TestCase] = {
+    listFilesRecursively(new File(inputFilePath)).flatMap { file =>
+      val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
+      val absPath = file.getAbsolutePath
+      val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
+
+      if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udf")) {
+        Seq.empty
+      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}pgSQL")) {
+        PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
+      } else {
+        RegularTestCase(testCaseName, absPath, resultFile) :: Nil
+      }
+    }
+  }
+
+  test("Check if ThriftServer can work") {
+    withJdbcStatement { statement =>
+      val rs = statement.executeQuery("select 1L")
+      rs.next()
+      assert(rs.getLong(1) === 1L)
+    }
+  }
+
   private def getNormalizedResult(statement: Statement, sql: String): Seq[String] = {
     try {
       val rs = statement.executeQuery(sql)
@@ -257,32 +251,27 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
     }
   }
 
-  override def createScalaTestCase(testCase: TestCase): Unit = {
-    if (blackList.exists(t =>
-      testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))) {
-      // Create a test case to ignore this case.
-      ignore(testCase.name) { /* Do nothing */ }
-    } else {
-      // Create a test case to run this case.
-      test(testCase.name) {
-        runTest (testCase)
-      }
-    }
+  private def startThriftServer(port: Int, attempt: Int): Unit = {
+    logInfo(s"Trying to start HiveThriftServer2: port=$port, attempt=$attempt")
+    val localSparkSession = spark.newSession()
+    val sqlContext = localSparkSession.sqlContext
+    sqlContext.setConf(ConfVars.HIVE_SERVER2_THRIFT_PORT.varname, port.toString)
+    hiveServer2 = HiveThriftServer2.startWithContext(sqlContext)
   }
 
-  override def listTestCases(): Seq[TestCase] = {
-    listFilesRecursively(new File(inputFilePath)).flatMap { file =>
-      val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
-      val absPath = file.getAbsolutePath
-      val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
+  private def withJdbcStatement(fs: (Statement => Unit)*) {
+    val user = System.getProperty("user.name")
 
-      if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udf")) {
-        Seq.empty
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}pgSQL")) {
-        PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
-      } else {
-        RegularTestCase(testCaseName, absPath, resultFile) :: Nil
-      }
+    val serverPort = hiveServer2.getHiveConf.get(ConfVars.HIVE_SERVER2_THRIFT_PORT.varname)
+    val connections =
+      fs.map { _ => DriverManager.getConnection(s"jdbc:hive2://localhost:$serverPort", user, "") }
+    val statements = connections.map(_.createStatement())
+
+    try {
+      statements.zip(fs).foreach { case (s, f) => f(s) }
+    } finally {
+      statements.foreach(_.close())
+      connections.foreach(_.close())
     }
   }
 
@@ -341,7 +330,7 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
       """.stripMargin)
   }
 
-  // Returns true if sql is retrieve.
+  // Returns true if sql is retrieving data.
   private def isNeedSort(sql: String): Boolean = {
     val removeComment = sql.split("\n").partition(_.trim.startsWith("--"))
       ._2.map(_.trim).filter(_ != "").mkString("\n").toUpperCase(Locale.ROOT)

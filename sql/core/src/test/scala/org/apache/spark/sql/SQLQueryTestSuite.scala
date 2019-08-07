@@ -224,7 +224,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
   }
 
   /** Run a test case. */
-  private def runTest(testCase: TestCase): Unit = {
+  protected def runTest(testCase: TestCase): Unit = {
     val input = fileToString(new File(testCase.inputFile))
 
     val (comments, code) = input.split("\n").partition(_.startsWith("--"))
@@ -271,7 +271,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     }
   }
 
-  private def runQueries(
+  protected def runQueries(
       queries: Seq[String],
       testCase: TestCase,
       configSet: Option[Seq[(String, String)]]): Unit = {
