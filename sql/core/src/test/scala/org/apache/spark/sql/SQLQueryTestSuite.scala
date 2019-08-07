@@ -123,6 +123,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
 
   protected val validFileExtensions = ".sql"
 
+  private val notIncludedMsg = "[not included in comparison]"
+  private val clsName = this.getClass.getCanonicalName
+
   /** List of test cases to ignore, in lower cases. */
   protected def blackList: Set[String] = Set(
     "blacklist.sql"   // Do NOT remove this one. It is here to test the blacklist functionality.
@@ -382,19 +385,8 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     try {
       val df = session.sql(sql)
       val schema = df.schema
-      val notIncludedMsg = "[not included in comparison]"
-      val clsName = this.getClass.getCanonicalName
       // Get answer, but also get rid of the #1234 expression ids that show up in explain plans
-      val answer = hiveResultString(df.queryExecution.executedPlan)
-        .map(_.replaceAll("#\\d+", "#x")
-        .replaceAll(
-          s"Location.*/sql/core/spark-warehouse/$clsName/",
-          s"Location ${notIncludedMsg}sql/core/spark-warehouse/")
-        .replaceAll("Created By.*", s"Created By $notIncludedMsg")
-        .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
-        .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
-        .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
-        .replaceAll("\\*\\(\\d+\\) ", "*"))  // remove the WholeStageCodegen codegenStageIds
+      val answer = hiveResultString(df.queryExecution.executedPlan).map(replaceNotIncludedMsg)
 
       // If the output is not pre-sorted, sort it.
       if (isSorted(df.queryExecution.analyzed)) (schema, answer) else (schema, answer.sorted)
@@ -410,6 +402,18 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
         // If there is an exception, put the exception class followed by the message.
         (StructType(Seq.empty), Seq(e.getClass.getName, e.getMessage))
     }
+  }
+
+  protected def replaceNotIncludedMsg(line: String): String = {
+    line.replaceAll("#\\d+", "#x")
+      .replaceAll(
+        s"Location.*/sql/core/spark-warehouse/$clsName/",
+        s"Location ${notIncludedMsg}sql/core/spark-warehouse/")
+      .replaceAll("Created By.*", s"Created By $notIncludedMsg")
+      .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
+      .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
+      .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
+      .replaceAll("\\*\\(\\d+\\) ", "*") // remove the WholeStageCodegen codegenStageIds
   }
 
   protected def listTestCases(): Seq[TestCase] = {

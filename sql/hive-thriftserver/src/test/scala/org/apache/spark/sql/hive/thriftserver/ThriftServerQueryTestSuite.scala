@@ -39,9 +39,9 @@ import org.apache.spark.sql.types._
  * TODO:
  *   1. Support UDF testing.
  *   2. Support DESC command.
- *   3. Support show command.
+ *   3. Support SHOW command.
  */
-class DebugThriftserverSuite extends SQLQueryTestSuite {
+class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
 
   private var hiveServer2: HiveThriftServer2 = _
   private var listeningPort: Int = _
@@ -231,9 +231,6 @@ class DebugThriftserverSuite extends SQLQueryTestSuite {
 
   private def getNormalizedResult(statement: Statement, sql: String): Seq[String] = {
     try {
-      val notIncludedMsg = "[not included in comparison]"
-      val clsName = classOf[SQLQueryTestSuite].getCanonicalName
-
       val rs = statement.executeQuery(sql)
       val cols = rs.getMetaData.getColumnCount
       val buildStr = () => (for (i <- 1 to cols) yield {
@@ -241,15 +238,7 @@ class DebugThriftserverSuite extends SQLQueryTestSuite {
       }).mkString("\t")
 
       val answer = Iterator.continually(rs.next()).takeWhile(identity).map(_ => buildStr()).toSeq
-        .map(_.replaceAll("#\\d+", "#x")
-          .replaceAll(
-            s"Location.*/sql/core/spark-warehouse/$clsName/",
-            s"Location ${notIncludedMsg}sql/core/spark-warehouse/")
-          .replaceAll("Created By.*", s"Created By $notIncludedMsg")
-          .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
-          .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
-          .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
-          .replaceAll("\\*\\(\\d+\\) ", "*"))
+        .map(replaceNotIncludedMsg)
       if (isNeedSort(sql)) {
         answer.sorted
       } else {
