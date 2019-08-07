@@ -107,7 +107,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
 
   private val regenerateGoldenFiles: Boolean = System.getenv("SPARK_GENERATE_GOLDEN_FILES") == "1"
 
-  private val baseResourcePath = {
+  protected val baseResourcePath = {
     // If regenerateGoldenFiles is true, we must be running this in SBT and we use hard-coded
     // relative path. Otherwise, we use classloader's getResource to find the location.
     if (regenerateGoldenFiles) {
@@ -118,13 +118,13 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     }
   }
 
-  private val inputFilePath = new File(baseResourcePath, "inputs").getAbsolutePath
-  private val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
+  protected val inputFilePath = new File(baseResourcePath, "inputs").getAbsolutePath
+  protected val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
 
-  private val validFileExtensions = ".sql"
+  protected val validFileExtensions = ".sql"
 
   /** List of test cases to ignore, in lower cases. */
-  private val blackList = Set(
+  protected def blackList: Set[String] = Set(
     "blacklist.sql"   // Do NOT remove this one. It is here to test the blacklist functionality.
   )
 
@@ -132,7 +132,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
   listTestCases().foreach(createScalaTestCase)
 
   /** A single SQL query's output. */
-  private case class QueryOutput(sql: String, schema: String, output: String) {
+  protected case class QueryOutput(sql: String, schema: String, output: String) {
     def toString(queryIndex: Int): String = {
       // We are explicitly not using multi-line string due to stripMargin removing "|" in output.
       s"-- !query $queryIndex\n" +
@@ -145,7 +145,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
   }
 
   /** A test case. */
-  private trait TestCase {
+  protected trait TestCase {
     val name: String
     val inputFile: String
     val resultFile: String
@@ -155,35 +155,35 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
    * traits that indicate UDF or PgSQL to trigger the code path specific to each. For instance,
    * PgSQL tests require to register some UDF functions.
    */
-  private trait PgSQLTest
+  protected trait PgSQLTest
 
-  private trait UDFTest {
+  protected trait UDFTest {
     val udf: TestUDF
   }
 
   /** A regular test case. */
-  private case class RegularTestCase(
+  protected case class RegularTestCase(
       name: String, inputFile: String, resultFile: String) extends TestCase
 
   /** A PostgreSQL test case. */
-  private case class PgSQLTestCase(
+  protected case class PgSQLTestCase(
       name: String, inputFile: String, resultFile: String) extends TestCase with PgSQLTest
 
   /** A UDF test case. */
-  private case class UDFTestCase(
+  protected case class UDFTestCase(
       name: String,
       inputFile: String,
       resultFile: String,
       udf: TestUDF) extends TestCase with UDFTest
 
   /** A UDF PostgreSQL test case. */
-  private case class UDFPgSQLTestCase(
+  protected case class UDFPgSQLTestCase(
       name: String,
       inputFile: String,
       resultFile: String,
       udf: TestUDF) extends TestCase with UDFTest with PgSQLTest
 
-  private def createScalaTestCase(testCase: TestCase): Unit = {
+  protected def createScalaTestCase(testCase: TestCase): Unit = {
     if (blackList.exists(t =>
         testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))) {
       // Create a test case to ignore this case.
@@ -412,7 +412,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     }
   }
 
-  private def listTestCases(): Seq[TestCase] = {
+  protected def listTestCases(): Seq[TestCase] = {
     listFilesRecursively(new File(inputFilePath)).flatMap { file =>
       val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
       val absPath = file.getAbsolutePath
@@ -438,7 +438,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
   }
 
   /** Returns all the files (not directories) in a directory, recursively. */
-  private def listFilesRecursively(path: File): Seq[File] = {
+  protected def listFilesRecursively(path: File): Seq[File] = {
     val (dirs, files) = path.listFiles().partition(_.isDirectory)
     // Filter out test files with invalid extensions such as temp files created
     // by vi (.swp), Mac (.DS_Store) etc.

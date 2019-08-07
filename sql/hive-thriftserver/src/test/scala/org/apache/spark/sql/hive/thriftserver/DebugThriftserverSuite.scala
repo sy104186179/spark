@@ -27,23 +27,28 @@ import scala.util.control.NonFatal
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars
 import org.apache.hive.service.cli.HiveSQLException
 
-import org.apache.spark.sql.{AnalysisException, QueryTest, SQLQueryTestSuite}
+import org.apache.spark.sql.{AnalysisException, SQLQueryTestSuite}
 import org.apache.spark.sql.catalyst.util.fileToString
 import org.apache.spark.sql.execution.HiveResult
-import org.apache.spark.sql.hive.test.TestHiveSingleton
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.types._
 
-class DebugThriftserverSuite extends QueryTest with SQLTestUtils
-  with TestHiveSingleton with HiveThriftServer2Util {
+/**
+ * Directly re-run all the tests in SQLQueryTestSuite via Thrift Server
+ *
+ * TODO:
+ *   1. Support UDF testing.
+ *   2. Support DESC command.
+ *   3. Support show command.
+ */
+class DebugThriftserverSuite extends SQLQueryTestSuite {
 
-  var hiveServer2: HiveThriftServer2 = _
+  private var hiveServer2: HiveThriftServer2 = _
+  private var listeningPort: Int = _
 
   override def beforeEach(): Unit = {
     // Chooses a random port between 10000 and 19999
     listeningPort = 10000 + Random.nextInt(10000)
-    diagnosisBuffer.clear()
 
     // Retries up to 3 times with different port numbers if the server fails to start
     (1 to 3).foldLeft(Try(startThriftServer(listeningPort, 0))) { case (started, attempt) =>
@@ -53,7 +58,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
       }
     }.recover {
       case cause: Throwable =>
-        dumpLogs()
         throw cause
     }.get
     logInfo(s"HiveThriftServer2 started successfully")
@@ -96,18 +100,8 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  private val baseResourcePath = {
-    val res = getClass.getClassLoader.getResource("sql-tests")
-    new File(res.getFile)
-  }
-
-  private val inputFilePath = new File(baseResourcePath, "inputs").getAbsolutePath
-  private val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
-
-  private val validFileExtensions = ".sql"
-
   /** List of test cases to ignore, in lower cases. */
-  private val blackList = Set(
+  override def blackList: Set[String] = Set(
     "blacklist.sql",   // Do NOT remove this one. It is here to test the blacklist functionality.
     // Missing UDF
     "pgSQL/boolean.sql",
@@ -131,8 +125,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     "cast.sql",
     "ansi/interval.sql"
   )
-
-  listTestCases().foreach(createScalaTestCase)
 
   private def runTest(testCase: TestCase): Unit = {
     val input = fileToString(new File(testCase.inputFile))
@@ -168,6 +160,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
         // We might need to do some query canonicalization in the future.
         QueryOutput(
           sql = sql,
+          schema = "",
           output = output.mkString("\n").replaceAll("\\s+$", ""))
       }
 
@@ -190,6 +183,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
           }.replaceAll("\\s+$", "")
           QueryOutput(
             sql = sqlStr,
+            schema = "",
             output = output
           )
         }
@@ -206,12 +200,15 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
         }
 
         expected match {
+          // Skip desc command, see HiveResult.hiveResultString
           case d if d.sql.toUpperCase(Locale.ROOT).startsWith("DESC ")
             || d.sql.toUpperCase(Locale.ROOT).startsWith("DESC\n")
             || d.sql.toUpperCase(Locale.ROOT).startsWith("DESCRIBE ")
             || d.sql.toUpperCase(Locale.ROOT).startsWith("DESCRIBE\n") =>
+          // Skip show command, see HiveResult.hiveResultString
           case s if s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW ")
             || s.sql.toUpperCase(Locale.ROOT).startsWith("SHOW\n") =>
+          // AnalysisException should exactly match.
           case _ if output.output.startsWith(classOf[SQLException].getName) =>
             // In this case, Spark SQL and Thriftserver usually throw exceptions
             // but the format is different. We only assert the longest line here.
@@ -271,28 +268,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  /** A test case. */
-  private trait TestCase {
-    val name: String
-    val inputFile: String
-    val resultFile: String
-  }
-
-  /**
-   * traits that indicate UDF or PgSQL to trigger the code path specific to each. For instance,
-   * PgSQL tests require to register some UDF functions.
-   */
-  private trait PgSQLTest
-
-  /** A regular test case. */
-  private case class RegularTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase
-
-  /** A PostgreSQL test case. */
-  private case class PgSQLTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase with PgSQLTest
-
-  private def createScalaTestCase(testCase: TestCase): Unit = {
+  override def createScalaTestCase(testCase: TestCase): Unit = {
     if (blackList.exists(t =>
       testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))) {
       // Create a test case to ignore this case.
@@ -305,19 +281,7 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
     }
   }
 
-
-  /** A single SQL query's output. */
-  private case class QueryOutput(sql: String, output: String) {
-    def toString(queryIndex: Int): String = {
-      // We are explicitly not using multi-line string due to stripMargin removing "|" in output.
-      s"-- !query $queryIndex\n" +
-        sql + "\n" +
-        s"-- !query $queryIndex output\n" +
-        output
-    }
-  }
-
-  private def listTestCases(): Seq[TestCase] = {
+  override def listTestCases(): Seq[TestCase] = {
     listFilesRecursively(new File(inputFilePath)).flatMap { file =>
       val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
       val absPath = file.getAbsolutePath
@@ -331,15 +295,6 @@ class DebugThriftserverSuite extends QueryTest with SQLTestUtils
         RegularTestCase(testCaseName, absPath, resultFile) :: Nil
       }
     }
-  }
-
-  /** Returns all the files (not directories) in a directory, recursively. */
-  private def listFilesRecursively(path: File): Seq[File] = {
-    val (dirs, files) = path.listFiles().partition(_.isDirectory)
-    // Filter out test files with invalid extensions such as temp files created
-    // by vi (.swp), Mac (.DS_Store) etc.
-    val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
-    filteredFiles ++ dirs.flatMap(listFilesRecursively)
   }
 
   /** Load built-in test tables. */
