@@ -20,6 +20,7 @@ package org.apache.spark.sql.hive.client
 import java.io.{ByteArrayOutputStream, File, PrintStream, PrintWriter}
 import java.net.URI
 
+import org.apache.commons.lang3.SystemUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hive.common.StatsSetupConst
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -618,7 +619,7 @@ class VersionsSuite extends SparkFunSuite with Logging {
 
     test(s"$version: sql read hive materialized view") {
       // HIVE-14249 Since Hive 2.3.0, materialized view is supported.
-      if (version == "2.3" || version == "3.0" || version == "3.1") {
+      if ((version == "2.3" || version == "3.0" || version == "3.1") && SystemUtils.IS_JAVA_1_8) {
         // Since HIVE-18394(Hive 3.1), "Create Materialized View" should default to rewritable ones
         val disableRewrite = if (version == "2.3" || version == "3.0") "" else "DISABLE REWRITE"
         client.runSqlHive("CREATE TABLE materialized_view_tbl (c1 INT)")
