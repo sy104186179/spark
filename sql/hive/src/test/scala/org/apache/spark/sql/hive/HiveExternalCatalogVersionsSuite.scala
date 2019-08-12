@@ -46,7 +46,6 @@ import org.apache.spark.util.Utils
  * downloading for this spark version.
  */
 class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
-  assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
   private val wareHousePath = Utils.createTempDir(namePrefix = "warehouse")
   private val tmpDataDir = Utils.createTempDir(namePrefix = "test-data")
   // For local test, you can set `sparkTestingDir` to a static value like `/tmp/test-spark`, to
@@ -140,6 +139,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   }
 
   override def beforeAll(): Unit = {
+    assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
     super.beforeAll()
 
     val tempPyFile = File.createTempFile("test", ".py")
