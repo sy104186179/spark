@@ -46,6 +46,7 @@ import org.apache.spark.util.Utils
  * downloading for this spark version.
  */
 class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
+  assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
   private val wareHousePath = Utils.createTempDir(namePrefix = "warehouse")
   private val tmpDataDir = Utils.createTempDir(namePrefix = "test-data")
   // For local test, you can set `sparkTestingDir` to a static value like `/tmp/test-spark`, to
