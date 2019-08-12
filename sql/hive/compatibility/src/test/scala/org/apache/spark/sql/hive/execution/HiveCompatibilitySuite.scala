@@ -597,7 +597,9 @@ class HiveCompatibilitySuite extends HiveQueryFileTest with BeforeAndAfter {
     "correlationoptimizer4",
     "multiMapJoin1",
     "orc_dictionary_threshold",
-    "udf_hash"
+    "udf_hash",
+    // Moved to HiveQuerySuite.
+    "udf_radians"
   )
 
   private def commonWhiteList = Seq(
@@ -1134,9 +1136,7 @@ class HiveCompatibilitySuite extends HiveQueryFileTest with BeforeAndAfter {
     "varchar_union1",
     "view",
     "view_cast",
-    "view_inputs",
-    // Moved to HiveQuerySuite.
-    "udf_radians"
+    "view_inputs"
   )
 
   /**
