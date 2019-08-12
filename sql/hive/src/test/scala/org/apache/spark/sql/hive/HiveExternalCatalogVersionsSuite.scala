@@ -203,7 +203,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   }
 
   test("backward compatibility") {
-    assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
+    assume(SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
     val args = Seq(
       "--class", PROCESS_TABLES.getClass.getName.stripSuffix("$"),
       "--name", "HiveExternalCatalog backward compatibility test",
