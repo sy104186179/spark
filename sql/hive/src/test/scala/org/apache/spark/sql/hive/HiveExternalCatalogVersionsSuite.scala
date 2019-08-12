@@ -24,6 +24,7 @@ import java.nio.file.{Files, Paths}
 import scala.sys.process._
 import scala.util.control.NonFatal
 
+import org.apache.commons.lang3.{JavaVersion, SystemUtils}
 import org.apache.hadoop.conf.Configuration
 
 import org.apache.spark.{SecurityManager, SparkConf, TestUtils}
@@ -202,6 +203,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   }
 
   test("backward compatibility") {
+    assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
     val args = Seq(
       "--class", PROCESS_TABLES.getClass.getName.stripSuffix("$"),
       "--name", "HiveExternalCatalog backward compatibility test",
