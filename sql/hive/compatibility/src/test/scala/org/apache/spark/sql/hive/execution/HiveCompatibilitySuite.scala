@@ -1135,7 +1135,9 @@ class HiveCompatibilitySuite extends HiveQueryFileTest with BeforeAndAfter {
     "varchar_union1",
     "view",
     "view_cast",
-    "view_inputs"
+    "view_inputs",
+    // Moved to HiveQuerySuite.
+    "udf_radians"
   )
 
   /**

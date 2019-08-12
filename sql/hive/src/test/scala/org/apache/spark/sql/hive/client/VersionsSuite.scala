@@ -20,7 +20,7 @@ package org.apache.spark.sql.hive.client
 import java.io.{ByteArrayOutputStream, File, PrintStream, PrintWriter}
 import java.net.URI
 
-import org.apache.commons.lang3.SystemUtils
+import org.apache.commons.lang3.{JavaVersion, SystemUtils}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hive.common.StatsSetupConst
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -40,7 +40,7 @@ import org.apache.spark.sql.hive.test.TestHiveVersion
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.tags.ExtendedHiveTest
-import org.apache.spark.util.{JavaVersion, MutableURLClassLoader, Utils}
+import org.apache.spark.util.{MutableURLClassLoader, Utils}
 
 /**
  * A simple set of tests that call the methods of a [[HiveClient]], loading different version
@@ -103,7 +103,7 @@ class VersionsSuite extends SparkFunSuite with Logging {
     assert(getNestedMessages(e) contains "Unknown column 'A0.OWNER_NAME' in 'field list'")
   }
 
-  private val versions = if (JavaVersion.isVersionAtLeast(9)) {
+  private val versions = if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
     Seq("2.0", "2.1", "2.2", "2.3", "3.0", "3.1")
   } else {
     Seq("0.12", "0.13", "0.14", "1.0", "1.1", "1.2", "2.0", "2.1", "2.2", "2.3", "3.0", "3.1")
@@ -619,7 +619,9 @@ class VersionsSuite extends SparkFunSuite with Logging {
 
     test(s"$version: sql read hive materialized view") {
       // HIVE-14249 Since Hive 2.3.0, materialized view is supported.
-      if ((version == "2.3" || version == "3.0" || version == "3.1") && SystemUtils.IS_JAVA_1_8) {
+      if (version == "2.3" || version == "3.0" || version == "3.1") {
+        // Since Hive 3.0(HIVE-19383), client.runSqlHive is not supported on JDK 11.
+        assume(!(SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9) && version != "2.3"))
         // Since HIVE-18394(Hive 3.1), "Create Materialized View" should default to rewritable ones
         val disableRewrite = if (version == "2.3" || version == "3.0") "" else "DISABLE REWRITE"
         client.runSqlHive("CREATE TABLE materialized_view_tbl (c1 INT)")
