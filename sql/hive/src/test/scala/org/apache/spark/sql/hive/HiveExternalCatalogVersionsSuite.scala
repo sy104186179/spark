@@ -139,45 +139,37 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
     new String(Files.readAllBytes(contentPath), StandardCharsets.UTF_8)
   }
 
-  protected def prepare(): Unit = {
-    val javaHome = Option(System.getenv("JAVA_8_HOME")).getOrElse("/usr/java/jdk1.8.0_191")
-    System.setProperty("JAVA_HOME", javaHome)
-
-    // scalastyle:off
-    import scala.collection.JavaConversions._
-    val environmentVars = System.getenv()
-    for ((k,v) <- environmentVars) println(s"key: $k, value: $v")
-
+  private def prepare(): Unit = {
     val tempPyFile = File.createTempFile("test", ".py")
     // scalastyle:off line.size.limit
     Files.write(tempPyFile.toPath,
       s"""
-         |from pyspark.sql import SparkSession
-         |import os
-         |
+        |from pyspark.sql import SparkSession
+        |import os
+        |
         |spark = SparkSession.builder.enableHiveSupport().getOrCreate()
-         |version_index = spark.conf.get("spark.sql.test.version.index", None)
-         |
+        |version_index = spark.conf.get("spark.sql.test.version.index", None)
+        |
         |spark.sql("create table data_source_tbl_{} using json as select 1 i".format(version_index))
-         |
+        |
         |spark.sql("create table hive_compatible_data_source_tbl_{} using parquet as select 1 i".format(version_index))
-         |
+        |
         |json_file = "${genDataDir("json_")}" + str(version_index)
-         |spark.range(1, 2).selectExpr("cast(id as int) as i").write.json(json_file)
-         |spark.sql("create table external_data_source_tbl_{}(i int) using json options (path '{}')".format(version_index, json_file))
-         |
+        |spark.range(1, 2).selectExpr("cast(id as int) as i").write.json(json_file)
+        |spark.sql("create table external_data_source_tbl_{}(i int) using json options (path '{}')".format(version_index, json_file))
+        |
         |parquet_file = "${genDataDir("parquet_")}" + str(version_index)
-         |spark.range(1, 2).selectExpr("cast(id as int) as i").write.parquet(parquet_file)
-         |spark.sql("create table hive_compatible_external_data_source_tbl_{}(i int) using parquet options (path '{}')".format(version_index, parquet_file))
-         |
+        |spark.range(1, 2).selectExpr("cast(id as int) as i").write.parquet(parquet_file)
+        |spark.sql("create table hive_compatible_external_data_source_tbl_{}(i int) using parquet options (path '{}')".format(version_index, parquet_file))
+        |
         |json_file2 = "${genDataDir("json2_")}" + str(version_index)
-         |spark.range(1, 2).selectExpr("cast(id as int) as i").write.json(json_file2)
-         |spark.sql("create table external_table_without_schema_{} using json options (path '{}')".format(version_index, json_file2))
-         |
+        |spark.range(1, 2).selectExpr("cast(id as int) as i").write.json(json_file2)
+        |spark.sql("create table external_table_without_schema_{} using json options (path '{}')".format(version_index, json_file2))
+        |
         |parquet_file2 = "${genDataDir("parquet2_")}" + str(version_index)
-         |spark.range(1, 3).selectExpr("1 as i", "cast(id as int) as p", "1 as j").write.parquet(os.path.join(parquet_file2, "p=1"))
-         |spark.sql("create table tbl_with_col_overlap_{} using parquet options(path '{}')".format(version_index, parquet_file2))
-         |
+        |spark.range(1, 3).selectExpr("1 as i", "cast(id as int) as p", "1 as j").write.parquet(os.path.join(parquet_file2, "p=1"))
+        |spark.sql("create table tbl_with_col_overlap_{} using parquet options(path '{}')".format(version_index, parquet_file2))
+        |
         |spark.sql("create view v_{} as select 1 i".format(version_index))
       """.stripMargin.getBytes("utf8"))
     // scalastyle:on line.size.limit
@@ -217,6 +209,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   }
 
   test("backward compatibility") {
+    // TODO Test backward compatibility on JAVA_9 once we have a version supports JAVA_9
     assume(!isTestAtLeastJava9)
     val args = Seq(
       "--class", PROCESS_TABLES.getClass.getName.stripSuffix("$"),
