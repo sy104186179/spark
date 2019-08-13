@@ -141,8 +141,11 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) return
+
     val javaHome = Option(System.getenv("JAVA_8_HOME")).getOrElse("/usr/java/jdk1.8.0_191")
     System.setProperty("JAVA_HOME", javaHome)
+
     // scalastyle:off
     import scala.collection.JavaConversions._
     val environmentVars = System.getenv()
