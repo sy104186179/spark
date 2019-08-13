@@ -143,6 +143,8 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
 
     val javaHome = Option(System.getenv("JAVA_8_HOME")).getOrElse("/usr/java/jdk1.8.0_191")
     System.setProperty("JAVA_HOME", javaHome)
+    // scalastyle:off
+    for ((k,v) <- System.getenv) println(s"key: $k, value: $v")
 
     val tempPyFile = File.createTempFile("test", ".py")
     // scalastyle:off line.size.limit
