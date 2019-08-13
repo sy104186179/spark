@@ -18,6 +18,7 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.io._
+import java.nio.charset.StandardCharsets.UTF_8
 import java.security.AccessController
 import java.util.{ArrayList => JArrayList, Locale}
 import java.util.concurrent.TimeUnit
