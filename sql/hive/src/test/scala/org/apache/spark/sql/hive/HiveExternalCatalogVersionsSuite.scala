@@ -139,8 +139,10 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   }
 
   override def beforeAll(): Unit = {
-    assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
     super.beforeAll()
+
+    val javaHome = Option(System.getenv("JAVA_8_HOME")).getOrElse("/usr/java/jdk1.8.0_191")
+    System.setProperty("JAVA_HOME", javaHome)
 
     val tempPyFile = File.createTempFile("test", ".py")
     // scalastyle:off line.size.limit
