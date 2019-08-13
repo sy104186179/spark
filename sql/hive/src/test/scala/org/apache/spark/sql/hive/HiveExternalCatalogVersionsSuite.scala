@@ -46,6 +46,7 @@ import org.apache.spark.util.Utils
  * downloading for this spark version.
  */
 class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
+  private val isTestAtLeastJava9 = SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)
   private val wareHousePath = Utils.createTempDir(namePrefix = "warehouse")
   private val tmpDataDir = Utils.createTempDir(namePrefix = "test-data")
   // For local test, you can set `sparkTestingDir` to a static value like `/tmp/test-spark`, to
@@ -210,16 +211,13 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    println("SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9): " +
-      SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
-    if (!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+    if (!isTestAtLeastJava9) {
       prepare()
     }
   }
 
   test("backward compatibility") {
-    assume(!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9))
+    assume(!isTestAtLeastJava9)
     val args = Seq(
       "--class", PROCESS_TABLES.getClass.getName.stripSuffix("$"),
       "--name", "HiveExternalCatalog backward compatibility test",
