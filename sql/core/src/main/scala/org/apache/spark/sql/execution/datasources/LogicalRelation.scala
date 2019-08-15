@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeMap, AttributeReferen
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{LeafNode, LogicalPlan, Statistics}
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.execution.command.CommandUtils
 import org.apache.spark.sql.sources.BaseRelation
 
 /**
@@ -40,6 +41,16 @@ case class LogicalRelation(
     catalogTable = None)
 
   override def computeStats(): Statistics = {
+    val time1 = System.currentTimeMillis()
+    val relationSize = relation.sizeInBytes
+    val time2 = System.currentTimeMillis()
+    val fallBackToHdfsSize =
+      CommandUtils.getSizeInBytesFallBackToHdfs(relation.sqlContext.sparkSession, catalogTable.get)
+    val time3 = System.currentTimeMillis()
+    // scalastyle:off
+    println(s"Get size from relation: $relationSize, time: ${time2 - time1}")
+    println(s"Get size fall back to HDFS: $fallBackToHdfsSize, time: ${time3 - time2}")
+    // scalastyle:on
     catalogTable
       .flatMap(_.stats.map(_.toPlanStats(output, conf.cboEnabled)))
       .getOrElse(Statistics(sizeInBytes = relation.sizeInBytes))
