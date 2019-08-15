@@ -650,4 +650,51 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
       }
     }
   }
+
+  test("Non-partitioned data source table") {
+    withTempDir { dir =>
+      withTable("spark_25474") {
+        sql(s"CREATE TABLE spark_25474 (c1 BIGINT) USING PARQUET LOCATION '${dir.toURI}'")
+        spark.range(5).write.mode(SaveMode.Overwrite).parquet(dir.getCanonicalPath)
+
+        assert(getCatalogTable("spark_25474").stats.isEmpty)
+        val relation = spark.table("spark_25474").queryExecution.analyzed.children.head
+        assert(relation.stats.sizeInBytes === 935)
+      }
+    }
+  }
+
+  test("Partitioned data source table default") {
+    withTempDir { dir =>
+      withTable("spark_25474") {
+        spark.sql("CREATE TABLE spark_25474(a int, b int) USING parquet " +
+          s"PARTITIONED BY(a) LOCATION '${dir.toURI}'")
+        spark.sql("INSERT INTO TABLE spark_25474 PARTITION(a=1) SELECT 2")
+
+        assert(getCatalogTable("spark_25474").stats.isEmpty)
+        val relation = spark.table("spark_25474").queryExecution.analyzed.children.head
+        // scalastyle:off line.size.limit
+        // It's 8.0EB in this case. This 8.0EB from:
+        // https://github.com/apache/spark/blob/c30b5297bc607ae33cc2fcf624b127942154e559/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/DataSource.scala#L383-L387
+        // scalastyle:on line.size.limit
+        assert(relation.stats.sizeInBytes === conf.defaultSizeInBytes)
+      }
+    }
+  }
+
+  test("Partitioned data source table and disable HIVE_MANAGE_FILESOURCE_PARTITIONS") {
+    withSQLConf(SQLConf.HIVE_MANAGE_FILESOURCE_PARTITIONS.key -> "false") {
+      withTempDir { dir =>
+        withTable("spark_25474") {
+          spark.sql("CREATE TABLE spark_25474(a int, b int) USING parquet " +
+            s"PARTITIONED BY(a) LOCATION '${dir.toURI}'")
+          spark.sql("INSERT INTO TABLE spark_25474 PARTITION(a=1) SELECT 2")
+
+          assert(getCatalogTable("spark_25474").stats.isEmpty)
+          val relation = spark.table("spark_25474").queryExecution.analyzed.children.head
+          assert(relation.stats.sizeInBytes === 418)
+        }
+      }
+    }
+  }
 }
