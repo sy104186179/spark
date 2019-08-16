@@ -88,7 +88,7 @@ private[ml] class WeightedLeastSquares(
   require(regParam >= 0.0, s"regParam cannot be negative: $regParam")
   require(elasticNetParam >= 0.0 && elasticNetParam <= 1.0,
     s"elasticNetParam must be in [0, 1]: $elasticNetParam")
-  require(maxIter >= 0, s"maxIter must be a positive integer: $maxIter")
+  require(maxIter > 0, s"maxIter must be a positive integer: $maxIter")
   require(tol >= 0.0, s"tol must be >= 0, but was set to $tol")
 
   /**
@@ -119,13 +119,13 @@ private[ml] class WeightedLeastSquares(
     if (rawBStd == 0) {
       if (fitIntercept || rawBBar == 0.0) {
         if (rawBBar == 0.0) {
-          instr.logWarning("Mean and standard deviation of the label are zero, so the " +
-            "coefficients and the intercept will all be zero; as a result, training is not " +
-            "needed.")
+          instr.logWarning(s"Mean and standard deviation of the label are zero, so the " +
+            s"coefficients and the intercept will all be zero; as a result, training is not " +
+            s"needed.")
         } else {
-          instr.logWarning("The standard deviation of the label is zero, so the coefficients " +
-            "will be zeros and the intercept will be the mean of the label; as a result, " +
-            "training is not needed.")
+          instr.logWarning(s"The standard deviation of the label is zero, so the coefficients " +
+            s"will be zeros and the intercept will be the mean of the label; as a result, " +
+            s"training is not needed.")
         }
         val coefficients = new DenseVector(Array.ofDim(numFeatures))
         val intercept = rawBBar
@@ -133,9 +133,9 @@ private[ml] class WeightedLeastSquares(
         return new WeightedLeastSquaresModel(coefficients, intercept, diagInvAtWA, Array(0D))
       } else {
         require(!(regParam > 0.0 && standardizeLabel), "The standard deviation of the label is " +
-          "zero. Model cannot be regularized with standardization=true")
-        instr.logWarning("The standard deviation of the label is zero. Consider setting " +
-          "fitIntercept=true.")
+          "zero. Model cannot be regularized when labels are standardized.")
+        instr.logWarning(s"The standard deviation of the label is zero. Consider setting " +
+          s"fitIntercept=true.")
       }
     }
 

@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGe
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util.TypeUtils
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 
@@ -115,6 +116,10 @@ trait PredicateHelper {
       // non-correlated subquery will be replaced as literal
       e.children.isEmpty
     case a: AttributeReference => true
+    // PythonUDF will be executed by dedicated physical operator later.
+    // For PythonUDFs that can't be evaluated in join condition, `ExtractPythonUDFFromJoinCondition`
+    // will pull them out later.
+    case _: PythonUDF => true
     case e: Unevaluable => false
     case e => e.children.forall(canEvaluateWithinJoin)
   }
@@ -129,6 +134,13 @@ case class Not(child: Expression)
 
   override def inputTypes: Seq[DataType] = Seq(BooleanType)
 
+  // +---------+-----------+
+  // | CHILD   | NOT CHILD |
+  // +---------+-----------+
+  // | TRUE    | FALSE     |
+  // | FALSE   | TRUE      |
+  // | UNKNOWN | UNKNOWN   |
+  // +---------+-----------+
   protected override def nullSafeEval(input: Any): Any = !input.asInstanceOf[Boolean]
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
@@ -360,31 +372,67 @@ case class InSet(child: Expression, hset: Set[Any]) extends UnaryExpression with
   }
 
   @transient lazy val set: Set[Any] = child.dataType match {
-    case _: AtomicType => hset
+    case t: AtomicType if !t.isInstanceOf[BinaryType] => hset
     case _: NullType => hset
     case _ =>
       // for structs use interpreted ordering to be able to compare UnsafeRows with non-UnsafeRows
-      TreeSet.empty(TypeUtils.getInterpretedOrdering(child.dataType)) ++ hset
+      TreeSet.empty(TypeUtils.getInterpretedOrdering(child.dataType)) ++ (hset - null)
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    val setTerm = ctx.addReferenceObj("set", set)
-    val childGen = child.genCode(ctx)
-    val setIsNull = if (hasNull) {
-      s"${ev.isNull} = !${ev.value};"
+    if (canBeComputedUsingSwitch && hset.size <= SQLConf.get.optimizerInSetSwitchThreshold) {
+      genCodeWithSwitch(ctx, ev)
     } else {
-      ""
+      genCodeWithSet(ctx, ev)
     }
+  }
+
+  private def canBeComputedUsingSwitch: Boolean = child.dataType match {
+    case ByteType | ShortType | IntegerType | DateType => true
+    case _ => false
+  }
+
+  private def genCodeWithSet(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    nullSafeCodeGen(ctx, ev, c => {
+      val setTerm = ctx.addReferenceObj("set", set)
+      val setIsNull = if (hasNull) {
+        s"${ev.isNull} = !${ev.value};"
+      } else {
+        ""
+      }
+      s"""
+         |${ev.value} = $setTerm.contains($c);
+         |$setIsNull
+       """.stripMargin
+    })
+  }
+
+  // spark.sql.optimizer.inSetSwitchThreshold has an appropriate upper limit,
+  // so the code size should not exceed 64KB
+  private def genCodeWithSwitch(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val caseValuesGen = hset.filter(_ != null).map(Literal(_).genCode(ctx))
+    val valueGen = child.genCode(ctx)
+
+    val caseBranches = caseValuesGen.map(literal =>
+      code"""
+        case ${literal.value}:
+          ${ev.value} = true;
+          break;
+       """)
+
     ev.copy(code =
       code"""
-         |${childGen.code}
-         |${CodeGenerator.JAVA_BOOLEAN} ${ev.isNull} = ${childGen.isNull};
-         |${CodeGenerator.JAVA_BOOLEAN} ${ev.value} = false;
-         |if (!${ev.isNull}) {
-         |  ${ev.value} = $setTerm.contains(${childGen.value});
-         |  $setIsNull
-         |}
-       """.stripMargin)
+        ${valueGen.code}
+        ${CodeGenerator.JAVA_BOOLEAN} ${ev.isNull} = ${valueGen.isNull};
+        ${CodeGenerator.JAVA_BOOLEAN} ${ev.value} = false;
+        if (!${valueGen.isNull}) {
+          switch (${valueGen.value}) {
+            ${caseBranches.mkString("\n")}
+            default:
+              ${ev.isNull} = $hasNull;
+          }
+        }
+       """)
   }
 
   override def sql: String = {
@@ -404,6 +452,13 @@ case class And(left: Expression, right: Expression) extends BinaryOperator with 
 
   override def sqlOperator: String = "AND"
 
+  // +---------+---------+---------+---------+
+  // | AND     | TRUE    | FALSE   | UNKNOWN |
+  // +---------+---------+---------+---------+
+  // | TRUE    | TRUE    | FALSE   | UNKNOWN |
+  // | FALSE   | FALSE   | FALSE   | FALSE   |
+  // | UNKNOWN | UNKNOWN | FALSE   | UNKNOWN |
+  // +---------+---------+---------+---------+
   override def eval(input: InternalRow): Any = {
     val input1 = left.eval(input)
     if (input1 == false) {
@@ -467,6 +522,13 @@ case class Or(left: Expression, right: Expression) extends BinaryOperator with P
 
   override def sqlOperator: String = "OR"
 
+  // +---------+---------+---------+---------+
+  // | OR      | TRUE    | FALSE   | UNKNOWN |
+  // +---------+---------+---------+---------+
+  // | TRUE    | TRUE    | TRUE    | TRUE    |
+  // | FALSE   | TRUE    | FALSE   | UNKNOWN |
+  // | UNKNOWN | TRUE    | UNKNOWN | UNKNOWN |
+  // +---------+---------+---------+---------+
   override def eval(input: InternalRow): Any = {
     val input1 = left.eval(input)
     if (input1 == true) {
@@ -590,6 +652,13 @@ case class EqualTo(left: Expression, right: Expression)
 
   override def symbol: String = "="
 
+  // +---------+---------+---------+---------+
+  // | =       | TRUE    | FALSE   | UNKNOWN |
+  // +---------+---------+---------+---------+
+  // | TRUE    | TRUE    | FALSE   | UNKNOWN |
+  // | FALSE   | FALSE   | TRUE    | UNKNOWN |
+  // | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN |
+  // +---------+---------+---------+---------+
   protected override def nullSafeEval(left: Any, right: Any): Any = ordering.equiv(left, right)
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
@@ -627,6 +696,13 @@ case class EqualNullSafe(left: Expression, right: Expression) extends BinaryComp
 
   override def nullable: Boolean = false
 
+  // +---------+---------+---------+---------+
+  // | <=>     | TRUE    | FALSE   | UNKNOWN |
+  // +---------+---------+---------+---------+
+  // | TRUE    | TRUE    | FALSE   | FALSE   |
+  // | FALSE   | FALSE   | TRUE    | FALSE   |
+  // | UNKNOWN | FALSE   | FALSE   | TRUE    |
+  // +---------+---------+---------+---------+
   override def eval(input: InternalRow): Any = {
     val input1 = left.eval(input)
     val input2 = right.eval(input)
@@ -767,4 +843,86 @@ case class GreaterThanOrEqual(left: Expression, right: Expression)
   override def symbol: String = ">="
 
   protected override def nullSafeEval(input1: Any, input2: Any): Any = ordering.gteq(input1, input2)
+}
+
+trait BooleanTest extends UnaryExpression with Predicate with ExpectsInputTypes {
+
+  def boolValueForComparison: Boolean
+  def boolValueWhenNull: Boolean
+
+  override def nullable: Boolean = false
+  override def inputTypes: Seq[DataType] = Seq(BooleanType)
+
+  override def eval(input: InternalRow): Any = {
+    val value = child.eval(input)
+    Option(value) match {
+      case None => boolValueWhenNull
+      case other => if (boolValueWhenNull) {
+        value == !boolValueForComparison
+      } else {
+        value == boolValueForComparison
+      }
+    }
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val eval = child.genCode(ctx)
+    ev.copy(code = code"""
+      ${eval.code}
+      ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+      if (${eval.isNull}) {
+        ${ev.value} = $boolValueWhenNull;
+      } else if ($boolValueWhenNull) {
+        ${ev.value} = ${eval.value} == !$boolValueForComparison;
+      } else {
+        ${ev.value} = ${eval.value} == $boolValueForComparison;
+      }
+      """, isNull = FalseLiteral)
+  }
+}
+
+case class IsTrue(child: Expression) extends BooleanTest {
+  override def boolValueForComparison: Boolean = true
+  override def boolValueWhenNull: Boolean = false
+  override def sql: String = s"(${child.sql} IS TRUE)"
+}
+
+case class IsNotTrue(child: Expression) extends BooleanTest {
+  override def boolValueForComparison: Boolean = true
+  override def boolValueWhenNull: Boolean = true
+  override def sql: String = s"(${child.sql} IS NOT TRUE)"
+}
+
+case class IsFalse(child: Expression) extends BooleanTest {
+  override def boolValueForComparison: Boolean = false
+  override def boolValueWhenNull: Boolean = false
+  override def sql: String = s"(${child.sql} IS FALSE)"
+}
+
+case class IsNotFalse(child: Expression) extends BooleanTest {
+  override def boolValueForComparison: Boolean = false
+  override def boolValueWhenNull: Boolean = true
+  override def sql: String = s"(${child.sql} IS NOT FALSE)"
+}
+
+/**
+ * IS UNKNOWN and IS NOT UNKNOWN are the same as IS NULL and IS NOT NULL, respectively,
+ * except that the input expression must be of a boolean type.
+ */
+object IsUnknown {
+  def apply(child: Expression): Predicate = {
+    new IsNull(child) with ExpectsInputTypes {
+      override def inputTypes: Seq[DataType] = Seq(BooleanType)
+      override def sql: String = s"(${child.sql} IS UNKNOWN)"
+    }
+  }
+}
+
+object IsNotUnknown {
+  def apply(child: Expression): Predicate = {
+    new IsNotNull(child) with ExpectsInputTypes {
+      override def inputTypes: Seq[DataType] = Seq(BooleanType)
+      override def sql: String = s"(${child.sql} IS NOT UNKNOWN)"
+    }
+  }
 }

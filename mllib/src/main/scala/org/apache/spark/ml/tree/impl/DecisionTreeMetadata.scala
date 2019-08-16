@@ -21,7 +21,7 @@ import scala.collection.mutable
 import scala.util.Try
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.ml.feature.LabeledPoint
+import org.apache.spark.ml.feature.Instance
 import org.apache.spark.ml.tree.TreeEnsembleParams
 import org.apache.spark.mllib.tree.configuration.Algo._
 import org.apache.spark.mllib.tree.configuration.QuantileStrategy._
@@ -32,16 +32,20 @@ import org.apache.spark.rdd.RDD
 /**
  * Learning and dataset metadata for DecisionTree.
  *
+ * @param weightedNumExamples  Weighted count of samples in the tree.
  * @param numClasses    For classification: labels can take values {0, ..., numClasses - 1}.
  *                      For regression: fixed at 0 (no meaning).
  * @param maxBins  Maximum number of bins, for all features.
  * @param featureArity  Map: categorical feature index to arity.
  *                      I.e., the feature takes values in {0, ..., arity - 1}.
  * @param numBins  Number of bins for each feature.
+ * @param minWeightFractionPerNode  The minimum fraction of the total sample weight that must be
+ *                                  present in a leaf node in order to be considered a valid split.
  */
 private[spark] class DecisionTreeMetadata(
     val numFeatures: Int,
     val numExamples: Long,
+    val weightedNumExamples: Double,
     val numClasses: Int,
     val maxBins: Int,
     val featureArity: Map[Int, Int],
@@ -51,6 +55,7 @@ private[spark] class DecisionTreeMetadata(
     val quantileStrategy: QuantileStrategy,
     val maxDepth: Int,
     val minInstancesPerNode: Int,
+    val minWeightFractionPerNode: Double,
     val minInfoGain: Double,
     val numTrees: Int,
     val numFeaturesPerNode: Int) extends Serializable {
@@ -66,6 +71,8 @@ private[spark] class DecisionTreeMetadata(
   def isCategorical(featureIndex: Int): Boolean = featureArity.contains(featureIndex)
 
   def isContinuous(featureIndex: Int): Boolean = !featureArity.contains(featureIndex)
+
+  def minWeightPerNode: Double = minWeightFractionPerNode * weightedNumExamples
 
   /**
    * Number of splits for the given feature.
@@ -85,7 +92,7 @@ private[spark] class DecisionTreeMetadata(
    */
   def setNumSplits(featureIndex: Int, numSplits: Int) {
     require(isContinuous(featureIndex),
-      "Only number of bin for a continuous feature can be set.")
+      s"Only number of bin for a continuous feature can be set.")
     numBins(featureIndex) = numSplits + 1
   }
 
@@ -104,18 +111,22 @@ private[spark] object DecisionTreeMetadata extends Logging {
    * as well as the number of splits and bins for each feature.
    */
   def buildMetadata(
-      input: RDD[LabeledPoint],
+      input: RDD[Instance],
       strategy: Strategy,
       numTrees: Int,
       featureSubsetStrategy: String): DecisionTreeMetadata = {
 
     val numFeatures = input.map(_.features.size).take(1).headOption.getOrElse {
-      throw new IllegalArgumentException("DecisionTree requires size of input RDD > 0, " +
-        "but was given by empty one.")
+      throw new IllegalArgumentException(s"DecisionTree requires size of input RDD > 0, " +
+        s"but was given by empty one.")
     }
-    require(numFeatures > 0, "DecisionTree requires number of features > 0, " +
-      "but was given an empty features vector")
-    val numExamples = input.count()
+    require(numFeatures > 0, s"DecisionTree requires number of features > 0, " +
+      s"but was given an empty features vector")
+    val (numExamples, weightSum) = input.aggregate((0L, 0.0))(
+      seqOp = (cw, instance) => (cw._1 + 1L, cw._2 + instance.weight),
+      combOp = (cw1, cw2) => (cw1._1 + cw2._1, cw1._2 + cw2._2)
+    )
+
     val numClasses = strategy.algo match {
       case Classification => strategy.numClasses
       case Regression => 0
@@ -124,7 +135,7 @@ private[spark] object DecisionTreeMetadata extends Logging {
     val maxPossibleBins = math.min(strategy.maxBins, numExamples).toInt
     if (maxPossibleBins < strategy.maxBins) {
       logWarning(s"DecisionTree reducing maxBins from ${strategy.maxBins} to $maxPossibleBins" +
-        " (= number of training instances)")
+        s" (= number of training instances)")
     }
 
     // We check the number of bins here against maxPossibleBins.
@@ -199,24 +210,25 @@ private[spark] object DecisionTreeMetadata extends Logging {
           case None =>
             Try(_featureSubsetStrategy.toDouble).filter(_ > 0).filter(_ <= 1.0).toOption match {
               case Some(value) => math.ceil(value * numFeatures).toInt
-              case _ => throw new IllegalArgumentException("Supported values:" +
+              case _ => throw new IllegalArgumentException(s"Supported values:" +
                 s" ${TreeEnsembleParams.supportedFeatureSubsetStrategies.mkString(", ")}," +
-                " (0.0-1.0], [1-n].")
+                s" (0.0-1.0], [1-n].")
             }
         }
     }
 
-    new DecisionTreeMetadata(numFeatures, numExamples, numClasses, numBins.max,
-      strategy.categoricalFeaturesInfo, unorderedFeatures.toSet, numBins,
+    new DecisionTreeMetadata(numFeatures, numExamples, weightSum, numClasses,
+      numBins.max, strategy.categoricalFeaturesInfo, unorderedFeatures.toSet, numBins,
       strategy.impurity, strategy.quantileCalculationStrategy, strategy.maxDepth,
-      strategy.minInstancesPerNode, strategy.minInfoGain, numTrees, numFeaturesPerNode)
+      strategy.minInstancesPerNode, strategy.minWeightFractionPerNode, strategy.minInfoGain,
+      numTrees, numFeaturesPerNode)
   }
 
   /**
    * Version of [[DecisionTreeMetadata#buildMetadata]] for DecisionTree.
    */
   def buildMetadata(
-      input: RDD[LabeledPoint],
+      input: RDD[Instance],
       strategy: Strategy): DecisionTreeMetadata = {
     buildMetadata(input, strategy, numTrees = 1, featureSubsetStrategy = "all")
   }

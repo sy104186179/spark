@@ -25,7 +25,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
 import org.apache.spark.internal.Logging
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.util.{ThreadUtils, Utils}
 
 private[spark] class ExecutorPodsPollingSnapshotSource(
     conf: SparkConf,
@@ -53,8 +53,8 @@ private[spark] class ExecutorPodsPollingSnapshotSource(
   }
 
   private class PollRunnable(applicationId: String) extends Runnable {
-    override def run(): Unit = {
-      logDebug("Resynchronizing full executor pod state from Kubernetes.")
+    override def run(): Unit = Utils.tryLogNonFatalError {
+      logDebug(s"Resynchronizing full executor pod state from Kubernetes.")
       snapshotsStore.replaceSnapshot(kubernetesClient
         .pods()
         .withLabel(SPARK_APP_ID_LABEL, applicationId)

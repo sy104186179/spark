@@ -41,9 +41,9 @@ class PercentileSuite extends SparkFunSuite {
     val buffer = new OpenHashMap[AnyRef, Long]()
     assert(compareEquals(agg.deserialize(agg.serialize(buffer)), buffer))
 
-    // Check non-empty buffer serializa and deserialize.
+    // Check non-empty buffer serialize and deserialize.
     data.foreach { key =>
-      buffer.changeValue(new Integer(key), 1L, _ + 1L)
+      buffer.changeValue(Integer.valueOf(key), 1L, _ + 1L)
     }
     assert(compareEquals(agg.deserialize(agg.serialize(buffer)), buffer))
   }
@@ -167,7 +167,7 @@ class PercentileSuite extends SparkFunSuite {
       val child = AttributeReference("a", dataType)()
       val percentile = new Percentile(child, percentage)
       assertEqual(percentile.checkInputDataTypes(),
-        TypeCheckFailure("argument 1 requires numeric type, however, " +
+        TypeCheckFailure(s"argument 1 requires numeric type, however, " +
             s"'`a`' is of ${dataType.simpleString} type."))
     }
 
@@ -181,7 +181,7 @@ class PercentileSuite extends SparkFunSuite {
       val frq = AttributeReference("frq", frequencyType)()
       val percentile = new Percentile(child, percentage, frq)
       assertEqual(percentile.checkInputDataTypes(),
-        TypeCheckFailure("argument 1 requires numeric type, however, " +
+        TypeCheckFailure(s"argument 1 requires numeric type, however, " +
             s"'`a`' is of ${dataType.simpleString} type."))
     }
 
@@ -191,7 +191,7 @@ class PercentileSuite extends SparkFunSuite {
       val frq = AttributeReference("frq", frequencyType)()
       val percentile = new Percentile(child, percentage, frq)
       assertEqual(percentile.checkInputDataTypes(),
-        TypeCheckFailure("argument 3 requires integral type, however, " +
+        TypeCheckFailure(s"argument 3 requires integral type, however, " +
             s"'`frq`' is of ${frequencyType.simpleString} type."))
     }
   }
@@ -214,8 +214,8 @@ class PercentileSuite extends SparkFunSuite {
     invalidPercentages.foreach { percentage =>
       val percentile2 = new Percentile(child, percentage)
       assertEqual(percentile2.checkInputDataTypes(),
-        TypeCheckFailure("Percentage(s) must be between 0.0 and 1.0, " +
-        s"but got ${percentage.simpleString}"))
+        TypeCheckFailure(s"Percentage(s) must be between 0.0 and 1.0, " +
+        s"but got ${percentage.simpleString(100)}"))
     }
 
     val nonFoldablePercentage = Seq(NonFoldableLiteral(0.5),
@@ -224,7 +224,7 @@ class PercentileSuite extends SparkFunSuite {
     nonFoldablePercentage.foreach { percentage =>
       val percentile3 = new Percentile(child, percentage)
       assertEqual(percentile3.checkInputDataTypes(),
-        TypeCheckFailure("The percentage(s) must be a constant literal, " +
+        TypeCheckFailure(s"The percentage(s) must be a constant literal, " +
           s"but got ${percentage}"))
     }
 
@@ -232,11 +232,14 @@ class PercentileSuite extends SparkFunSuite {
       BooleanType, StringType, DateType, TimestampType, CalendarIntervalType, NullType)
 
     invalidDataTypes.foreach { dataType =>
-      val percentage = Literal(0.5, dataType)
+      val percentage = Literal.default(dataType)
       val percentile4 = new Percentile(child, percentage)
-      assertEqual(percentile4.checkInputDataTypes(),
-        TypeCheckFailure("argument 2 requires double type, however, " +
-          s"'0.5' is of ${dataType.simpleString} type."))
+      val checkResult = percentile4.checkInputDataTypes()
+      assert(checkResult.isFailure)
+      Seq("argument 2 requires double type, however, ",
+          s"is of ${dataType.simpleString} type.").foreach { errMsg =>
+        assert(checkResult.asInstanceOf[TypeCheckFailure].message.contains(errMsg))
+      }
     }
   }
 

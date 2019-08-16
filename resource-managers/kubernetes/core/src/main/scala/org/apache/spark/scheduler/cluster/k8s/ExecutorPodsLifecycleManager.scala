@@ -30,8 +30,7 @@ import org.apache.spark.scheduler.ExecutorExited
 import org.apache.spark.util.Utils
 
 private[spark] class ExecutorPodsLifecycleManager(
-    conf: SparkConf,
-    executorBuilder: KubernetesExecutorBuilder,
+    val conf: SparkConf,
     kubernetesClient: KubernetesClient,
     snapshotsStore: ExecutorPodsSnapshotsStore,
     // Use a best-effort to track which executors have been removed already. It's not generally
@@ -43,6 +42,8 @@ private[spark] class ExecutorPodsLifecycleManager(
   import ExecutorPodsLifecycleManager._
 
   private val eventProcessingInterval = conf.get(KUBERNETES_EXECUTOR_EVENT_PROCESSING_INTERVAL)
+
+  private lazy val shouldDeleteExecutors = conf.get(KUBERNETES_DELETE_EXECUTORS)
 
   def start(schedulerBackend: KubernetesClusterSchedulerBackend): Unit = {
     snapshotsStore.addSubscriber(eventProcessingInterval) {
@@ -67,9 +68,13 @@ private[spark] class ExecutorPodsLifecycleManager(
               s" pod name ${state.pod.getMetadata.getName}")
             onFinalNonDeletedState(failed, execId, schedulerBackend, execIdsRemovedInThisRound)
           case succeeded@PodSucceeded(_) =>
-            logDebug(s"Snapshot reported succeeded executor with id $execId," +
-              s" pod name ${state.pod.getMetadata.getName}. Note that succeeded executors are" +
-              " unusual unless Spark specifically informed the executor to exit.")
+            if (schedulerBackend.isExecutorActive(execId.toString)) {
+              logInfo(s"Snapshot reported succeeded executor with id $execId, " +
+                "even though the application has not requested for it to be removed.")
+            } else {
+              logDebug(s"Snapshot reported succeeded executor with id $execId," +
+                s" pod name ${state.pod.getMetadata.getName}.")
+            }
             onFinalNonDeletedState(succeeded, execId, schedulerBackend, execIdsRemovedInThisRound)
           case _ =>
         }
@@ -88,8 +93,8 @@ private[spark] class ExecutorPodsLifecycleManager(
         -- execIdsRemovedInThisRound).foreach { missingExecutorId =>
         if (removedExecutorsCache.getIfPresent(missingExecutorId) == null) {
           val exitReasonMessage = s"The executor with ID $missingExecutorId was not found in the" +
-            " cluster but we didn't get a reason why. Marking the executor as failed. The" +
-            " executor may have been deleted but the driver missed the deletion event."
+            s" cluster but we didn't get a reason why. Marking the executor as failed. The" +
+            s" executor may have been deleted but the driver missed the deletion event."
           logDebug(exitReasonMessage)
           val exitReason = ExecutorExited(
             UNKNOWN_EXIT_CODE,
@@ -100,8 +105,11 @@ private[spark] class ExecutorPodsLifecycleManager(
         }
       }
     }
-    logDebug(s"Removed executors with ids ${execIdsRemovedInThisRound.mkString(",")}" +
-      " from Spark that were either found to be deleted or non-existent in the cluster.")
+
+    if (execIdsRemovedInThisRound.nonEmpty) {
+      logDebug(s"Removed executors with ids ${execIdsRemovedInThisRound.mkString(",")}" +
+        s" from Spark that were either found to be deleted or non-existent in the cluster.")
+    }
   }
 
   private def onFinalNonDeletedState(
@@ -109,8 +117,10 @@ private[spark] class ExecutorPodsLifecycleManager(
       execId: Long,
       schedulerBackend: KubernetesClusterSchedulerBackend,
       execIdsRemovedInRound: mutable.Set[Long]): Unit = {
-    removeExecutorFromK8s(podState.pod)
     removeExecutorFromSpark(schedulerBackend, podState, execId)
+    if (shouldDeleteExecutors) {
+      removeExecutorFromK8s(podState.pod)
+    }
     execIdsRemovedInRound += execId
   }
 

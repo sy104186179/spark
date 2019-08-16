@@ -18,7 +18,7 @@
 package org.apache.spark.ml.classification
 
 import org.apache.spark.SparkException
-import org.apache.spark.annotation.{DeveloperApi, Since}
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.ml.{PredictionModel, Predictor, PredictorParams}
 import org.apache.spark.ml.feature.LabeledPoint
 import org.apache.spark.ml.linalg.{Vector, VectorUDT}
@@ -77,15 +77,35 @@ abstract class Classifier[
    * @note Throws `SparkException` if any label is a non-integer or is negative
    */
   protected def extractLabeledPoints(dataset: Dataset[_], numClasses: Int): RDD[LabeledPoint] = {
-    require(numClasses > 0, "Classifier (in extractLabeledPoints) found numClasses =" +
-      s" $numClasses, but requires numClasses > 0.")
+    validateNumClasses(numClasses)
     dataset.select(col($(labelCol)), col($(featuresCol))).rdd.map {
       case Row(label: Double, features: Vector) =>
-        require(label % 1 == 0 && label >= 0 && label < numClasses, "Classifier was given" +
-          s" dataset with invalid label $label.  Labels must be integers in range" +
-          s" [0, $numClasses).")
+        validateLabel(label, numClasses)
         LabeledPoint(label, features)
     }
+  }
+
+  /**
+   * Validates that number of classes is greater than zero.
+   *
+   * @param numClasses Number of classes label can take.
+   */
+  protected def validateNumClasses(numClasses: Int): Unit = {
+    require(numClasses > 0, s"Classifier (in extractLabeledPoints) found numClasses =" +
+      s" $numClasses, but requires numClasses > 0.")
+  }
+
+  /**
+   * Validates the label on the classifier is a valid integer in the range [0, numClasses).
+   *
+   * @param label The label to validate.
+   * @param numClasses Number of classes label can take.  Labels must be integers in the range
+   *                  [0, numClasses).
+   */
+  protected def validateLabel(label: Double, numClasses: Int): Unit = {
+    require(label.toLong == label && label >= 0 && label < numClasses, s"Classifier was given" +
+      s" dataset with invalid label $label.  Labels must be integers in range" +
+      s" [0, $numClasses).")
   }
 
   /**
@@ -113,14 +133,14 @@ abstract class Classifier[
           throw new SparkException("ML algorithm was given empty dataset.")
         }
         val maxDoubleLabel: Double = maxLabelRow.head.getDouble(0)
-        require((maxDoubleLabel + 1).isValidInt, "Classifier found max label value =" +
+        require((maxDoubleLabel + 1).isValidInt, s"Classifier found max label value =" +
           s" $maxDoubleLabel but requires integers in range [0, ... ${Int.MaxValue})")
         val numClasses = maxDoubleLabel.toInt + 1
         require(numClasses <= maxNumClasses, s"Classifier inferred $numClasses from label values" +
           s" in column $labelCol, but this exceeded the max numClasses ($maxNumClasses) allowed" +
           s" to be inferred from values.  To avoid this error for labels with > $maxNumClasses" +
-          " classes, specify numClasses explicitly in the metadata; this can be done by applying" +
-          " StringIndexer to the label column.")
+          s" classes, specify numClasses explicitly in the metadata; this can be done by applying" +
+          s" StringIndexer to the label column.")
         logInfo(this.getClass.getCanonicalName + s" inferred $numClasses classes for" +
           s" labelCol=$labelCol since numClasses was not specified in the column metadata.")
         numClasses
@@ -184,11 +204,14 @@ abstract class ClassificationModel[FeaturesType, M <: ClassificationModel[Featur
     }
 
     if (numColsOutput == 0) {
-      logWarning(s"$uid: ClassificationModel.transform() was called as NOOP" +
-        " since no output columns were set.")
+      logWarning(s"$uid: ClassificationModel.transform() does nothing" +
+        " because no output columns were set.")
     }
     outputData.toDF
   }
+
+  final override def transformImpl(dataset: Dataset[_]): DataFrame =
+    throw new UnsupportedOperationException(s"transformImpl is not supported in $getClass")
 
   /**
    * Predict label for the given features.
