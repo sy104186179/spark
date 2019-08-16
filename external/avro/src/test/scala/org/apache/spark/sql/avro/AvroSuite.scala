@@ -1008,7 +1008,7 @@ abstract class AvroSuite extends QueryTest with SharedSQLContext with SQLTestUti
         sql("select testType()").write.format("avro").mode("overwrite").save(tempDir)
       }.getMessage
       assert(msg.toLowerCase(Locale.ROOT)
-        .contains(s"avro data source does not support interval data type."))
+        .contains("avro data source does not support interval data type."))
     }
   }
 

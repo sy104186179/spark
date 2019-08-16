@@ -74,7 +74,7 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext with SQLTestUti
     val count = 10
     val df = spark.range(count).select(struct('id, 'id.as("id2")).as("struct"))
     val avroStructDF = df.select(to_avro('struct).as("avro"))
-    val avroTypeStruct = s"""
+    val avroTypeStruct = """
       |{
       |  "type": "record",
       |  "name": "struct",
