@@ -380,7 +380,7 @@ trait CheckAnalysis extends PredicateHelper {
                   case _: StructType =>
                     throw new AnalysisException(
                       s"Cannot update ${table.name} field $fieldName type: " +
-                          s"update a struct by adding, deleting, or updating its fields")
+                          "update a struct by adding, deleting, or updating its fields")
                   case _: MapType =>
                     throw new AnalysisException(
                       s"Cannot update ${table.name} field $fieldName type: " +
@@ -596,7 +596,7 @@ trait CheckAnalysis extends PredicateHelper {
         plan match {
           case _: Filter | _: DeleteFromTable => // Ok
           case _ =>
-            failAnalysis(s"IN/EXISTS predicate sub-queries can only be used in" +
+            failAnalysis("IN/EXISTS predicate sub-queries can only be used in" +
                 s" Filter/DeleteFromTable: $plan")
         }
     }

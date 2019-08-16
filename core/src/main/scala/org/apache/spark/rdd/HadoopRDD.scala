@@ -215,10 +215,10 @@ class HadoopRDD[K, V](
           val codecFactory = new CompressionCodecFactory(jobConf)
           if (Utils.isFileSplittable(path, codecFactory)) {
             logWarning(s"Loading one large file ${path.toString} with only one partition, " +
-              s"we can increase partition numbers for improving performance.")
+              "we can increase partition numbers for improving performance.")
           } else {
             logWarning(s"Loading one large unsplittable file ${path.toString} with only one " +
-              s"partition, because the file is compressed by unsplittable compression codec.")
+              "partition, because the file is compressed by unsplittable compression codec.")
           }
         }
       }

@@ -2191,7 +2191,7 @@ class SQLQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleton {
           val m1 = intercept[AnalysisException] {
             sql(s"CREATE TABLE t21912 STORED AS $source AS SELECT 1 `col$name`")
           }.getMessage
-          assert(m1.contains(s"contains invalid character(s)"))
+          assert(m1.contains("contains invalid character(s)"))
 
           val m2 = intercept[AnalysisException] {
             sql(s"CREATE TABLE t21912 USING $source AS SELECT 1 `col$name`")

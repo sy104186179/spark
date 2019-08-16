@@ -796,7 +796,7 @@ abstract class QuaternaryExpression extends Expression {
    *  full control of evaluation process, we should override [[eval]].
    */
   protected def nullSafeEval(input1: Any, input2: Any, input3: Any, input4: Any): Any =
-    sys.error(s"QuaternaryExpressions must override either eval or nullSafeEval")
+    sys.error("QuaternaryExpressions must override either eval or nullSafeEval")
 
   /**
    * Short hand for generating quaternary evaluation code.

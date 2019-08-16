@@ -450,7 +450,7 @@ class SessionCatalog(
         val tables = names.map(name => formatTableName(name.table))
         val qualifiedTableNames = dbs.zip(tables).map { case (d, t) => QualifiedTableName(d, t)}
         throw new AnalysisException(
-          s"Only the tables/views belong to the same database can be retrieved. Querying " +
+          "Only the tables/views belong to the same database can be retrieved. Querying " +
           s"tables/views are $qualifiedTableNames"
         )
       }

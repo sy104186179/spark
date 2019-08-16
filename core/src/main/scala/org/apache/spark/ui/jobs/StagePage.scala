@@ -409,7 +409,7 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
           <span>Enable zooming</span>
         </div>
         <div>
-          <form id={s"form-event-timeline-page"}
+          <form id={"form-event-timeline-page"}
                 method="get"
                 action=""
                 class="form-inline pull-right"
@@ -419,12 +419,12 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
             <input type="hidden" name="attempt" value={stageAttemptId.toString} />
             <input type="text"
                    name="task.eventTimelinePageNumber"
-                   id={s"form-event-timeline-page-no"}
+                   id={"form-event-timeline-page-no"}
                    value={page.toString} class="span1" />
 
             <label>. Show </label>
             <input type="text"
-                   id={s"form-event-timeline-page-size"}
+                   id={"form-event-timeline-page-size"}
                    name="task.eventTimelinePageSize"
                    value={pageSize.toString}
                    class="span1" />

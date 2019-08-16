@@ -424,13 +424,13 @@ class UnsupportedOperationsSuite extends SparkFunSuite {
 
   // Left outer joins: update and complete mode not allowed
   assertNotSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and update mode",
+    "left outer join with stream-stream relations and update mode",
     streamRelation.join(streamRelation, joinType = LeftOuter,
       condition = Some(attribute === attribute)),
     OutputMode.Update(),
     Seq("is not supported in Update output mode"))
   assertNotSupportedInStreamingPlan(
-    s"left outer join with stream-stream relations and complete mode",
+    "left outer join with stream-stream relations and complete mode",
     Aggregate(Nil, aggExprs("d"), streamRelation.join(streamRelation, joinType = LeftOuter,
       condition = Some(attribute === attribute))),
     OutputMode.Complete(),

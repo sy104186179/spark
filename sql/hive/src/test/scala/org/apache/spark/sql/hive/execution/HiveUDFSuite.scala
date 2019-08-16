@@ -644,7 +644,7 @@ class HiveUDFSuite extends QueryTest with TestHiveSingleton with SQLTestUtils {
       spark.range(10).createOrReplaceTempView("inputTable")
       withUserDefinedFunction("testGenericUDAFPercentileApprox" -> false) {
         val numFunc = spark.catalog.listFunctions().count()
-        sql(s"CREATE FUNCTION testGenericUDAFPercentileApprox AS '" +
+        sql("CREATE FUNCTION testGenericUDAFPercentileApprox AS '" +
           s"${classOf[GenericUDAFPercentileApprox].getName}'")
         checkAnswer(
           sql("SELECT testGenericUDAFPercentileApprox(id, 0.5) FROM inputTable"),

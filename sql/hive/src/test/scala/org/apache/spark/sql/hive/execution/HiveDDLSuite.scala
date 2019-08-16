@@ -2474,7 +2474,7 @@ class HiveDDLSuite
   test("Hive CTAS can't create partitioned table by specifying schema") {
     val err1 = intercept[ParseException] {
       spark.sql(
-        s"""
+        """
            |CREATE TABLE t (a int)
            |PARTITIONED BY (b string)
            |STORED AS parquet
@@ -2486,7 +2486,7 @@ class HiveDDLSuite
 
     val err2 = intercept[ParseException] {
       spark.sql(
-        s"""
+        """
            |CREATE TABLE t
            |PARTITIONED BY (b string)
            |STORED AS parquet

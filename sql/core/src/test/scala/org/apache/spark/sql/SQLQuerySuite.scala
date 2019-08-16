@@ -3165,7 +3165,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
         cachedView.persist()
 
         val queryDf = sql(
-          s"""select leftside.a, leftside.b
+          """select leftside.a, leftside.b
              |from cachedview leftside
              |join cachedview rightside
              |on leftside.a = rightside.a

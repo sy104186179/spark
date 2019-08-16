@@ -46,7 +46,7 @@ private[spark] object VersionUtils {
       case Some(m) => m.group(1)
       case None =>
         throw new IllegalArgumentException(s"Spark tried to parse '$sparkVersion' as a Spark" +
-          s" version string, but it could not find the major/minor/maintenance version numbers.")
+          " version string, but it could not find the major/minor/maintenance version numbers.")
     }
   }
 

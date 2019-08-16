@@ -1426,7 +1426,7 @@ private[spark] object SparkSubmitUtils {
           s"clients registered for master url ${master}.")
       case 1 => serviceLoaders.headOption.get
       case _ =>
-        throw new IllegalArgumentException(s"No external SparkSubmitOperations " +
+        throw new IllegalArgumentException("No external SparkSubmitOperations " +
           s"clients found for master url: '$master'")
     }
   }

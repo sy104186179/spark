@@ -1176,7 +1176,7 @@ private[spark] class DAGScheduler(
       }
 
       if (taskBinaryBytes.length > TaskSetManager.TASK_SIZE_TO_WARN_KIB * 1024) {
-        logWarning(s"Broadcasting large task binary with size " +
+        logWarning("Broadcasting large task binary with size " +
           s"${Utils.bytesToString(taskBinaryBytes.length)}")
       }
       taskBinary = sc.broadcast(taskBinaryBytes)
