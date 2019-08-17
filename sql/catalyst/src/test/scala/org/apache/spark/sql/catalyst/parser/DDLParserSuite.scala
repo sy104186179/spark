@@ -383,7 +383,7 @@ class DDLParserSuite extends AnalysisTest {
     parseCompare("DROP TABLE db.tab",
       DropTableStatement(Seq("db", "tab"), ifExists = false, purge = false))
     parseCompare("DROP TABLE IF EXISTS db.tab",
-      DropTableStatement(Seq("db", "ta"), ifExists = true, purge = false))
+      DropTableStatement(Seq("db", "tab"), ifExists = true, purge = false))
     parseCompare("DROP TABLE tab",
       DropTableStatement(Seq("tab"), ifExists = false, purge = false))
     parseCompare("DROP TABLE IF EXISTS tab",
