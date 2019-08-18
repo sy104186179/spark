@@ -60,7 +60,7 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
       case cause: Throwable =>
         throw cause
     }.get
-    logInfo(s"HiveThriftServer2 started successfully")
+    logInfo("HiveThriftServer2 started successfully")
   }
 
   override def afterAll(): Unit = {
@@ -135,7 +135,7 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
         // each query has 3 segments, plus the header
         assert(segments.size == outputs.size * 3 + 1,
           s"Expected ${outputs.size * 3 + 1} blocks in result file but got ${segments.size}. " +
-            s"Try regenerate the result files.")
+            "Try regenerate the result files.")
         Seq.tabulate(outputs.size) { i =>
           val sql = segments(i * 3 + 1).trim
           val originalOut = segments(i * 3 + 3)
