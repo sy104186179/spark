@@ -1700,6 +1700,9 @@ object SQLConf {
     val MAPREDUCE_JOB_REDUCES = "mapreduce.job.reduces"
   }
 
+  val invalidateCachedPlanConf =
+    Set(ENABLE_FALL_BACK_TO_HDFS_FOR_STATS, DEFAULT_SIZE_IN_BYTES).map(_.key)
+
   val CSV_PARSER_COLUMN_PRUNING = buildConf("spark.sql.csv.parser.columnPruning.enabled")
     .internal()
     .doc("If it is set to true, column names of the requested schema are passed to CSV parser. " +

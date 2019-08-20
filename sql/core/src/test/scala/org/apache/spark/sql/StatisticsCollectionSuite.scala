@@ -719,4 +719,36 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
       }
     }
   }
+
+  test("Invalidate cached plan when some configuration changed") {
+    val originFallBackToHdfsForStatsEnabled = conf.fallBackToHdfsForStatsEnabled
+    val originDefaultSizeInBytes = conf.defaultSizeInBytes
+    try {
+      val tableName = "spark_25740"
+      withTempDir { dir =>
+        withTable(tableName) {
+          sql(s"CREATE TABLE $tableName(a int, b int) USING parquet " +
+            s"PARTITIONED BY(a) LOCATION '${dir.toURI}'")
+          sql(s"INSERT INTO TABLE $tableName PARTITION(a=1) SELECT 2")
+          Seq(false, true, false, true).foreach { fallBackToHDFS =>
+            sql(s"set ${SQLConf.ENABLE_FALL_BACK_TO_HDFS_FOR_STATS.key}=$fallBackToHDFS")
+            Seq(10 * 1024, 100 * 1024, 1000 * 1024).foreach { defaultSizeInBytes =>
+              sql(s"set ${SQLConf.DEFAULT_SIZE_IN_BYTES.key}=$defaultSizeInBytes")
+              assert(getCatalogTable(tableName).stats.isEmpty)
+              val relation = spark.table(tableName).queryExecution.analyzed.children.head
+              if (fallBackToHDFS) {
+                assert(relation.stats.sizeInBytes ===
+                  CommandUtils.getSizeInBytesFallBackToHdfs(spark, getCatalogTable(tableName)))
+              } else {
+                assert(relation.stats.sizeInBytes === defaultSizeInBytes)
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      conf.setConf(SQLConf.ENABLE_FALL_BACK_TO_HDFS_FOR_STATS, originFallBackToHdfsForStatsEnabled)
+      conf.setConf(SQLConf.DEFAULT_SIZE_IN_BYTES, originDefaultSizeInBytes)
+    }
+  }
 }

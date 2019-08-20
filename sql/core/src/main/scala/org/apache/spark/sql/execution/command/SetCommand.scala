@@ -86,6 +86,14 @@ case class SetCommand(kv: Option[(String, Option[String])]) extends RunnableComm
       }
       (keyValueOutput, runFunc)
 
+    case Some((key, Some(value))) if SQLConf.invalidateCachedPlanConf.contains(key) =>
+      val runFunc = (sparkSession: SparkSession) => {
+        sparkSession.sessionState.catalog.invalidateAllCachedTables()
+        sparkSession.conf.set(key, value)
+        Seq(Row(key, value))
+      }
+      (keyValueOutput, runFunc)
+
     // Configures a single property.
     case Some((key, Some(value))) =>
       val runFunc = (sparkSession: SparkSession) => {
