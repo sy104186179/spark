@@ -23,11 +23,11 @@ import java.util.Locale
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.QualifiedTableName
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning._
-import org.apache.spark.sql.catalyst.plans.logical.{InsertIntoDir, InsertIntoTable, LogicalPlan,
-    ScriptTransformation}
+import org.apache.spark.sql.catalyst.plans.logical.{InsertIntoDir, InsertIntoTable, LogicalPlan, ScriptTransformation}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.{CreateTableCommand, DDLUtils}
@@ -131,6 +131,9 @@ class DetermineTableStats(session: SparkSession) extends Rule[LogicalPlan] {
       } else {
         session.sessionState.conf.defaultSizeInBytes
       }
+      // Invalidate cached relation
+      val qualifiedTableName = QualifiedTableName(table.database, table.identifier.table)
+      session.sessionState.catalog.invalidateCachedTable(qualifiedTableName)
 
       val withStats = table.copy(stats = Some(CatalogStatistics(sizeInBytes = BigInt(sizeInBytes))))
       relation.copy(tableMeta = withStats)

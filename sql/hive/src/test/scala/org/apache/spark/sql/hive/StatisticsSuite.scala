@@ -1484,4 +1484,30 @@ class StatisticsSuite extends StatisticsCollectionTestBase with TestHiveSingleto
       }
     }
   }
+
+  test("Invalidate cached plan after DetermineTableStats") {
+    val tableName = "spark_25740"
+    withTempDir { dir =>
+      withTable(tableName) {
+        sql(s"CREATE TABLE $tableName (c1 BIGINT) STORED AS PARQUET LOCATION '${dir.toURI}'")
+        spark.range(5).write.mode(SaveMode.Overwrite).parquet(dir.getCanonicalPath)
+
+        Seq(false, true, false).foreach { fallBackToHDFS =>
+          withSQLConf(SQLConf.ENABLE_FALL_BACK_TO_HDFS_FOR_STATS.key -> s"$fallBackToHDFS") {
+            Seq(10 * 1024, 100 * 1024, 1000 * 1024).foreach { defaultSizeInBytes =>
+              withSQLConf(SQLConf.DEFAULT_SIZE_IN_BYTES.key -> s"$defaultSizeInBytes") {
+                assert(getCatalogTable(tableName).stats.isEmpty)
+                val relation = spark.table(tableName).queryExecution.analyzed.children.head
+                if (fallBackToHDFS) {
+                  assert(relation.stats.sizeInBytes === getDataSize(dir))
+                } else {
+                  assert(relation.stats.sizeInBytes === defaultSizeInBytes)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
