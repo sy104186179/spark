@@ -50,6 +50,9 @@ object CommandUtils extends Logging {
       catalog.alterTableStats(table.identifier, Some(newStats))
     } else if (table.stats.nonEmpty) {
       catalog.alterTableStats(table.identifier, None)
+    } else {
+      // Invalidate the table relation cache
+      catalog.refreshTable(table.identifier)
     }
   }
 
