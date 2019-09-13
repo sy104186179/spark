@@ -186,10 +186,15 @@ private[hive] class HiveClientImpl(
     }
     // Disable CBO because we removed the Calcite dependency.
     hiveConf.setBoolean("hive.cbo.enable", false)
+    val parentLoader = classOf[SessionState].getClassLoader
+    // scalastyle:off
+    println("parentLoader: " + parentLoader)
+    println("initClassLoader: " + initClassLoader)
     val state = new SessionState(hiveConf)
     if (clientLoader.cachedHive != null) {
       Hive.set(clientLoader.cachedHive.asInstanceOf[Hive])
     }
+    state.getConf.setClassLoader(parentLoader)
     SessionState.start(state)
     state.out = new PrintStream(outputBuffer, true, UTF_8.name())
     state.err = new PrintStream(outputBuffer, true, UTF_8.name())
