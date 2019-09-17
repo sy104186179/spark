@@ -144,6 +144,7 @@ private[hive] class HiveClientImpl(
         warehouseDir.foreach { dir =>
           ret.getConf.setVar(ConfVars.METASTOREWAREHOUSE, dir)
         }
+        ret.getConf.setClassLoader(clientLoader.classLoader)
         ret
       } else {
         newState()
@@ -193,6 +194,8 @@ private[hive] class HiveClientImpl(
     SessionState.start(state)
     state.out = new PrintStream(outputBuffer, true, UTF_8.name())
     state.err = new PrintStream(outputBuffer, true, UTF_8.name())
+
+    state.getConf.setClassLoader(initClassLoader)
     state
   }
 
