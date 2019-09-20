@@ -62,10 +62,6 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
         throw cause
     }.get
     logInfo("HiveThriftServer2 started successfully")
-
-    withJdbcStatement { statement =>
-      loadTestData(statement)
-    }
   }
 
   override def afterAll(): Unit = {
@@ -110,6 +106,8 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
       configSet: Option[Seq[(String, String)]]): Unit = {
     // We do not test with configSet.
     withJdbcStatement { statement =>
+
+      loadTestData(statement)
 
       testCase match {
         case _: PgSQLTest =>
