@@ -26,7 +26,6 @@ import scala.util.control.NonFatal
 
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars
 import org.apache.hive.service.cli.HiveSQLException
-import org.scalatest.Ignore
 
 import org.apache.spark.sql.{AnalysisException, SQLQueryTestSuite}
 import org.apache.spark.sql.catalyst.util.fileToString
@@ -43,7 +42,6 @@ import org.apache.spark.sql.types._
  *   2. Support DESC command.
  *   3. Support SHOW command.
  */
-@Ignore
 class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
 
   private var hiveServer2: HiveThriftServer2 = _
