@@ -47,6 +47,7 @@ class ThriftServerQueryTestSuite extends SQLQueryTestSuite {
   private var hiveServer2: HiveThriftServer2 = _
 
   override def beforeAll(): Unit = {
+    super.beforeAll()
     // Chooses a random port between 10000 and 19999
     var listeningPort = 10000 + Random.nextInt(10000)
 
