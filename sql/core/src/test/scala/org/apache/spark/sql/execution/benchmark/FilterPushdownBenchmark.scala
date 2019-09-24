@@ -46,7 +46,7 @@ object FilterPushdownBenchmark extends SqlBasedBenchmark {
     val conf = new SparkConf()
       .setAppName(this.getClass.getSimpleName)
       // Since `spark.master` always exists, overrides this value
-      .set("spark.master", "local[1]")
+      .set("spark.master", "local[*]")
       .setIfMissing("spark.driver.memory", "3g")
       .setIfMissing("spark.executor.memory", "3g")
       .setIfMissing(UI_ENABLED, false)
