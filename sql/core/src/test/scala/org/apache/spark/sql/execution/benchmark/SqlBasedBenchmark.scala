@@ -31,8 +31,12 @@ trait SqlBasedBenchmark extends BenchmarkBase with SQLHelper {
 
   /** Subclass can override this function to build their own SparkSession */
   def getSparkSession: SparkSession = {
+    val cores = Runtime.getRuntime().availableProcessors()
+    val master = s"local[${cores / 2}]"
+    // scalastyle:off
+    println("master: " + master)
+    // scalastyle:on
     SparkSession.builder()
-      .master("local[1]")
       .appName(this.getClass.getCanonicalName)
       .config(SQLConf.SHUFFLE_PARTITIONS.key, 1)
       .config(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, 1)

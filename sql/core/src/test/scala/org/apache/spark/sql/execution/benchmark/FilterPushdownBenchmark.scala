@@ -42,20 +42,6 @@ import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, TimestampType
  */
 object FilterPushdownBenchmark extends SqlBasedBenchmark {
 
-  override def getSparkSession: SparkSession = {
-    val conf = new SparkConf()
-      .setAppName(this.getClass.getSimpleName)
-      // Since `spark.master` always exists, overrides this value
-      .set("spark.master", "local[*]")
-      .setIfMissing("spark.driver.memory", "3g")
-      .setIfMissing("spark.executor.memory", "3g")
-      .setIfMissing(UI_ENABLED, false)
-      .setIfMissing("orc.compression", "snappy")
-      .setIfMissing("spark.sql.parquet.compression.codec", "snappy")
-
-    SparkSession.builder().config(conf).getOrCreate()
-  }
-
   private val numRows = 1024 * 1024 * 15
   private val width = 5
   private val mid = numRows / 2
