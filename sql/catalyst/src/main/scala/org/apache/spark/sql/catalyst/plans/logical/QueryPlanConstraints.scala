@@ -76,6 +76,13 @@ trait ConstraintHelper {
         inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, l, r)
         inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, r, l)
 
+      case eq @ EqualTo(Cast(l: Attribute, dt1, _), Cast(r: Attribute, dt2, _))
+        if dt1.sameType(dt2) && findTightestCommonType(l.dataType, r.dataType)
+          .orElse(findWiderTypeForDecimal(l.dataType, r.dataType)).contains(dt1) =>
+        val candidateConstraints = constraints - eq + EqualTo(l, r)
+        inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, l, r)
+        inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, r, l)
+
       case _ => // No inference
     }
     inferredConstraints -- constraints
