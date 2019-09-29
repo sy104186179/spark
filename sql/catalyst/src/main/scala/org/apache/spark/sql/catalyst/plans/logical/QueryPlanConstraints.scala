@@ -71,7 +71,7 @@ trait ConstraintHelper {
 
       case eq @ EqualTo(Cast(l: Attribute, dataType, _), r: Attribute)
         if findTightestCommonType(l.dataType, r.dataType)
-          .orElse(findWiderTypeForDecimal(l.dataType, r.dataType)).exists(_.sameType(dataType)) =>
+          .orElse(findWiderTypeForDecimal(l.dataType, r.dataType)).contains(dataType) =>
         val candidateConstraints = constraints - eq
         inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, l, r)
         inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, r, l)
