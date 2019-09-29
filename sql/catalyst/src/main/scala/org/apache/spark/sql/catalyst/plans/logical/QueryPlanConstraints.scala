@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
+import org.apache.spark.sql.catalyst.analysis.TypeCoercion.{findTightestCommonType, findWiderTypeForDecimal}
 import org.apache.spark.sql.catalyst.expressions._
 
 
@@ -67,6 +68,14 @@ trait ConstraintHelper {
         val candidateConstraints = constraints - eq
         inferredConstraints ++= replaceConstraints(candidateConstraints, l, r)
         inferredConstraints ++= replaceConstraints(candidateConstraints, r, l)
+
+      case eq @ EqualTo(Cast(l: Attribute, dataType, _), r: Attribute)
+        if findTightestCommonType(l.dataType, r.dataType)
+          .orElse(findWiderTypeForDecimal(l.dataType, r.dataType)).exists(_.sameType(dataType)) =>
+        val candidateConstraints = constraints - eq
+        inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, l, r)
+        inferredConstraints ++= replaceConstraintsWithCast(candidateConstraints, r, l)
+
       case _ => // No inference
     }
     inferredConstraints -- constraints
@@ -78,6 +87,18 @@ trait ConstraintHelper {
       destination: Attribute): Set[Expression] = constraints.map(_ transform {
     case e: Expression if e.semanticEquals(source) => destination
   })
+
+  private def replaceConstraintsWithCast(
+      constraints: Set[Expression],
+      source: Expression,
+      destination: Attribute): Set[Expression] = {
+    replaceConstraints(constraints, source, destination).map {
+      case eq @ EqualTo(l, r) if l.dataType != r.dataType =>
+        eq.copy(right = Cast(r, l.dataType))
+      case other =>
+        other
+    }
+  }
 
   /**
    * Infers a set of `isNotNull` constraints from null intolerant expressions as well as

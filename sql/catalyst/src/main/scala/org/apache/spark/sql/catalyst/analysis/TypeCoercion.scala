@@ -266,7 +266,7 @@ object TypeCoercion {
    * system limitation, this rule will truncate the decimal type. If a decimal and other fractional
    * types are compared, returns a double type.
    */
-  private def findWiderTypeForDecimal(dt1: DataType, dt2: DataType): Option[DataType] = {
+  def findWiderTypeForDecimal(dt1: DataType, dt2: DataType): Option[DataType] = {
     (dt1, dt2) match {
       case (t1: DecimalType, t2: DecimalType) =>
         Some(DecimalPrecision.widerDecimalType(t1, t2))
