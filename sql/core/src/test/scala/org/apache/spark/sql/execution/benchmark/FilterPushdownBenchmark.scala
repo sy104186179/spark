@@ -42,7 +42,7 @@ import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, TimestampType
  */
 object FilterPushdownBenchmark extends SqlBasedBenchmark {
 
-  private val numRows = 1024 * 1024 * 15
+  private val numRows = 1024 * 1024 * 30
   private val width = 5
   private val mid = numRows / 2
   // For Parquet/ORC, we will use the same value for block size and compression size
