@@ -691,7 +691,7 @@ private[hive] class HiveClientImpl(
     val original = state.getCurrentDatabase
     try {
       setCurrentDatabaseRaw(db)
-      val hiveTable = toHiveTable(getTable(db, table)])
+      val hiveTable = toHiveTable(getTable(db, table))
       shim.alterPartitions(client, table, newParts.map { toHivePartition(_, hiveTable) }.asJava)
     } finally {
       state.setCurrentDatabase(original)
@@ -1038,7 +1038,8 @@ private[hive] object HiveClientImpl {
     }
     // scalastyle:off
     println(s"table.owner: ${table.owner}")
-    println(s"userName: ${userName}")
+    println(s"userName: ${UserGroupInformation.getCurrentUser.getShortUserName}")
+    println(s"hiveTable.getOwner: ${hiveTable.getOwner}")
     hiveTable.setFields(schema.asJava)
     hiveTable.setPartCols(partCols.asJava)
     hiveTable.setOwner(table.owner)
