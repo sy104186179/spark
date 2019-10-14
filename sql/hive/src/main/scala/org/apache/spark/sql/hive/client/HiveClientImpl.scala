@@ -553,7 +553,7 @@ private[hive] class HiveClientImpl(
 
   override def createTable(table: CatalogTable, ignoreIfExists: Boolean): Unit = withHiveState {
     verifyColumnDataType(table.dataSchema)
-    client.createTable(toHiveTable(table, Some(userName)), ignoreIfExists)
+    client.createTable(toHiveTable(table), ignoreIfExists)
   }
 
   override def dropTable(
@@ -574,7 +574,7 @@ private[hive] class HiveClientImpl(
     // these user-specified values.
     verifyColumnDataType(table.dataSchema)
     val hiveTable = toHiveTable(
-      table.copy(properties = table.ignoredProperties ++ table.properties), Some(userName))
+      table.copy(properties = table.ignoredProperties ++ table.properties))
     // Do not use `table.qualifiedName` here because this may be a rename
     val qualifiedTableName = s"$dbName.$tableName"
     shim.alterTable(client, qualifiedTableName, hiveTable)
@@ -671,7 +671,7 @@ private[hive] class HiveClientImpl(
       newSpecs: Seq[TablePartitionSpec]): Unit = withHiveState {
     require(specs.size == newSpecs.size, "number of old and new partition specs differ")
     val catalogTable = getTable(db, table)
-    val hiveTable = toHiveTable(catalogTable, Some(userName))
+    val hiveTable = toHiveTable(catalogTable)
     specs.zip(newSpecs).foreach { case (oldSpec, newSpec) =>
       val hivePart = getPartitionOption(catalogTable, oldSpec)
         .map { p => toHivePartition(p.copy(spec = newSpec), hiveTable) }
@@ -691,7 +691,7 @@ private[hive] class HiveClientImpl(
     val original = state.getCurrentDatabase
     try {
       setCurrentDatabaseRaw(db)
-      val hiveTable = toHiveTable(getTable(db, table), Some(userName))
+      val hiveTable = toHiveTable(getTable(db, table)])
       shim.alterPartitions(client, table, newParts.map { toHivePartition(_, hiveTable) }.asJava)
     } finally {
       state.setCurrentDatabase(original)
@@ -722,7 +722,7 @@ private[hive] class HiveClientImpl(
   override def getPartitionOption(
       table: CatalogTable,
       spec: TablePartitionSpec): Option[CatalogTablePartition] = withHiveState {
-    val hiveTable = toHiveTable(table, Some(userName))
+    val hiveTable = toHiveTable(table)
     val hivePartition = client.getPartition(hiveTable, spec.asJava, false)
     Option(hivePartition).map(fromHivePartition)
   }
@@ -734,7 +734,7 @@ private[hive] class HiveClientImpl(
   override def getPartitions(
       table: CatalogTable,
       spec: Option[TablePartitionSpec]): Seq[CatalogTablePartition] = withHiveState {
-    val hiveTable = toHiveTable(table, Some(userName))
+    val hiveTable = toHiveTable(table)
     val partSpec = spec match {
       case None => CatalogTypes.emptyTablePartitionSpec
       case Some(s) =>
@@ -749,7 +749,7 @@ private[hive] class HiveClientImpl(
   override def getPartitionsByFilter(
       table: CatalogTable,
       predicates: Seq[Expression]): Seq[CatalogTablePartition] = withHiveState {
-    val hiveTable = toHiveTable(table, Some(userName))
+    val hiveTable = toHiveTable(table)
     val parts = shim.getPartitionsByFilter(client, hiveTable, predicates).map(fromHivePartition)
     HiveCatalogMetrics.incrementFetchedPartitions(parts.length)
     parts
@@ -1016,7 +1016,7 @@ private[hive] object HiveClientImpl {
   /**
    * Converts the native table metadata representation format CatalogTable to Hive's Table.
    */
-  def toHiveTable(table: CatalogTable, userName: Option[String] = None): HiveTable = {
+  def toHiveTable(table: CatalogTable): HiveTable = {
     val hiveTable = new HiveTable(table.database, table.identifier.table)
     // For EXTERNAL_TABLE, we also need to set EXTERNAL field in the table properties.
     // Otherwise, Hive metastore will change the table to a MANAGED_TABLE.
@@ -1036,9 +1036,12 @@ private[hive] object HiveClientImpl {
     val (partCols, schema) = table.schema.map(toHiveColumn).partition { c =>
       table.partitionColumnNames.contains(c.getName)
     }
+    // scalastyle:off
+    println(s"table.owner: ${table.owner}")
+    println(s"userName: ${userName}")
     hiveTable.setFields(schema.asJava)
     hiveTable.setPartCols(partCols.asJava)
-    userName.foreach(hiveTable.setOwner)
+    hiveTable.setOwner(table.owner)
     hiveTable.setCreateTime(MILLISECONDS.toSeconds(table.createTime).toInt)
     hiveTable.setLastAccessTime(MILLISECONDS.toSeconds(table.lastAccessTime).toInt)
     table.storage.locationUri.map(CatalogUtils.URIToString).foreach { loc =>
