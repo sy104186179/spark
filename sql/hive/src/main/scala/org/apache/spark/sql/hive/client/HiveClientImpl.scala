@@ -1036,13 +1036,15 @@ private[hive] object HiveClientImpl {
     val (partCols, schema) = table.schema.map(toHiveColumn).partition { c =>
       table.partitionColumnNames.contains(c.getName)
     }
+    val owner = Option(table.owner).filter(_.nonEmpty)
+      .getOrElse(UserGroupInformation.getCurrentUser.getShortUserName)
     // scalastyle:off
     println(s"table.owner: ${table.owner}")
     println(s"userName: ${UserGroupInformation.getCurrentUser.getShortUserName}")
     println(s"hiveTable.getOwner: ${hiveTable.getOwner}")
     hiveTable.setFields(schema.asJava)
     hiveTable.setPartCols(partCols.asJava)
-    hiveTable.setOwner(table.owner)
+    hiveTable.setOwner(owner)
     hiveTable.setCreateTime(MILLISECONDS.toSeconds(table.createTime).toInt)
     hiveTable.setLastAccessTime(MILLISECONDS.toSeconds(table.lastAccessTime).toInt)
     table.storage.locationUri.map(CatalogUtils.URIToString).foreach { loc =>
