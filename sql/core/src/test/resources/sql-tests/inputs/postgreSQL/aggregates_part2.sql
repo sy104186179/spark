@@ -113,51 +113,51 @@ SELECT
   (FALSE OR TRUE) AS `t`,
   NOT (FALSE OR FALSE) AS `t`;
 
--- [SPARK-27880] Implement boolean aggregates(BOOL_AND, BOOL_OR and EVERY)
--- CREATE TEMPORARY TABLE bool_test(
---   b1 BOOL,
---   b2 BOOL,
---   b3 BOOL,
---   b4 BOOL);
+CREATE TABLE bool_test(
+  b1 BOOLEAN,
+  b2 BOOLEAN,
+  b3 BOOLEAN,
+  b4 BOOLEAN) USING parquet;
 
 -- empty case
--- SELECT
---   BOOL_AND(b1)   AS "n",
---   BOOL_OR(b3)    AS "n"
--- FROM bool_test;
+SELECT
+  BOOL_AND(b1)   AS `n`,
+  BOOL_OR(b3)    AS `n`
+FROM bool_test;
 
--- COPY bool_test FROM STDIN NULL 'null';
--- TRUE	null	FALSE	null
--- FALSE	TRUE	null	null
--- null	TRUE	FALSE	null
--- \.
+INSERT INTO bool_test VALUES
+  (TRUE, null, FALSE, null),
+  (FALSE, TRUE, null, null),
+  (null, TRUE, FALSE, null);
 
--- SELECT
---   BOOL_AND(b1)     AS "f",
---   BOOL_AND(b2)     AS "t",
---   BOOL_AND(b3)     AS "f",
---   BOOL_AND(b4)     AS "n",
---   BOOL_AND(NOT b2) AS "f",
---   BOOL_AND(NOT b3) AS "t"
--- FROM bool_test;
+SELECT
+  BOOL_AND(b1)     AS `f`,
+  BOOL_AND(b2)     AS `t`,
+  BOOL_AND(b3)     AS `f`,
+  BOOL_AND(b4)     AS `n`,
+  BOOL_AND(NOT b2) AS `f`,
+  BOOL_AND(NOT b3) AS `t`
+FROM bool_test;
 
--- SELECT
---   EVERY(b1)     AS "f",
---   EVERY(b2)     AS "t",
---   EVERY(b3)     AS "f",
---   EVERY(b4)     AS "n",
---   EVERY(NOT b2) AS "f",
---   EVERY(NOT b3) AS "t"
--- FROM bool_test;
+SELECT
+  EVERY(b1)     AS `f`,
+  EVERY(b2)     AS `t`,
+  EVERY(b3)     AS `f`,
+  EVERY(b4)     AS `n`,
+  EVERY(NOT b2) AS `f`,
+  EVERY(NOT b3) AS `t`
+FROM bool_test;
 
--- SELECT
---   BOOL_OR(b1)      AS "t",
---   BOOL_OR(b2)      AS "t",
---   BOOL_OR(b3)      AS "f",
---   BOOL_OR(b4)      AS "n",
---   BOOL_OR(NOT b2)  AS "f",
---   BOOL_OR(NOT b3)  AS "t"
--- FROM bool_test;
+SELECT
+  BOOL_OR(b1)      AS `t`,
+  BOOL_OR(b2)      AS `t`,
+  BOOL_OR(b3)      AS `f`,
+  BOOL_OR(b4)      AS `n`,
+  BOOL_OR(NOT b2)  AS `f`,
+  BOOL_OR(NOT b3)  AS `t`
+FROM bool_test;
+
+DROP TABLE bool_test;
 
 --
 -- Test cases that should be optimized into indexscans instead of
