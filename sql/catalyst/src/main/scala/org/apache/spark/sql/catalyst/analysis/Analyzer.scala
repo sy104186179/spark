@@ -767,15 +767,25 @@ class Analyzer(
       case _ => plan
     }
 
-    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoStatement(u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _)
-          if child.resolved =>
-        EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
-          case v: View =>
-            u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
-          case other => i.copy(table = other)
-        }
-      case u: UnresolvedRelation => resolveRelation(u)
+    def apply(plan: LogicalPlan): LogicalPlan = {
+      var relationMaps = Map.empty[UnresolvedRelation, LogicalPlan]
+      plan.resolveOperatorsUp {
+        case i @ InsertIntoStatement(
+            u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _) if child.resolved =>
+          EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
+            case v: View =>
+              u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
+            case other => i.copy(table = other)
+          }
+        case u: UnresolvedRelation =>
+          if (relationMaps.contains(u)) {
+            relationMaps(u)
+          } else {
+            val relation = resolveRelation(u)
+            relationMaps += (u -> relation)
+            relation
+          }
+      }
     }
 
     // Look up the table with the given name from catalog. The database we used is decided by the
