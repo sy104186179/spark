@@ -671,20 +671,28 @@ class Analyzer(
    * [[ResolveRelations]] still resolves v1 tables.
    */
   object ResolveTables extends Rule[LogicalPlan] {
-    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case u: UnresolvedRelation =>
-        lookupV2Relation(u.multipartIdentifier)
-          .getOrElse(u)
+    def apply(plan: LogicalPlan): LogicalPlan = {
+      var dataSourceV2Relations = Map.empty[Seq[String], Option[DataSourceV2Relation]]
+      plan.resolveOperatorsUp {
+        case u: UnresolvedRelation =>
+          if (dataSourceV2Relations.contains(u.multipartIdentifier)) {
+            dataSourceV2Relations(u.multipartIdentifier).getOrElse(u)
+          } else {
+            val dd = lookupV2Relation(u.multipartIdentifier)
+            dataSourceV2Relations += (u.multipartIdentifier -> dd)
+            dd.getOrElse(u)
+          }
 
-      case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
-        lookupV2Relation(u.multipartIdentifier)
-          .map(v2Relation => i.copy(table = v2Relation))
-          .getOrElse(i)
+        case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
+          lookupV2Relation(u.multipartIdentifier)
+            .map(v2Relation => i.copy(table = v2Relation))
+            .getOrElse(i)
 
-      case u: UnresolvedV2Relation =>
-        CatalogV2Util.loadTable(u.catalog, u.tableName).map { table =>
-          DataSourceV2Relation.create(table)
-        }.getOrElse(u)
+        case u: UnresolvedV2Relation =>
+          CatalogV2Util.loadTable(u.catalog, u.tableName).map { table =>
+            DataSourceV2Relation.create(table)
+          }.getOrElse(u)
+      }
     }
   }
 
@@ -754,15 +762,25 @@ class Analyzer(
       case _ => plan
     }
 
-    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoStatement(u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _)
-          if child.resolved =>
-        EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
-          case v: View =>
-            u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
-          case other => i.copy(table = other)
-        }
-      case u: UnresolvedRelation => resolveRelation(u)
+    def apply(plan: LogicalPlan): LogicalPlan = {
+      var relationMaps = Map.empty[UnresolvedRelation, LogicalPlan]
+      plan.resolveOperatorsUp {
+        case i @ InsertIntoStatement(
+            u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _) if child.resolved =>
+          EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
+            case v: View =>
+              u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
+            case other => i.copy(table = other)
+          }
+        case u: UnresolvedRelation =>
+          if (relationMaps.contains(u)) {
+            relationMaps(u)
+          } else {
+            val relation = resolveRelation(u)
+            relationMaps += (u -> relation)
+            relation
+          }
+      }
     }
 
     // Look up the table with the given name from catalog. The database we used is decided by the
