@@ -672,15 +672,15 @@ class Analyzer(
    */
   object ResolveTables extends Rule[LogicalPlan] {
     def apply(plan: LogicalPlan): LogicalPlan = {
-      var dataSourceV2Relations = Map.empty[Seq[String], Option[DataSourceV2Relation]]
+      var dataSourceV2Relations = Map.empty[UnresolvedRelation, Option[DataSourceV2Relation]]
       plan.resolveOperatorsUp {
         case u: UnresolvedRelation =>
-          if (dataSourceV2Relations.contains(u.multipartIdentifier)) {
-            dataSourceV2Relations(u.multipartIdentifier).getOrElse(u)
+          if (dataSourceV2Relations.contains(u)) {
+            dataSourceV2Relations(u).getOrElse(u)
           } else {
-            val dd = lookupV2Relation(u.multipartIdentifier)
-            dataSourceV2Relations += (u.multipartIdentifier -> dd)
-            dd.getOrElse(u)
+            val dataSourceV2Relation = lookupV2Relation(u.multipartIdentifier)
+            dataSourceV2Relations += (u -> dataSourceV2Relation)
+            dataSourceV2Relation.getOrElse(u)
           }
 
         case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
