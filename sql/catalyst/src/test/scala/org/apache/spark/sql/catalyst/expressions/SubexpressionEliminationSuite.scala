@@ -161,6 +161,17 @@ class SubexpressionEliminationSuite extends SparkFunSuite {
     // only ifExpr and its predicate expression
     assert(equivalence.getAllEquivalentExprs.count(_.size == 1) == 2)
   }
+
+  test("Support CaseWhen condition expressions") {
+    val add = Add(Literal(1), Literal(2))
+    val caseWhenExpr =
+      CaseWhen(Seq((EqualTo(add, Literal(1)), Literal(1)), (EqualTo(add, Literal(2)), Literal(2))))
+
+    val equivalence = new EquivalentExpressions
+    equivalence.addExprTree(caseWhenExpr)
+    // the `add` inside condition should be added
+    assert(equivalence.getAllEquivalentExprs.count(_.size > 1) == 1)
+  }
 }
 
 case class CodegenFallbackExpression(child: Expression)

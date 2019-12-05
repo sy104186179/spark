@@ -91,7 +91,7 @@ class EquivalentExpressions {
     def childrenToRecurse: Seq[Expression] = expr match {
       case _: CodegenFallback => Nil
       case i: If => i.predicate :: Nil
-      case c: CaseWhen => c.children.head :: Nil
+      case c: CaseWhen => c.branches.map(_._1)
       case c: Coalesce => c.children.head :: Nil
       case other => other.children
     }
