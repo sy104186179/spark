@@ -276,6 +276,7 @@ object FunctionRegistry {
     expression[Add]("+"),
     expression[Subtract]("-"),
     expression[Multiply]("*"),
+    expression[EbayMultiply]("ebay_multiply"),
     expression[Divide]("/"),
     expression[IntegralDivide]("div"),
     expression[Remainder]("%"),
