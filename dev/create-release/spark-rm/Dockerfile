@@ -33,7 +33,7 @@ ENV DEBCONF_NONINTERACTIVE_SEEN true
 # These arguments are just for reuse and not really meant to be customized.
 ARG APT_INSTALL="apt-get install --no-install-recommends -y"
 
-ARG BASE_PIP_PKGS="setuptools wheel virtualenv"
+ARG BASE_PIP_PKGS="setuptools wheel"
 ARG PIP_PKGS="pyopenssl pypandoc numpy sphinx"
 
 # Install extra needed repos and refresh.
@@ -66,7 +66,7 @@ RUN apt-get clean && apt-get update && $APT_INSTALL gnupg ca-certificates && \
   pip install $BASE_PIP_PKGS && \
   pip install $PIP_PKGS && \
   cd && \
-  virtualenv -p python3 /opt/p35 && \
+  python3 /opt/p35 && \
   . /opt/p35/bin/activate && \
   pip install $BASE_PIP_PKGS && \
   pip install $PIP_PKGS && \
