@@ -1,0 +1,530 @@
+================================================================================================
+Pushdown for many distinct value case
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 string row (value IS NULL):      Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 8378           9203         536          1.9         532.7       1.0X
+Parquet Vectorized (Pushdown)                       487            509          23         32.3          31.0      17.2X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 string row ('7864320' < value < '7864320'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 8332           8712         444          1.9         529.7       1.0X
+Parquet Vectorized (Pushdown)                       496            514          16         31.7          31.5      16.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 string row (value = '7864320'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9201           9331         119          1.7         585.0       1.0X
+Parquet Vectorized (Pushdown)                       495            524          17         31.8          31.5      18.6X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 string row (value <=> '7864320'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9890          10472         528          1.6         628.8       1.0X
+Parquet Vectorized (Pushdown)                       997           1187         166         15.8          63.4       9.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 string row ('7864320' <= value <= '7864320'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                10780          23447         604          1.5         685.4       1.0X
+Parquet Vectorized (Pushdown)                      1284           1371          75         12.2          81.7       8.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select all string rows (value IS NOT NULL):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                17476          18447        1408          0.9        1111.1       1.0X
+Parquet Vectorized (Pushdown)                     18447          22426         655          0.9        1172.8       0.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 int row (value IS NULL):         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7211           7967        1156          2.2         458.5       1.0X
+Parquet Vectorized (Pushdown)                       469            479          15         33.6          29.8      15.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 int row (7864320 < value < 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7062           7167          77          2.2         449.0       1.0X
+Parquet Vectorized (Pushdown)                       448            451           3         35.1          28.5      15.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 int row (value = 7864320):       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6990           7070          53          2.3         444.4       1.0X
+Parquet Vectorized (Pushdown)                       441            448           7         35.6          28.1      15.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 int row (value <=> 7864320):     Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6983           7031          51          2.3         444.0       1.0X
+Parquet Vectorized (Pushdown)                       451            454           3         34.9          28.7      15.5X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 int row (7864320 <= value <= 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6978           7124         201          2.3         443.7       1.0X
+Parquet Vectorized (Pushdown)                       440            449           6         35.7          28.0      15.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 int row (7864319 < value < 7864321):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6958           7044          80          2.3         442.4       1.0X
+Parquet Vectorized (Pushdown)                       441            444           3         35.7          28.0      15.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% int rows (value < 1572864):    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7691           7747          55          2.0         489.0       1.0X
+Parquet Vectorized (Pushdown)                      1759           1776          11          8.9         111.8       4.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% int rows (value < 7864320):    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9942          10014          58          1.6         632.1       1.0X
+Parquet Vectorized (Pushdown)                      6707           6798          67          2.3         426.4       1.5X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% int rows (value < 14155776):   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                12268          12361          89          1.3         780.0       1.0X
+Parquet Vectorized (Pushdown)                     11739          11854         156          1.3         746.4       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select all int rows (value IS NOT NULL):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                12762          12861          76          1.2         811.4       1.0X
+Parquet Vectorized (Pushdown)                     12810          13011         143          1.2         814.4       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select all int rows (value > -1):         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                12740          12840          62          1.2         810.0       1.0X
+Parquet Vectorized (Pushdown)                     12873          13016         118          1.2         818.4       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select all int rows (value != -1):        Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                12704          12889         131          1.2         807.7       1.0X
+Parquet Vectorized (Pushdown)                     13002          13186         219          1.2         826.7       1.0X
+
+
+================================================================================================
+Pushdown for few distinct value case (use dictionary encoding)
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 distinct string row (value IS NULL):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6850           6931          72          2.3         435.5       1.0X
+Parquet Vectorized (Pushdown)                       397            403          11         39.7          25.2      17.3X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 0 distinct string row ('100' < value < '100'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6855           7042         113          2.3         435.8       1.0X
+Parquet Vectorized (Pushdown)                       384            391           7         40.9          24.4      17.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 distinct string row (value = '100'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7225           7375         135          2.2         459.3       1.0X
+Parquet Vectorized (Pushdown)                       560            575          16         28.1          35.6      12.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 distinct string row (value <=> '100'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6945           7042         105          2.3         441.5       1.0X
+Parquet Vectorized (Pushdown)                       543            555          11         28.9          34.5      12.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 distinct string row ('100' <= value <= '100'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6944           6989          60          2.3         441.5       1.0X
+Parquet Vectorized (Pushdown)                       540            569          22         29.1          34.4      12.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select all distinct string rows (value IS NOT NULL):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                14458          14567          64          1.1         919.2       1.0X
+Parquet Vectorized (Pushdown)                     14481          14608          73          1.1         920.7       1.0X
+
+
+================================================================================================
+Pushdown benchmark for StringStartsWith
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+StringStartsWith filter: (value like '10%'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9167           9806         554          1.7         582.8       1.0X
+Parquet Vectorized (Pushdown)                      2384           3172         677          6.6         151.6       3.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+StringStartsWith filter: (value like '1000%'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7889           7949          99          2.0         501.6       1.0X
+Parquet Vectorized (Pushdown)                       462            467           6         34.1          29.4      17.1X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+StringStartsWith filter: (value like '786432%'):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7840           8030         254          2.0         498.5       1.0X
+Parquet Vectorized (Pushdown)                       450            507          78         35.0          28.6      17.4X
+
+
+================================================================================================
+Pushdown benchmark for decimal
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 decimal(9, 2) row (value = 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 3602           3715         176          4.4         229.0       1.0X
+Parquet Vectorized (Pushdown)                       119            123           3        131.7           7.6      30.2X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% decimal(9, 2) rows (value < 1572864):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4920           5220         430          3.2         312.8       1.0X
+Parquet Vectorized (Pushdown)                      2137           2151          22          7.4         135.8       2.3X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% decimal(9, 2) rows (value < 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9280           9548         233          1.7         590.0       1.0X
+Parquet Vectorized (Pushdown)                      8844           9065         132          1.8         562.3       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% decimal(9, 2) rows (value < 14155776):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                10183          10272          75          1.5         647.4       1.0X
+Parquet Vectorized (Pushdown)                     10177          10282          80          1.5         647.0       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 decimal(18, 2) row (value = 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 3741           3770          23          4.2         237.8       1.0X
+Parquet Vectorized (Pushdown)                       118            120           2        133.7           7.5      31.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% decimal(18, 2) rows (value < 1572864):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4362           4407          37          3.6         277.4       1.0X
+Parquet Vectorized (Pushdown)                      1141           1153          14         13.8          72.5       3.8X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% decimal(18, 2) rows (value < 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7046           7089          30          2.2         448.0       1.0X
+Parquet Vectorized (Pushdown)                      5258           5491         132          3.0         334.3       1.3X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% decimal(18, 2) rows (value < 14155776):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9769           9990         202          1.6         621.1       1.0X
+Parquet Vectorized (Pushdown)                      9356           9392          34          1.7         594.9       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 decimal(38, 2) row (value = 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 5367           5637         174          2.9         341.2       1.0X
+Parquet Vectorized (Pushdown)                       135            139           4        116.9           8.6      39.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% decimal(38, 2) rows (value < 1572864):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6145           6300         113          2.6         390.7       1.0X
+Parquet Vectorized (Pushdown)                      1489           1507          18         10.6          94.7       4.1X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% decimal(38, 2) rows (value < 7864320):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9565           9846         258          1.6         608.1       1.0X
+Parquet Vectorized (Pushdown)                      7032           7289         163          2.2         447.1       1.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% decimal(38, 2) rows (value < 14155776):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                12879          12984          91          1.2         818.8       1.0X
+Parquet Vectorized (Pushdown)                     12399          12439          51          1.3         788.3       1.0X
+
+
+================================================================================================
+Pushdown benchmark for InSet -> InFilters
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 5, distribution: 10):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6870           6917          43          2.3         436.8       1.0X
+Parquet Vectorized (Pushdown)                       457            466           6         34.4          29.1      15.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 5, distribution: 50):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6844           6898          75          2.3         435.1       1.0X
+Parquet Vectorized (Pushdown)                       457            465           7         34.4          29.1      15.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 5, distribution: 90):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7015           7332         547          2.2         446.0       1.0X
+Parquet Vectorized (Pushdown)                       466            482          23         33.8          29.6      15.1X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 10, distribution: 10):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7148           7240          81          2.2         454.4       1.0X
+Parquet Vectorized (Pushdown)                       529            547          14         29.8          33.6      13.5X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 10, distribution: 50):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7011           7116         103          2.2         445.8       1.0X
+Parquet Vectorized (Pushdown)                       494            510          16         31.9          31.4      14.2X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 10, distribution: 90):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6886           6958          59          2.3         437.8       1.0X
+Parquet Vectorized (Pushdown)                       485            493          15         32.4          30.8      14.2X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 50, distribution: 10):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7134           7190          79          2.2         453.5       1.0X
+Parquet Vectorized (Pushdown)                      7287           7344          76          2.2         463.3       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 50, distribution: 50):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7123           7221          88          2.2         452.9       1.0X
+Parquet Vectorized (Pushdown)                      7282           7343          63          2.2         463.0       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 50, distribution: 90):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7246           7280          26          2.2         460.7       1.0X
+Parquet Vectorized (Pushdown)                      7262           7360          58          2.2         461.7       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 100, distribution: 10):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7093           7178          57          2.2         451.0       1.0X
+Parquet Vectorized (Pushdown)                      7286           7369         108          2.2         463.2       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 100, distribution: 50):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7035           7128         103          2.2         447.2       1.0X
+Parquet Vectorized (Pushdown)                      7241           7347          72          2.2         460.4       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+InSet -> InFilters (values count: 100, distribution: 90):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7104           7169          61          2.2         451.7       1.0X
+Parquet Vectorized (Pushdown)                      7281           7332          37          2.2         462.9       1.0X
+
+
+================================================================================================
+Pushdown benchmark for tinyint
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 tinyint row (value = CAST(63 AS tinyint)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4075           4110          26          3.9         259.1       1.0X
+Parquet Vectorized (Pushdown)                       228            233           3         68.9          14.5      17.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% tinyint rows (value < CAST(12 AS tinyint)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4550           4625          71          3.5         289.3       1.0X
+Parquet Vectorized (Pushdown)                      1164           1170           4         13.5          74.0       3.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% tinyint rows (value < CAST(63 AS tinyint)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6915           6998          88          2.3         439.6       1.0X
+Parquet Vectorized (Pushdown)                      5105           5162          76          3.1         324.5       1.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% tinyint rows (value < CAST(114 AS tinyint)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9791           9888         138          1.6         622.5       1.0X
+Parquet Vectorized (Pushdown)                      9074           9157         134          1.7         576.9       1.1X
+
+
+================================================================================================
+Pushdown benchmark for Timestamp
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 timestamp stored as INT96 row (value = CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4103           4210          63          3.8         260.8       1.0X
+Parquet Vectorized (Pushdown)                      4210           4252          46          3.7         267.7       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% timestamp stored as INT96 rows (value < CAST(1572864 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4738           5078         451          3.3         301.2       1.0X
+Parquet Vectorized (Pushdown)                      4730           4800          65          3.3         300.7       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% timestamp stored as INT96 rows (value < CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 7175           7654         278          2.2         456.2       1.0X
+Parquet Vectorized (Pushdown)                      7701           7840         116          2.0         489.6       0.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% timestamp stored as INT96 rows (value < CAST(14155776 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9727           9785          40          1.6         618.4       1.0X
+Parquet Vectorized (Pushdown)                      9704           9849         140          1.6         617.0       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 timestamp stored as TIMESTAMP_MICROS row (value = CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 3787           3873          67          4.2         240.8       1.0X
+Parquet Vectorized (Pushdown)                       116            119           3        136.0           7.4      32.7X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% timestamp stored as TIMESTAMP_MICROS rows (value < CAST(1572864 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4252           4291          57          3.7         270.3       1.0X
+Parquet Vectorized (Pushdown)                      1090           1103          13         14.4          69.3       3.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% timestamp stored as TIMESTAMP_MICROS rows (value < CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6708           6778          50          2.3         426.5       1.0X
+Parquet Vectorized (Pushdown)                      5011           5063          50          3.1         318.6       1.3X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% timestamp stored as TIMESTAMP_MICROS rows (value < CAST(14155776 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9633           9688          41          1.6         612.5       1.0X
+Parquet Vectorized (Pushdown)                      8888           8961          78          1.8         565.1       1.1X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 timestamp stored as TIMESTAMP_MILLIS row (value = CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 3812           3877          38          4.1         242.4       1.0X
+Parquet Vectorized (Pushdown)                       116            119           4        135.7           7.4      32.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 10% timestamp stored as TIMESTAMP_MILLIS rows (value < CAST(1572864 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 4464           4529          41          3.5         283.8       1.0X
+Parquet Vectorized (Pushdown)                      1105           1115           7         14.2          70.3       4.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 50% timestamp stored as TIMESTAMP_MILLIS rows (value < CAST(7864320 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 6881           6927          38          2.3         437.5       1.0X
+Parquet Vectorized (Pushdown)                      5078           5100          15          3.1         322.8       1.4X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 90% timestamp stored as TIMESTAMP_MILLIS rows (value < CAST(14155776 AS timestamp)):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 9896           9922          29          1.6         629.1       1.0X
+Parquet Vectorized (Pushdown)                      8989           9052          56          1.7         571.5       1.1X
+
+
+================================================================================================
+Pushdown benchmark with many filters
+================================================================================================
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 row with 1 filters:              Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                  209            215           5          0.0   209008459.0       1.0X
+Parquet Vectorized (Pushdown)                       211            219           8          0.0   210980569.0       1.0X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 row with 250 filters:            Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                  843            862          12          0.0   843367674.0       1.0X
+Parquet Vectorized (Pushdown)                       916            928          13          0.0   915795964.0       0.9X
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_191-b12 on Mac OS X 10.13.6
+Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
+Select 1 row with 500 filters:            Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Parquet Vectorized                                 2609           2624          23          0.0  2608693256.0       1.0X
+Parquet Vectorized (Pushdown)                      2934           2965          32          0.0  2934079064.0       0.9X
+
+
