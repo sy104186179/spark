@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.analysis.ViewType
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.connector.catalog.TableChange.ColumnPosition
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.{DataType, StructType}
 
@@ -141,7 +142,11 @@ case class ReplaceTableAsSelectStatement(
 /**
  * Column data as parsed by ALTER TABLE ... ADD COLUMNS.
  */
-case class QualifiedColType(name: Seq[String], dataType: DataType, comment: Option[String])
+case class QualifiedColType(
+    name: Seq[String],
+    dataType: DataType,
+    comment: Option[String],
+    position: Option[ColumnPosition])
 
 /**
  * ALTER TABLE ... ADD COLUMNS command, as parsed from SQL.
@@ -157,7 +162,8 @@ case class AlterTableAlterColumnStatement(
     tableName: Seq[String],
     column: Seq[String],
     dataType: Option[DataType],
-    comment: Option[String]) extends ParsedStatement
+    comment: Option[String],
+    position: Option[ColumnPosition]) extends ParsedStatement
 
 /**
  * ALTER TABLE ... RENAME COLUMN command, as parsed from SQL.
@@ -296,8 +302,10 @@ case class DescribeTableStatement(
  * A DESCRIBE NAMESPACE statement, as parsed from SQL.
  */
 case class DescribeNamespaceStatement(
-    namespace: Seq[String],
-    extended: Boolean) extends ParsedStatement
+    namespace: LogicalPlan,
+    extended: Boolean) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * A DESCRIBE TABLE tbl_name col_name statement, as parsed from SQL.
@@ -340,8 +348,11 @@ case class InsertIntoStatement(
 /**
  * A SHOW TABLES statement, as parsed from SQL.
  */
-case class ShowTablesStatement(namespace: Option[Seq[String]], pattern: Option[String])
-  extends ParsedStatement
+case class ShowTablesStatement(
+    namespace: LogicalPlan,
+    pattern: Option[String]) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * A SHOW TABLE EXTENDED statement, as parsed from SQL.
@@ -364,29 +375,38 @@ case class CreateNamespaceStatement(
  * A DROP NAMESPACE statement, as parsed from SQL.
  */
 case class DropNamespaceStatement(
-    namespace: Seq[String],
+    namespace: LogicalPlan,
     ifExists: Boolean,
-    cascade: Boolean) extends ParsedStatement
+    cascade: Boolean) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * ALTER (DATABASE|SCHEMA|NAMESPACE) ... SET (DBPROPERTIES|PROPERTIES) command, as parsed from SQL.
  */
 case class AlterNamespaceSetPropertiesStatement(
-    namespace: Seq[String],
-    properties: Map[String, String]) extends ParsedStatement
+    namespace: LogicalPlan,
+    properties: Map[String, String]) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * ALTER (DATABASE|SCHEMA|NAMESPACE) ... SET LOCATION command, as parsed from SQL.
  */
 case class AlterNamespaceSetLocationStatement(
-    namespace: Seq[String],
-    location: String) extends ParsedStatement
+    namespace: LogicalPlan,
+    location: String) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * A SHOW NAMESPACES statement, as parsed from SQL.
  */
-case class ShowNamespacesStatement(namespace: Option[Seq[String]], pattern: Option[String])
-  extends ParsedStatement
+case class ShowNamespacesStatement(
+    namespace: LogicalPlan,
+    pattern: Option[String]) extends ParsedStatement {
+  override def children: Seq[LogicalPlan] = Seq(namespace)
+}
 
 /**
  * A USE statement, as parsed from SQL.
@@ -487,6 +507,13 @@ case class ShowTablePropertiesStatement(
     propertyKey: Option[String]) extends ParsedStatement
 
 /**
+ * A DESCRIBE FUNCTION statement, as parsed from SQL
+ */
+case class DescribeFunctionStatement(
+    functionName: Seq[String],
+    isExtended: Boolean) extends ParsedStatement
+
+/**
  *  SHOW FUNCTIONS statement, as parsed from SQL
  */
 case class ShowFunctionsStatement(
@@ -494,3 +521,11 @@ case class ShowFunctionsStatement(
     systemScope: Boolean,
     pattern: Option[String],
     functionName: Option[Seq[String]]) extends ParsedStatement
+
+/**
+ *  DROP FUNCTION statement, as parsed from SQL
+ */
+case class DropFunctionStatement(
+    functionName: Seq[String],
+    ifExists: Boolean,
+    isTemp: Boolean) extends ParsedStatement

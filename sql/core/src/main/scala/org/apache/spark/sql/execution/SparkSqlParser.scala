@@ -136,10 +136,13 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     } else {
       ExplainCommand(
         logicalPlan = statement,
-        extended = ctx.EXTENDED != null,
-        codegen = ctx.CODEGEN != null,
-        cost = ctx.COST != null,
-        formatted = ctx.FORMATTED != null)
+        mode = {
+          if (ctx.EXTENDED != null) ExtendedMode
+          else if (ctx.CODEGEN != null) CodegenMode
+          else if (ctx.COST != null) CostMode
+          else if (ctx.FORMATTED != null) FormattedMode
+          else SimpleMode
+        })
     }
   }
 
@@ -221,22 +224,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
   }
 
   /**
-   * Create a plan for a DESCRIBE FUNCTION command.
-   */
-  override def visitDescribeFunction(ctx: DescribeFunctionContext): LogicalPlan = withOrigin(ctx) {
-    import ctx._
-    val functionName =
-      if (describeFuncName.STRING() != null) {
-        FunctionIdentifier(string(describeFuncName.STRING()), database = None)
-      } else if (describeFuncName.qualifiedName() != null) {
-        visitFunctionName(describeFuncName.qualifiedName)
-      } else {
-        FunctionIdentifier(describeFuncName.getText, database = None)
-      }
-    DescribeFunctionCommand(functionName, EXTENDED != null)
-  }
-
-  /**
    * Create a [[CreateFunctionCommand]] command.
    *
    * For example:
@@ -266,23 +253,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       ctx.TEMPORARY != null,
       ctx.EXISTS != null,
       ctx.REPLACE != null)
-  }
-
-  /**
-   * Create a [[DropFunctionCommand]] command.
-   *
-   * For example:
-   * {{{
-   *   DROP [TEMPORARY] FUNCTION [IF EXISTS] function;
-   * }}}
-   */
-  override def visitDropFunction(ctx: DropFunctionContext): LogicalPlan = withOrigin(ctx) {
-    val functionIdentifier = visitFunctionName(ctx.multipartIdentifier)
-    DropFunctionCommand(
-      functionIdentifier.database,
-      functionIdentifier.funcName,
-      ctx.EXISTS != null,
-      ctx.TEMPORARY != null)
   }
 
   /**
@@ -324,9 +294,14 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
    *   ADD (FILE[S] <filepath ...> | JAR[S] <jarpath ...>)
    *   LIST (FILE[S] [filepath ...] | JAR[S] [jarpath ...])
    * }}}
+   *
+   * Note that filepath/jarpath can be given as follows;
+   *  - /path/to/fileOrJar
+   *  - "/path/to/fileOrJar"
+   *  - '/path/to/fileOrJar'
    */
   override def visitManageResource(ctx: ManageResourceContext): LogicalPlan = withOrigin(ctx) {
-    val mayebePaths = remainder(ctx.identifier).trim
+    val mayebePaths = if (ctx.STRING != null) string(ctx.STRING) else remainder(ctx.identifier).trim
     ctx.op.getType match {
       case SqlBaseParser.ADD =>
         ctx.identifier.getText.toLowerCase(Locale.ROOT) match {
@@ -393,7 +368,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
 
     checkDuplicateClauses(ctx.TBLPROPERTIES, "TBLPROPERTIES", ctx)
     checkDuplicateClauses(ctx.PARTITIONED, "PARTITIONED BY", ctx)
-    checkDuplicateClauses(ctx.COMMENT, "COMMENT", ctx)
+    checkDuplicateClauses(ctx.commentSpec(), "COMMENT", ctx)
     checkDuplicateClauses(ctx.bucketSpec(), "CLUSTERED BY", ctx)
     checkDuplicateClauses(ctx.createFileFormat, "STORED AS/BY", ctx)
     checkDuplicateClauses(ctx.rowFormat, "ROW FORMAT", ctx)
@@ -416,7 +391,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       .getOrElse(CatalogStorageFormat.empty)
     val rowStorage = ctx.rowFormat.asScala.headOption.map(visitRowFormat)
       .getOrElse(CatalogStorageFormat.empty)
-    val location = ctx.locationSpec.asScala.headOption.map(visitLocationSpec)
+    val location = visitLocationSpecList(ctx.locationSpec())
     // If we are creating an EXTERNAL table, then the LOCATION field is required
     if (external && location.isEmpty) {
       operationNotAllowed("CREATE EXTERNAL TABLE must be accompanied by LOCATION", ctx)
@@ -450,7 +425,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
       provider = Some(DDLUtils.HIVE_PROVIDER),
       partitionColumnNames = partitionCols.map(_.name),
       properties = properties,
-      comment = Option(ctx.comment).map(string))
+      comment = visitCommentSpecList(ctx.commentSpec()))
 
     val mode = if (ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
 
@@ -529,7 +504,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     checkDuplicateClauses(ctx.locationSpec, "LOCATION", ctx)
     checkDuplicateClauses(ctx.TBLPROPERTIES, "TBLPROPERTIES", ctx)
     val provider = ctx.tableProvider.asScala.headOption.map(_.multipartIdentifier.getText)
-    val location = ctx.locationSpec.asScala.headOption.map(visitLocationSpec)
+    val location = visitLocationSpecList(ctx.locationSpec())
     // rowStorage used to determine CatalogStorageFormat.serde and
     // CatalogStorageFormat.properties in STORED AS clause.
     val rowStorage = ctx.rowFormat.asScala.headOption.map(visitRowFormat)
