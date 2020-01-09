@@ -21,6 +21,7 @@ package org.apache.spark.sql.execution.datasources.parquet;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -147,7 +148,14 @@ public abstract class SpecificParquetRecordReaderBase<T> extends RecordReader<Vo
     this.reader = new ParquetFileReader(
         configuration, footer.getFileMetaData(), file, blocks, requestedSchema.getColumns());
     // use the blocks from the reader in case some do not match filters and will not be read
-    this.totalRowCount += reader.getFilteredRecordCount();
+    // TODO: https://issues.apache.org/jira/browse/PARQUET-1740
+    try {
+      Method method = reader.getClass().getDeclaredMethod("getFilteredRecordCount");
+      method.setAccessible(true);
+      this.totalRowCount += (long) method.invoke(reader);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
 
     // For test purpose.
     // If the last external accumulator is `NumRowGroupsAccumulator`, the row group number to read
@@ -224,7 +232,14 @@ public abstract class SpecificParquetRecordReaderBase<T> extends RecordReader<Vo
     this.reader = new ParquetFileReader(
         config, footer.getFileMetaData(), file, blocks, requestedSchema.getColumns());
     // use the blocks from the reader in case some do not match filters and will not be read
-    this.totalRowCount += reader.getFilteredRecordCount();
+    // TODO: https://issues.apache.org/jira/browse/PARQUET-1740
+    try {
+      Method method = reader.getClass().getDeclaredMethod("getFilteredRecordCount");
+      method.setAccessible(true);
+      this.totalRowCount += (long) method.invoke(reader);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
