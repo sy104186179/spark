@@ -285,8 +285,8 @@ class SQLConfSuite extends QueryTest with SharedSparkSession {
     assert(spark.sessionState.conf.getConfString(fallback.key, "lzo") === "lzo")
 
     val displayValue = spark.sessionState.conf.getAllDefinedConfs
-      .find { case (key, _, _) => key == fallback.key }
-      .map { case (_, v, _) => v }
+      .find { case (key, _, _, _) => key == fallback.key }
+      .map { case (_, v, _, _) => v }
       .get
     assert(displayValue === fallback.defaultValueString)
 
@@ -297,8 +297,8 @@ class SQLConfSuite extends QueryTest with SharedSparkSession {
     assert(spark.sessionState.conf.getConfString(fallback.key) === "lzo")
 
     val newDisplayValue = spark.sessionState.conf.getAllDefinedConfs
-      .find { case (key, _, _) => key == fallback.key }
-      .map { case (_, v, _) => v }
+      .find { case (key, _, _, _) => key == fallback.key }
+      .map { case (_, v, _, _) => v }
       .get
     assert(newDisplayValue === "lzo")
 
@@ -329,7 +329,7 @@ class SQLConfSuite extends QueryTest with SharedSparkSession {
   }
 
   test("log deprecation warnings") {
-    val logAppender = new LogAppender
+    val logAppender = new LogAppender("deprecated SQL configs")
     def check(config: String): Unit = {
       assert(logAppender.loggingEvents.exists(
         e => e.getLevel == Level.WARN &&

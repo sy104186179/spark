@@ -33,14 +33,14 @@ import org.apache.commons.lang3.time.FastDateFormat
 import org.apache.hadoop.io.SequenceFile.CompressionType
 import org.apache.hadoop.io.compress.GzipCodec
 
-import org.apache.spark.{SparkException, TestUtils}
+import org.apache.spark.{SparkConf, SparkException, TestUtils}
 import org.apache.spark.sql.{AnalysisException, Column, DataFrame, QueryTest, Row}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types._
 
-class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
+abstract class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
   import testImplicits._
 
   private val carsFile = "test-data/cars.csv"
@@ -1182,7 +1182,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
         .schema(schemaWithCorrField1)
         .csv(testFile(valueMalformedFile))
       checkAnswer(df2,
-        Row(0, null, "0,2013-111-11 12:13:14") ::
+        Row(0, null, "0,2013-111_11 12:13:14") ::
         Row(1, java.sql.Date.valueOf("1983-08-04"), null) ::
         Nil)
 
@@ -1199,7 +1199,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
         .schema(schemaWithCorrField2)
         .csv(testFile(valueMalformedFile))
       checkAnswer(df3,
-        Row(0, "0,2013-111-11 12:13:14", null) ::
+        Row(0, "0,2013-111_11 12:13:14", null) ::
         Row(1, null, java.sql.Date.valueOf("1983-08-04")) ::
         Nil)
 
@@ -1435,7 +1435,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
     assert(df.filter($"_corrupt_record".isNull).count() == 1)
     checkAnswer(
       df.select(columnNameOfCorruptRecord),
-      Row("0,2013-111-11 12:13:14") :: Row(null) :: Nil
+      Row("0,2013-111_11 12:13:14") :: Row(null) :: Nil
     )
   }
 
@@ -1761,7 +1761,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
   }
 
   test("SPARK-23786: warning should be printed if CSV header doesn't conform to schema") {
-    val testAppender1 = new LogAppender
+    val testAppender1 = new LogAppender("CSV header matches to schema")
     withLogAppender(testAppender1) {
       val ds = Seq("columnA,columnB", "1.0,1000.0").toDS()
       val ischema = new StructType().add("columnB", DoubleType).add("columnA", DoubleType)
@@ -1771,7 +1771,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
     assert(testAppender1.loggingEvents
       .exists(msg => msg.getRenderedMessage.contains("CSV header does not conform to the schema")))
 
-    val testAppender2 = new LogAppender
+    val testAppender2 = new LogAppender("CSV header matches to schema w/ enforceSchema")
     withLogAppender(testAppender2) {
       withTempPath { path =>
         val oschema = new StructType().add("f1", DoubleType).add("f2", DoubleType)
@@ -2093,7 +2093,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
     Seq("csv", "").foreach { reader =>
       withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> reader) {
         withTempPath { path =>
-          val df = Seq(("0", "2013-111-11")).toDF("a", "b")
+          val df = Seq(("0", "2013-111_11")).toDF("a", "b")
           df.write
             .option("header", "true")
             .csv(path.getAbsolutePath)
@@ -2109,7 +2109,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
             .option("columnNameOfCorruptRecord", columnNameOfCorruptRecord)
             .schema(schemaWithCorrField)
             .csv(path.getAbsoluteFile.toString)
-          checkAnswer(readDF, Row(0, null, "0,2013-111-11") :: Nil)
+          checkAnswer(readDF, Row(0, null, "0,2013-111_11") :: Nil)
         }
       }
     }
@@ -2216,7 +2216,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
                 val readback = spark.read
                   .option("mode", mode)
                   .option("header", true)
-                  .option("timestampFormat", "uuuu-MM-dd HH:mm:ss")
+                  .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")
                   .option("multiLine", multiLine)
                   .schema("c0 string, c1 integer, c2 timestamp")
                   .csv(path.getAbsolutePath)
@@ -2235,7 +2235,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
   }
 
   test("filters push down - malformed input in PERMISSIVE mode") {
-    val invalidTs = "2019-123-14 20:35:30"
+    val invalidTs = "2019-123_14 20:35:30"
     val invalidRow = s"0,$invalidTs,999"
     val validTs = "2019-12-14 20:35:30"
     Seq(true, false).foreach { filterPushdown =>
@@ -2252,7 +2252,7 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
               .option("mode", "PERMISSIVE")
               .option("columnNameOfCorruptRecord", "c3")
               .option("header", true)
-              .option("timestampFormat", "uuuu-MM-dd HH:mm:ss")
+              .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")
               .schema("c0 integer, c1 timestamp, c2 integer, c3 string")
               .csv(path.getAbsolutePath)
               .where(condition)
@@ -2270,4 +2270,56 @@ class CSVSuite extends QueryTest with SharedSparkSession with TestCsvData {
       }
     }
   }
+
+  test("SPARK-30530: apply filters to malformed rows") {
+    withSQLConf(SQLConf.CSV_FILTER_PUSHDOWN_ENABLED.key -> "true") {
+      withTempPath { path =>
+        Seq(
+          "100.0,1.0,",
+          "200.0,,",
+          "300.0,3.0,",
+          "1.0,4.0,",
+          ",4.0,",
+          "500.0,,",
+          ",6.0,",
+          "-500.0,50.5").toDF("data")
+          .repartition(1)
+          .write.text(path.getAbsolutePath)
+        val schema = new StructType().add("floats", FloatType).add("more_floats", FloatType)
+        val readback = spark.read
+          .schema(schema)
+          .csv(path.getAbsolutePath)
+          .filter("floats is null")
+        checkAnswer(readback, Seq(Row(null, 4.0), Row(null, 6.0)))
+      }
+    }
+  }
+
+  test("SPARK-30810: parses and convert a CSV Dataset having different column from 'value'") {
+    val ds = spark.range(2).selectExpr("concat('a,b,', id) AS `a.text`").as[String]
+    val csv = spark.read.option("header", true).option("inferSchema", true).csv(ds)
+    assert(csv.schema.fieldNames === Seq("a", "b", "0"))
+    checkAnswer(csv, Row("a", "b", 1))
+  }
+}
+
+class CSVv1Suite extends CSVSuite {
+  override protected def sparkConf: SparkConf =
+    super
+      .sparkConf
+      .set(SQLConf.USE_V1_SOURCE_LIST, "csv")
+}
+
+class CSVv2Suite extends CSVSuite {
+  override protected def sparkConf: SparkConf =
+    super
+      .sparkConf
+      .set(SQLConf.USE_V1_SOURCE_LIST, "")
+}
+
+class CSVLegacyTimeParserSuite extends CSVSuite {
+  override protected def sparkConf: SparkConf =
+    super
+      .sparkConf
+      .set(SQLConf.LEGACY_TIME_PARSER_ENABLED, true)
 }

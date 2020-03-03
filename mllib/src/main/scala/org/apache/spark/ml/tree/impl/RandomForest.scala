@@ -290,11 +290,9 @@ private[spark] object RandomForest extends Logging with Serializable {
     // Cache input RDD for speedup during multiple passes.
     val treeInput = TreePoint.convertToTreeRDD(retaggedInput, splits, metadata)
 
-    val withReplacement = numTrees > 1
-
     val bcSplits = input.sparkContext.broadcast(splits)
     val baggedInput = BaggedPoint
-      .convertToBaggedRDD(treeInput, strategy.subsamplingRate, numTrees, withReplacement,
+      .convertToBaggedRDD(treeInput, strategy.subsamplingRate, numTrees, strategy.bootstrap,
         (tp: TreePoint) => tp.weight, seed = seed)
       .persist(StorageLevel.MEMORY_AND_DISK)
       .setName("bagged tree points")
@@ -827,7 +825,7 @@ private[spark] object RandomForest extends Logging with Serializable {
     }
 
     val validFeatureSplits =
-      Range(0, binAggregates.metadata.numFeaturesPerNode).view.map { featureIndexIdx =>
+      Iterator.range(0, binAggregates.metadata.numFeaturesPerNode).map { featureIndexIdx =>
         featuresForNode.map(features => (featureIndexIdx, features(featureIndexIdx)))
           .getOrElse((featureIndexIdx, featureIndexIdx))
       }.withFilter { case (_, featureIndex) =>

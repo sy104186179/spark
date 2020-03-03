@@ -30,9 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.catalyst.util.DateTimeConstants._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
-import org.apache.spark.sql.catalyst.util.IntervalUtils._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.SQLConf.IntervalStyle._
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.UTF8StringBuilder
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
@@ -253,7 +251,10 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
 
   def dataType: DataType
 
-  override def toString: String = s"cast($child as ${dataType.simpleString})"
+  override def toString: String = {
+    val ansi = if (ansiEnabled) "ansi_" else ""
+    s"${ansi}cast($child as ${dataType.simpleString})"
+  }
 
   override def checkInputDataTypes(): TypeCheckResult = {
     if (Cast.canCast(child.dataType, dataType)) {
@@ -283,14 +284,8 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
 
   // UDFToString
   private[this] def castToString(from: DataType): Any => Any = from match {
-    case CalendarIntervalType => SQLConf.get.intervalOutputStyle match {
-      case SQL_STANDARD =>
-        buildCast[CalendarInterval](_, i => UTF8String.fromString(toSqlStandardString(i)))
-      case ISO_8601 =>
-        buildCast[CalendarInterval](_, i => UTF8String.fromString(toIso8601String(i)))
-      case MULTI_UNITS =>
-        buildCast[CalendarInterval](_, i => UTF8String.fromString(toMultiUnitsString(i)))
-    }
+    case CalendarIntervalType =>
+      buildCast[CalendarInterval](_, i => UTF8String.fromString(i.toString))
     case BinaryType => buildCast[Array[Byte]](_, UTF8String.fromBytes)
     case DateType => buildCast[Int](_, d => UTF8String.fromString(dateFormatter.format(d)))
     case TimestampType => buildCast[Long](_,
@@ -1021,13 +1016,7 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
         (c, evPrim, evNull) => code"""$evPrim = UTF8String.fromString(
           org.apache.spark.sql.catalyst.util.DateTimeUtils.timestampToString($tf, $c));"""
       case CalendarIntervalType =>
-        val iu = IntervalUtils.getClass.getCanonicalName.stripSuffix("$")
-        val funcName = SQLConf.get.intervalOutputStyle match {
-          case SQL_STANDARD => "toSqlStandardString"
-          case ISO_8601 => "toIso8601String"
-          case MULTI_UNITS => "toMultiUnitsString"
-        }
-        (c, evPrim, _) => code"""$evPrim = UTF8String.fromString($iu.$funcName($c));"""
+        (c, evPrim, _) => code"""$evPrim = UTF8String.fromString($c.toString());"""
       case ArrayType(et, _) =>
         (c, evPrim, evNull) => {
           val buffer = ctx.freshVariable("buffer", classOf[UTF8StringBuilder])

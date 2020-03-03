@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{PartialShuffleReaderExec, SkewedPartitionReaderExec}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.util.collection.BitSet
 
@@ -41,27 +40,17 @@ case class SortMergeJoinExec(
     joinType: JoinType,
     condition: Option[Expression],
     left: SparkPlan,
-    right: SparkPlan) extends BinaryExecNode with CodegenSupport {
+    right: SparkPlan,
+    isSkewJoin: Boolean = false) extends BaseJoinExec with CodegenSupport {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
-  override def simpleStringWithNodeId(): String = {
-    val opId = ExplainUtils.getOpId(this)
-    s"$nodeName $joinType ($opId)".trim
+  override def nodeName: String = {
+    if (isSkewJoin) super.nodeName + "(skew=true)" else super.nodeName
   }
 
-  override def verboseStringWithOperatorId(): String = {
-    val joinCondStr = if (condition.isDefined) {
-      s"${condition.get}"
-    } else "None"
-    s"""
-       |(${ExplainUtils.getOpId(this)}) $nodeName ${ExplainUtils.getCodegenId(this)}
-       |Left keys : ${leftKeys}
-       |Right keys: ${rightKeys}
-       |Join condition : ${joinCondStr}
-     """.stripMargin
-  }
+  override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
   override def output: Seq[Attribute] = {
     joinType match {
@@ -96,15 +85,10 @@ case class SortMergeJoinExec(
         s"${getClass.getSimpleName} should not take $x as the JoinType")
   }
 
-  private def containSkewedReader(plan: SparkPlan): Boolean = plan match {
-    case s: SkewedPartitionReaderExec => true
-    case p: PartialShuffleReaderExec => true
-    case s: SortExec => containSkewedReader(s.child)
-    case _ => false
-  }
-
   override def requiredChildDistribution: Seq[Distribution] = {
-    if (containSkewedReader(left)) {
+    if (isSkewJoin) {
+      // We re-arrange the shuffle partitions to deal with skew join, and the new children
+      // partitioning doesn't satisfy `HashClusteredDistribution`.
       UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
     } else {
       HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil

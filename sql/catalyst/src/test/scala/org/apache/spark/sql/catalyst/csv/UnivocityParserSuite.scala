@@ -19,6 +19,7 @@ package org.apache.spark.sql.catalyst.csv
 
 import java.math.BigDecimal
 import java.text.{DecimalFormat, DecimalFormatSymbols}
+import java.time.ZoneOffset
 import java.util.{Locale, TimeZone}
 
 import org.apache.commons.lang3.time.FastDateFormat
@@ -134,10 +135,10 @@ class UnivocityParserSuite extends SparkFunSuite with SQLHelper {
       dateOptions.dateFormat,
       TimeZone.getTimeZone(dateOptions.zoneId),
       dateOptions.locale)
-    val expectedDate = format.parse(customDate).getTime
+    val expectedDate = DateTimeUtils.millisToMicros(format.parse(customDate).getTime)
     val castedDate = parser.makeConverter("_1", DateType, nullable = true)
         .apply(customDate)
-    assert(castedDate == DateTimeUtils.millisToDays(expectedDate, TimeZone.getTimeZone("GMT")))
+    assert(castedDate == DateTimeUtils.microsToDays(expectedDate, ZoneOffset.UTC))
 
     val timestamp = "2015-01-01 00:00:00"
     timestampsOptions = new CSVOptions(Map(
@@ -276,7 +277,7 @@ class UnivocityParserSuite extends SparkFunSuite with SQLHelper {
         dataSchema: StructType = StructType.fromDDL("i INTEGER, s STRING"),
         requiredSchema: StructType = StructType.fromDDL("i INTEGER"),
         filters: Seq[Filter],
-        expected: Seq[InternalRow]): Unit = {
+        expected: Option[InternalRow]): Unit = {
       Seq(false, true).foreach { columnPruning =>
         val options = new CSVOptions(Map.empty[String, String], columnPruning, "GMT")
         val parser = new UnivocityParser(dataSchema, requiredSchema, options, filters)
@@ -285,26 +286,26 @@ class UnivocityParserSuite extends SparkFunSuite with SQLHelper {
       }
     }
 
-    check(filters = Seq(), expected = Seq(InternalRow(1)))
-    check(filters = Seq(EqualTo("i", 1)), expected = Seq(InternalRow(1)))
-    check(filters = Seq(EqualTo("i", 2)), expected = Seq())
+    check(filters = Seq(), expected = Some(InternalRow(1)))
+    check(filters = Seq(EqualTo("i", 1)), expected = Some(InternalRow(1)))
+    check(filters = Seq(EqualTo("i", 2)), expected = None)
     check(
       requiredSchema = StructType.fromDDL("s STRING"),
       filters = Seq(StringStartsWith("s", "b")),
-      expected = Seq())
+      expected = None)
     check(
       requiredSchema = StructType.fromDDL("i INTEGER, s STRING"),
       filters = Seq(StringStartsWith("s", "a")),
-      expected = Seq(InternalRow(1, UTF8String.fromString("a"))))
+      expected = Some(InternalRow(1, UTF8String.fromString("a"))))
     check(
       input = "1,a,3.14",
       dataSchema = StructType.fromDDL("i INTEGER, s STRING, d DOUBLE"),
       requiredSchema = StructType.fromDDL("i INTEGER, d DOUBLE"),
       filters = Seq(EqualTo("d", 3.14)),
-      expected = Seq(InternalRow(1, 3.14)))
+      expected = Some(InternalRow(1, 3.14)))
 
     val errMsg = intercept[IllegalArgumentException] {
-      check(filters = Seq(EqualTo("invalid attr", 1)), expected = Seq())
+      check(filters = Seq(EqualTo("invalid attr", 1)), expected = None)
     }.getMessage
     assert(errMsg.contains("invalid attr does not exist"))
 
@@ -313,7 +314,7 @@ class UnivocityParserSuite extends SparkFunSuite with SQLHelper {
         dataSchema = new StructType(),
         requiredSchema = new StructType(),
         filters = Seq(EqualTo("i", 1)),
-        expected = Seq(InternalRow.empty))
+        expected = Some(InternalRow.empty))
     }.getMessage
     assert(errMsg2.contains("i does not exist"))
   }
