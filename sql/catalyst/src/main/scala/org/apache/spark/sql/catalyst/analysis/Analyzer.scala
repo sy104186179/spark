@@ -224,7 +224,7 @@ class Analyzer(
       ResolveGroupingAnalytics ::
       ResolvePivot ::
       ResolveOrdinalInOrderByAndGroupBy ::
-      ResolveAggAliasInGroupBy ::
+      // ResolveAggAliasInGroupBy ::
       ResolveMissingReferences ::
       ExtractGenerator ::
       ResolveGenerate ::
@@ -1246,6 +1246,7 @@ class Analyzer(
             withPosition(u) {
               q.resolveChildren(nameParts, resolver)
                 .orElse(resolveLiteralFunction(nameParts, u, q))
+                 .orElse(resolveReferencedAlias(nameParts, u, q))
                 .getOrElse(u)
             }
           logDebug(s"Resolving $u to $result")
@@ -1518,6 +1519,29 @@ class Analyzer(
     val name = nameParts.head
     val func = literalFunctions.find(e => caseInsensitiveResolution(e.prettyName, name))
     func.map(wrapper)
+  }
+
+  private def resolveReferencedAlias(
+      nameParts: Seq[String],
+      attribute: UnresolvedAttribute,
+      plan: LogicalPlan): Option[Expression] = {
+    def resolveAlias(exps: Seq[NamedExpression]) = {
+      val alias =
+        exps.filter(a => a.resolved && a.isInstanceOf[Alias] && resolver(a.name, nameParts.head))
+      if (alias.size > 1) {
+        throw new AnalysisException(s"Found duplicate alias when resolving '${nameParts.head}'")
+      }
+      alias.headOption
+    }
+    plan match {
+      case Aggregate(groups, aggs, _) if conf.groupByAliases && groups.contains(attribute) =>
+        resolveAlias(aggs)
+      case Aggregate(groups, aggs, _) if !groups.contains(attribute) =>
+        resolveAlias(aggs)
+      case Project(projectList, _) =>
+        resolveAlias(projectList)
+      case _ => None
+    }
   }
 
   /**
