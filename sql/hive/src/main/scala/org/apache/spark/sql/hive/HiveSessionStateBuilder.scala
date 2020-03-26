@@ -88,6 +88,8 @@ class HiveSessionStateBuilder(session: SparkSession, parentState: Option[Session
         PreprocessTableInsertion(conf) +:
         DataSourceAnalysis(conf) +:
         HiveAnalysis +:
+        RepartitionBeforeInsertDataSourceTable(conf) +:
+        RepartitionBeforeInsertHiveTable(conf) +:
         customPostHocResolutionRules
 
     override val extendedCheckRules: Seq[LogicalPlan => Unit] =
