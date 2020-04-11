@@ -61,10 +61,26 @@ grammar SqlBase;
    * When true, the behavior of keywords follows ANSI SQL standard.
    */
   public boolean SQL_standard_keyword_behavior = false;
+
+  /**
+   * This method will be called when we see '/*' and try to match it as a bracketed comment.
+   * If the next character is '+', it should be parsed as hint later, and we cannot match
+   * it as a bracketed comment.
+   *
+   * Returns true if the next character is '+'.
+   */
+  public boolean isHint() {
+    int nextChar = _input.LA(1);
+    if (nextChar == '+') {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }
 
 singleStatement
-    : statement EOF
+    : statement ';'* EOF
     ;
 
 singleExpression
@@ -160,10 +176,13 @@ statement
         UNSET TBLPROPERTIES (IF EXISTS)? tablePropertyList             #unsetTableProperties
     | ALTER TABLE table=multipartIdentifier
         (ALTER | CHANGE) COLUMN? column=multipartIdentifier
-        (TYPE dataType)? commentSpec? colPosition?                     #alterTableColumn
+        alterColumnAction?                                             #alterTableAlterColumn
     | ALTER TABLE table=multipartIdentifier partitionSpec?
         CHANGE COLUMN?
         colName=multipartIdentifier colType colPosition?               #hiveChangeColumn
+    | ALTER TABLE table=multipartIdentifier partitionSpec?
+        REPLACE COLUMNS
+        '(' columns=qualifiedColTypeWithPositionList ')'               #hiveReplaceColumns
     | ALTER TABLE multipartIdentifier (partitionSpec)?
         SET SERDE STRING (WITH SERDEPROPERTIES tablePropertyList)?     #setTableSerDe
     | ALTER TABLE multipartIdentifier (partitionSpec)?
@@ -204,16 +223,18 @@ statement
         ('(' key=tablePropertyKey ')')?                                #showTblProperties
     | SHOW COLUMNS (FROM | IN) table=multipartIdentifier
         ((FROM | IN) ns=multipartIdentifier)?                          #showColumns
+    | SHOW VIEWS ((FROM | IN) multipartIdentifier)?
+        (LIKE? pattern=STRING)?                                        #showViews
     | SHOW PARTITIONS multipartIdentifier partitionSpec?               #showPartitions
     | SHOW identifier? FUNCTIONS
         (LIKE? (multipartIdentifier | pattern=STRING))?                #showFunctions
-    | SHOW CREATE TABLE multipartIdentifier                            #showCreateTable
+    | SHOW CREATE TABLE multipartIdentifier (AS SERDE)?                #showCreateTable
     | SHOW CURRENT NAMESPACE                                           #showCurrentNamespace
     | (DESC | DESCRIBE) FUNCTION EXTENDED? describeFuncName            #describeFunction
     | (DESC | DESCRIBE) namespace EXTENDED?
         multipartIdentifier                                            #describeNamespace
     | (DESC | DESCRIBE) TABLE? option=(EXTENDED | FORMATTED)?
-        multipartIdentifier partitionSpec? describeColName?            #describeTable
+        multipartIdentifier partitionSpec? describeColName?            #describeRelation
     | (DESC | DESCRIBE) QUERY? query                                   #describeQuery
     | COMMENT ON namespace multipartIdentifier IS
         comment=(STRING | NULL)                                        #commentNamespace
@@ -768,8 +789,8 @@ primaryExpression
     | CASE value=expression whenClause+ (ELSE elseExpression=expression)? END                  #simpleCase
     | CAST '(' expression AS dataType ')'                                                      #cast
     | STRUCT '(' (argument+=namedExpression (',' argument+=namedExpression)*)? ')'             #struct
-    | (FIRST | FIRST_VALUE) '(' expression ((IGNORE | RESPECT) NULLS)? ')'                     #first
-    | (LAST | LAST_VALUE) '(' expression ((IGNORE | RESPECT) NULLS)? ')'                       #last
+    | FIRST '(' expression (IGNORE NULLS)? ')'                                                 #first
+    | LAST '(' expression (IGNORE NULLS)? ')'                                                  #last
     | POSITION '(' substr=valueExpression IN str=valueExpression ')'                           #position
     | constant                                                                                 #constantDefault
     | ASTERISK                                                                                 #star
@@ -869,7 +890,7 @@ qualifiedColTypeWithPositionList
     ;
 
 qualifiedColTypeWithPosition
-    : name=multipartIdentifier dataType commentSpec? colPosition?
+    : name=multipartIdentifier dataType (NOT NULL)? commentSpec? colPosition?
     ;
 
 colTypeList
@@ -877,7 +898,7 @@ colTypeList
     ;
 
 colType
-    : colName=errorCapturingIdentifier dataType commentSpec?
+    : colName=errorCapturingIdentifier dataType (NOT NULL)? commentSpec?
     ;
 
 complexColTypeList
@@ -885,7 +906,7 @@ complexColTypeList
     ;
 
 complexColType
-    : identifier ':' dataType commentSpec?
+    : identifier ':' dataType (NOT NULL)? commentSpec?
     ;
 
 whenClause
@@ -978,6 +999,13 @@ number
     | MINUS? TINYINT_LITERAL          #tinyIntLiteral
     | MINUS? DOUBLE_LITERAL           #doubleLiteral
     | MINUS? BIGDECIMAL_LITERAL       #bigDecimalLiteral
+    ;
+
+alterColumnAction
+    : TYPE dataType
+    | commentSpec
+    | colPosition
+    | setOrDrop=(SET | DROP) NOT NULL
     ;
 
 // When `SQL_standard_keyword_behavior=true`, there are 2 kinds of keywords in Spark SQL.
@@ -1117,7 +1145,6 @@ ansiNonReserved
     | REPAIR
     | REPLACE
     | RESET
-    | RESPECT
     | RESTRICT
     | REVOKE
     | RLIKE
@@ -1165,6 +1192,7 @@ ansiNonReserved
     | USE
     | VALUES
     | VIEW
+    | VIEWS
     | WINDOW
     ;
 
@@ -1277,7 +1305,6 @@ nonReserved
     | FIELDS
     | FILEFORMAT
     | FIRST
-    | FIRST_VALUE
     | FOLLOWING
     | FOR
     | FOREIGN
@@ -1307,7 +1334,6 @@ nonReserved
     | ITEMS
     | KEYS
     | LAST
-    | LAST_VALUE
     | LATERAL
     | LAZY
     | LEADING
@@ -1371,7 +1397,6 @@ nonReserved
     | REPAIR
     | REPLACE
     | RESET
-    | RESPECT
     | RESTRICT
     | REVOKE
     | RLIKE
@@ -1431,6 +1456,7 @@ nonReserved
     | USER
     | VALUES
     | VIEW
+    | VIEWS
     | WHEN
     | WHERE
     | WINDOW
@@ -1528,7 +1554,6 @@ FIELDS: 'FIELDS';
 FILTER: 'FILTER';
 FILEFORMAT: 'FILEFORMAT';
 FIRST: 'FIRST';
-FIRST_VALUE: 'FIRST_VALUE';
 FOLLOWING: 'FOLLOWING';
 FOR: 'FOR';
 FOREIGN: 'FOREIGN';
@@ -1562,7 +1587,6 @@ ITEMS: 'ITEMS';
 JOIN: 'JOIN';
 KEYS: 'KEYS';
 LAST: 'LAST';
-LAST_VALUE: 'LAST_VALUE';
 LATERAL: 'LATERAL';
 LAZY: 'LAZY';
 LEADING: 'LEADING';
@@ -1629,7 +1653,6 @@ RENAME: 'RENAME';
 REPAIR: 'REPAIR';
 REPLACE: 'REPLACE';
 RESET: 'RESET';
-RESPECT: 'RESPECT';
 RESTRICT: 'RESTRICT';
 REVOKE: 'REVOKE';
 RIGHT: 'RIGHT';
@@ -1694,6 +1717,7 @@ USER: 'USER';
 USING: 'USING';
 VALUES: 'VALUES';
 VIEW: 'VIEW';
+VIEWS: 'VIEWS';
 WHEN: 'WHEN';
 WHERE: 'WHERE';
 WINDOW: 'WINDOW';
@@ -1793,12 +1817,8 @@ SIMPLE_COMMENT
     : '--' ~[\r\n]* '\r'? '\n'? -> channel(HIDDEN)
     ;
 
-BRACKETED_EMPTY_COMMENT
-    : '/**/' -> channel(HIDDEN)
-    ;
-
 BRACKETED_COMMENT
-    : '/*' ~[+] .*? '*/' -> channel(HIDDEN)
+    : '/*' {!isHint()}? (BRACKETED_COMMENT|.)*? '*/' -> channel(HIDDEN)
     ;
 
 WS

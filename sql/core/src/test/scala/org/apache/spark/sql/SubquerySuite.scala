@@ -22,11 +22,12 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
 import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan, Sort}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ExecSubqueryExpression, FileSourceScanExec, InputAdapter, ReusedSubqueryExec, ScalarSubquery, SubqueryExec, WholeStageCodegenExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.FileScanRDD
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-class SubquerySuite extends QueryTest with SharedSparkSession {
+class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlanHelper {
   import testImplicits._
 
   setupTestData()
@@ -287,10 +288,10 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
         " or l.a in (select c from r where l.b < r.d)"),
       Row(2, 1.0) :: Row(2, 1.0) :: Row(3, 3.0) :: Row(6, null) :: Nil)
 
-    intercept[AnalysisException] {
+    checkAnswer(
       sql("select * from l where a not in (select c from r)" +
-        " or a not in (select c from r where c is not null)")
-    }
+        " or a not in (select c from r where c is not null)"),
+      Row(1, 2.0) :: Row(1, 2.0) :: Nil)
   }
 
   test("complex IN predicate subquery") {
@@ -1293,7 +1294,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
       sql("create temporary view t1(a int) using parquet")
       sql("create temporary view t2(b int) using parquet")
       val plan = sql("select * from t2 where b > (select max(a) from t1)")
-      val subqueries = plan.queryExecution.executedPlan.collect {
+      val subqueries = stripAQEPlan(plan.queryExecution.executedPlan).collect {
         case p => p.subqueries
       }.flatten
       assert(subqueries.length == 1)
@@ -1308,7 +1309,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
       val df = sql("SELECT * FROM a WHERE p <= (SELECT MIN(id) FROM b)")
       checkAnswer(df, Seq(Row(0, 0), Row(2, 0)))
       // need to execute the query before we can examine fs.inputRDDs()
-      assert(df.queryExecution.executedPlan match {
+      assert(stripAQEPlan(df.queryExecution.executedPlan) match {
         case WholeStageCodegenExec(ColumnarToRowExec(InputAdapter(
             fs @ FileSourceScanExec(_, _, _, partitionFilters, _, _, _)))) =>
           partitionFilters.exists(ExecSubqueryExpression.hasSubquery) &&
@@ -1358,7 +1359,9 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-27279: Reuse Subquery") {
     Seq(true, false).foreach { reuse =>
-      withSQLConf(SQLConf.SUBQUERY_REUSE_ENABLED.key -> reuse.toString) {
+      withSQLConf(SQLConf.SUBQUERY_REUSE_ENABLED.key -> reuse.toString,
+        SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+        // when enable AQE, the reusedExchange is inserted when executed.
         val df = sql(
           """
             |SELECT (SELECT avg(key) FROM testData) + (SELECT avg(key) FROM testData)
