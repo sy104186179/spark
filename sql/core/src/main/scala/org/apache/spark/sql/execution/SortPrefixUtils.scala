@@ -29,7 +29,7 @@ object SortPrefixUtils {
    * A dummy prefix comparator which always claims that prefixes are equal. This is used in cases
    * where we don't know how to generate or compare prefixes for a SortOrder.
    */
-  private object NoOpPrefixComparator extends PrefixComparator {
+  object NoOpPrefixComparator extends PrefixComparator {
     override def compare(prefix1: Long, prefix2: Long): Int = 0
   }
 

@@ -94,55 +94,6 @@ object InterpretedOrdering {
   }
 }
 
-/**
- * An interpreted row ordering comparator based on Z-order curve.
- */
-class InterpretedZOrdering(ordering: Seq[SortOrder]) extends Ordering[InternalRow] {
-  if (ordering.size < 2) {
-    throw new SparkException("Z-order requires must more than 1 column.")
-  }
-  if (!ordering.map(_.dataType).forall {
-    case _: IntegralType | DateType | TimestampType => true
-    case _ => false
-  }) {
-    throw new SparkException("Z-order only support IntegralType, DateType and TimestampType.")
-  }
-
-  def this(ordering: Seq[SortOrder], inputSchema: Seq[Attribute]) =
-    this(ordering.map(BindReferences.bindReference(_, inputSchema)))
-
-  override def compare(a: InternalRow, b: InternalRow): Int = {
-    var msdLhs = getValue(0, a)
-    var msdRhs = getValue(0, b)
-
-    for (dim <- 1 until ordering.size) {
-      val lhsVal = getValue(dim, a)
-      val rhsVal = getValue(dim, b)
-      if (lessMsb(msdLhs ^ msdRhs, lhsVal ^ rhsVal)) {
-        msdLhs = lhsVal
-        msdRhs = rhsVal
-      }
-    }
-
-    if (msdLhs < msdRhs) {
-      -1
-    } else if (msdLhs > msdRhs) {
-      1
-    } else {
-      0
-    }
-  }
-
-  private def getValue(index: Int, internalRow: InternalRow): Long = {
-    Option(ordering(index).child.eval(internalRow))
-      .getOrElse(Long.MinValue).asInstanceOf[Number].longValue()
-  }
-
-  private def lessMsb(x: Long, y: Long): Boolean = {
-    x < y && x < (x ^ y)
-  }
-}
-
 object RowOrdering extends CodeGeneratorWithInterpretedFallback[Seq[SortOrder], BaseOrdering] {
 
   /**
@@ -182,5 +133,66 @@ object RowOrdering extends CodeGeneratorWithInterpretedFallback[Seq[SortOrder], 
       case (dt, index) => SortOrder(BoundReference(index, dt, nullable = true), Ascending)
     }
     create(order, Seq.empty)
+  }
+}
+
+/**
+ * An interpreted row ordering comparator based on Z-order curve.
+ */
+class InterpretedZOrdering(ordering: Seq[Expression]) extends BaseOrdering {
+  if (ordering.size < 2) {
+    throw new SparkException("Z-order requires must more than 1 column.")
+  }
+  if (!ordering.map(_.dataType).forall {
+    case _: IntegralType | DateType | TimestampType => true
+    case _ => false
+  }) {
+    throw new SparkException("Z-order only support IntegralType, DateType and TimestampType.")
+  }
+
+  override def compare(a: InternalRow, b: InternalRow): Int = {
+    var msdLhs = getValue(0, a)
+    var msdRhs = getValue(0, b)
+
+    for (dim <- 1 until ordering.size) {
+      val lhsVal = getValue(dim, a)
+      val rhsVal = getValue(dim, b)
+      if (lessMsb(msdLhs ^ msdRhs, lhsVal ^ rhsVal)) {
+        msdLhs = lhsVal
+        msdRhs = rhsVal
+      }
+    }
+
+    if (msdLhs < msdRhs) {
+      -1
+    } else if (msdLhs > msdRhs) {
+      1
+    } else {
+      0
+    }
+  }
+
+  private def getValue(index: Int, internalRow: InternalRow): Long = {
+    Option(ordering(index).eval(internalRow))
+      .getOrElse(Long.MinValue).asInstanceOf[Number].longValue()
+  }
+
+  private def lessMsb(x: Long, y: Long): Boolean = {
+    x < y && x < (x ^ y)
+  }
+}
+
+object ZOrderRowOrdering
+  extends CodeGeneratorWithInterpretedFallback[Seq[Expression], BaseOrdering] {
+  override protected def createCodeGeneratedObject(in: Seq[Expression]): BaseOrdering = {
+    throw new SparkException("We do not support codegen for Z-order curve right now.")
+  }
+
+  override protected def createInterpretedObject(in: Seq[Expression]): BaseOrdering = {
+    new InterpretedZOrdering(in)
+  }
+
+  def create(order: Seq[Expression], inputSchema: Seq[Attribute]): BaseOrdering = {
+    createObject(bindReferences(order, inputSchema))
   }
 }
