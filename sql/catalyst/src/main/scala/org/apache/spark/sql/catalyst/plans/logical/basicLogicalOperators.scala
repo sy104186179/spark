@@ -485,6 +485,20 @@ case class Sort(
   override def outputOrdering: Seq[SortOrder] = order
 }
 
+/**
+ * @param order  The ordering expressions
+ * @param global True means global sorting apply for entire data set,
+ *               False means sorting only apply within the partition.
+ * @param child  Child logical plan
+ */
+case class Zorder(
+    order: Seq[Expression],
+    global: Boolean,
+    child: LogicalPlan) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+  override def maxRows: Option[Long] = child.maxRows
+}
+
 /** Factory for constructing new `Range` nodes. */
 object Range {
   def apply(start: Long, end: Long, step: Long,
