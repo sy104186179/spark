@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.expressions
 
 import scala.math._
 
-import org.apache.spark.{SparkConf, SparkFunSuite}
+import org.apache.spark.{SparkConf, SparkException, SparkFunSuite}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.{RandomDataGenerator, Row}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -164,5 +164,54 @@ class OrderingSuite extends SparkFunSuite with ExpressionEvalHelper {
     val schema = new StructType().add("field", FloatType, nullable = true)
     GenerateOrdering.genComparisons(ctx, schema)
     assert(ctx.INPUT_ROW == null)
+  }
+
+  test("Interpreted row ordering comparator based on Z-order curve") {
+    val rowType = StructType(
+      StructField("a", IntegerType) ::
+        StructField("b", IntegerType) :: Nil)
+    val rowOrdering = rowType.map(_.dataType).zipWithIndex.map {
+      case (dt, index) => SortOrder(BoundReference(index, dt, nullable = true), Ascending)
+    }
+    val toCatalyst = CatalystTypeConverters.createToCatalystConverter(rowType)
+
+    def test(row1: Row, row2: Row, result: Int): Unit = {
+      val ordering = new InterpretedZOrdering(rowOrdering)
+      assert(ordering.compare(toCatalyst(row1).asInstanceOf[InternalRow],
+        toCatalyst(row2).asInstanceOf[InternalRow]) === result)
+    }
+
+    test(Row(0, 0), Row(0, 0), 0)
+    test(Row(-5, 3), Row(-5, 3), 0)
+    test(Row(1, 0), Row(0, 1), 1)
+    test(Row(0, 1), Row(1, 0), -1)
+
+    test(Row(1, 0), Row(0, 1), 1)
+    test(Row(2, 4), Row(1, 7), 1)
+    test(Row(3, 7), Row(4, 0), -1)
+    test(Row(6, 4), Row(5, 7), 1)
+    test(Row(5, 5), Row(6, 4), -1)
+    test(Row(6, 1), Row(3, 7), 1)
+
+    test(Row(Int.MaxValue / 2 + 2, 1), Row(1, Int.MaxValue), 1)
+    test(Row(Int.MaxValue / 2, 1), Row(1, Int.MaxValue), -1)
+
+    val m1 = intercept[SparkException] {
+      new InterpretedZOrdering(
+        StructType(StructField("a", IntegerType) :: Nil)
+          .map(_.dataType).zipWithIndex.map {
+          case (dt, index) => SortOrder(BoundReference(index, dt, nullable = true), Ascending)
+        })
+    }
+    assert(m1.getMessage.contains("Z-order requires must more than 1 column"))
+
+    val m2 = intercept[SparkException] {
+      new InterpretedZOrdering(
+        StructType(StructField("a", BooleanType) :: StructField("b", IntegerType) :: Nil)
+          .map(_.dataType).zipWithIndex.map {
+          case (dt, index) => SortOrder(BoundReference(index, dt, nullable = true), Ascending)
+        })
+    }
+    assert(m2.getMessage.contains("Z-order only support IntegralType, DateType and TimestampType"))
   }
 }
