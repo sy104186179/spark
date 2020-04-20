@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.test.SharedSparkSession
 
 class ZorderSuite extends SparkPlanTest with SharedSparkSession {
@@ -48,5 +49,24 @@ class ZorderSuite extends SparkPlanTest with SharedSparkSession {
       (child: SparkPlan) => ZorderExec(Seq('a, 'b), global = true, child = child),
       input.map(Row.fromTuple),
       sortAnswers = false)
+  }
+
+  test("ZORDER syntax") {
+    withTempView("t1") {
+      spark.range(1, 5, 1, 4).selectExpr("id % 4 as c1", "id % 3 as c2", "id as c3")
+        .createOrReplaceTempView("t1")
+      val logical = spark.sql("SELECT * FROM T1 ORDER BY ZORDER C1, C2").queryExecution.sparkPlan
+      assert(logical.isInstanceOf[ZorderExec])
+      logical match {
+        case ZorderExec(sortOrder, global, _, _) =>
+          assert(sortOrder.length === 2)
+          assert(global)
+      }
+
+      val errMsg = intercept[ParseException] {
+        spark.sql("SELECT * FROM T1 ORDER BY ZORDER C1")
+      }.getMessage
+      assert(errMsg.contains("The Z-order curve requires must more than 1 column"))
+    }
   }
 }

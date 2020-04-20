@@ -454,9 +454,11 @@ dmlStatementNoWith
 
 queryOrganization
     : (ORDER BY order+=sortItem (',' order+=sortItem)*)?
+      (ORDER BY ZORDER zorder+=expression (',' zorder+=expression)*)?
       (CLUSTER BY clusterBy+=expression (',' clusterBy+=expression)*)?
       (DISTRIBUTE BY distributeBy+=expression (',' distributeBy+=expression)*)?
       (SORT BY sort+=sortItem (',' sort+=sortItem)*)?
+      (SORT BY ZORDER zsort+=expression(',' zsort+=expression)*)?
       windowClause?
       (LIMIT (ALL | limit=expression))?
     ;
@@ -1194,6 +1196,7 @@ ansiNonReserved
     | VIEW
     | VIEWS
     | WINDOW
+    | ZORDER
     ;
 
 // When `SQL_standard_keyword_behavior=false`, there are 2 kinds of keywords in Spark SQL.
@@ -1723,6 +1726,7 @@ WHERE: 'WHERE';
 WINDOW: 'WINDOW';
 WITH: 'WITH';
 YEAR: 'YEAR';
+ZORDER: 'ZORDER';
 //============================
 // End of the keywords list
 //============================

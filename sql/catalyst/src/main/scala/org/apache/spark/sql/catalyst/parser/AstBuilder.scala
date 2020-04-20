@@ -526,44 +526,58 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   /**
-   * Add ORDER BY/SORT BY/CLUSTER BY/DISTRIBUTE BY/LIMIT/WINDOWS clauses to the logical plan. These
-   * clauses determine the shape (ordering/partitioning/rows) of the query result.
+   * Add ORDER BY (ZORDER)/SORT BY(ZORDER)/CLUSTER BY/DISTRIBUTE BY/LIMIT/WINDOWS clauses to the
+   * logical plan.
+   * These clauses determine the shape (ordering/partitioning/rows) of the query result.
    */
   private def withQueryResultClauses(
       ctx: QueryOrganizationContext,
       query: LogicalPlan): LogicalPlan = withOrigin(ctx) {
     import ctx._
 
-    // Handle ORDER BY, SORT BY, DISTRIBUTE BY, and CLUSTER BY clause.
-    val withOrder = if (
-      !order.isEmpty && sort.isEmpty && distributeBy.isEmpty && clusterBy.isEmpty) {
-      // ORDER BY ...
-      Sort(order.asScala.map(visitSortItem), global = true, query)
-    } else if (order.isEmpty && !sort.isEmpty && distributeBy.isEmpty && clusterBy.isEmpty) {
-      // SORT BY ...
-      Sort(sort.asScala.map(visitSortItem), global = false, query)
-    } else if (order.isEmpty && sort.isEmpty && !distributeBy.isEmpty && clusterBy.isEmpty) {
-      // DISTRIBUTE BY ...
-      withRepartitionByExpression(ctx, expressionList(distributeBy), query)
-    } else if (order.isEmpty && !sort.isEmpty && !distributeBy.isEmpty && clusterBy.isEmpty) {
-      // SORT BY ... DISTRIBUTE BY ...
-      Sort(
-        sort.asScala.map(visitSortItem),
-        global = false,
-        withRepartitionByExpression(ctx, expressionList(distributeBy), query))
-    } else if (order.isEmpty && sort.isEmpty && distributeBy.isEmpty && !clusterBy.isEmpty) {
-      // CLUSTER BY ...
-      val expressions = expressionList(clusterBy)
-      Sort(
-        expressions.map(SortOrder(_, Ascending)),
-        global = false,
-        withRepartitionByExpression(ctx, expressions, query))
-    } else if (order.isEmpty && sort.isEmpty && distributeBy.isEmpty && clusterBy.isEmpty) {
-      // [EMPTY]
-      query
-    } else {
-      throw new ParseException(
-        "Combination of ORDER BY/SORT BY/DISTRIBUTE BY/CLUSTER BY is not supported", ctx)
+    // Handle ORDER BY (ZORDER), SORT BY (ZORDER), DISTRIBUTE BY, and CLUSTER BY clause.
+    val withOrder = (order.isEmpty, sort.isEmpty, zorder.isEmpty, zsort.isEmpty,
+      distributeBy.isEmpty, clusterBy.isEmpty) match {
+      case (false, true, true, true, true, true) =>
+        // ORDER BY ...
+        Sort(order.asScala.map(visitSortItem), global = true, query)
+      case (true, false, true, true, true, true) =>
+        // SORT BY ...
+        Sort(sort.asScala.map(visitSortItem), global = false, query)
+      case (true, true, false, true, true, true) =>
+        // ORDER BY ZORDER ...
+        Zorder(visitZOrderExps(ctx, zorder), global = true, query)
+      case (true, true, true, false, true, true) =>
+        // SORT BY ZORDER ...
+        Zorder(visitZOrderExps(ctx, zsort), global = false, query)
+      case (true, true, true, true, false, true) =>
+        // DISTRIBUTE BY ...
+        withRepartitionByExpression(ctx, expressionList(distributeBy), query)
+      case (true, false, true, true, false, true) =>
+        // SORT BY ... DISTRIBUTE BY ...
+        Sort(
+          sort.asScala.map(visitSortItem),
+          global = false,
+          withRepartitionByExpression(ctx, expressionList(distributeBy), query))
+      case (true, true, true, false, false, true) =>
+        // SORT BY ZOEDER ... DISTRIBUTE BY ...
+        Zorder(
+          visitZOrderExps(ctx, zsort),
+          global = false,
+          withRepartitionByExpression(ctx, expressionList(distributeBy), query))
+      case (true, true, true, true, true, false) =>
+        // CLUSTER BY ...
+        val expressions = expressionList(clusterBy)
+        Sort(
+          expressions.map(SortOrder(_, Ascending)),
+          global = false,
+          withRepartitionByExpression(ctx, expressions, query))
+      case (true, true, true, true, true, true) =>
+        // [EMPTY]
+        query
+      case _ =>
+        throw new ParseException(
+          "Combination of ORDER BY/SORT BY/DISTRIBUTE BY/CLUSTER BY is not supported", ctx)
     }
 
     // WINDOWS
@@ -574,6 +588,18 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     withWindow.optional(limit) {
       Limit(typedVisit(limit), withWindow)
     }
+  }
+
+  /**
+   * Create a clause for ORDER/SORT BY ZORDER.
+   */
+  private def visitZOrderExps(
+      ctx: QueryOrganizationContext,
+      exps: java.util.List[ExpressionContext]): Seq[Expression] = {
+    if (exps.size() < 2) {
+      throw new ParseException("The Z-order curve requires must more than 1 column.", ctx)
+    }
+    exps.asScala.map(c => expression(c))
   }
 
   /**
