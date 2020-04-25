@@ -108,6 +108,10 @@ abstract class StringRegexExpression extends BinaryExpression
       true
       > SELECT '%SystemDrive%/Users/John' _FUNC_ '/%SystemDrive/%//Users%' ESCAPE '/';
       true
+      > SELECT 'foo' LIKE ANY ('%foo%','%bar%');
+      true
+      > SELECT 'foo' LIKE ALL ('%foo%','%bar%');
+      false
   """,
   note = """
     Use RLIKE to match with standard regular expressions.
