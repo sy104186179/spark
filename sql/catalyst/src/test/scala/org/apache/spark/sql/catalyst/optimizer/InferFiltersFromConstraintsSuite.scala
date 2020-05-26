@@ -316,4 +316,20 @@ class InferFiltersFromConstraintsSuite extends PlanTest {
         condition)
     }
   }
+
+  test("Infer IsNotNull for all children of NullIntolerant expression") {
+    testConstraintsAfterJoin(
+      testRelation.subquery('left),
+      testRelation.subquery('right),
+      testRelation.where(IsNotNull(Coalesce(Seq('a, 'b)))).subquery('left),
+      testRelation.where(IsNotNull('c)).subquery('right),
+      Inner,
+      Some(Coalesce(Seq("left.a".attr, "left.b".attr)) === "right.c".attr))
+  }
+
+  test("Should not infer IsNotNull for Unevaluable children of NullIntolerant expression") {
+    val query = testRelation.where(Not('b.in(ListQuery(testRelation.select('a))))).analyze
+    val optimized = Optimize.execute(query)
+    comparePlans(optimized, query)
+  }
 }

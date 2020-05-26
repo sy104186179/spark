@@ -120,12 +120,21 @@ trait ConstraintHelper {
     }
 
   /**
-   * Recursively explores the expressions which are null intolerant and returns all attributes
+   * Recursively explores the expressions which are null intolerant and returns all expressions
    * in these expressions.
    */
-  private def scanNullIntolerantAttribute(expr: Expression): Seq[Attribute] = expr match {
+  private def scanNullIntolerantAttribute(expr: Expression): Seq[Expression] = expr match {
     case a: Attribute => Seq(a)
-    case _: NullIntolerant => expr.children.flatMap(scanNullIntolerantAttribute)
+    case _: NullIntolerant =>
+      expr.children.flatMap {
+        // We can infer an IsNotNull for each child of NullIntolerant expression, except for
+        // Unevaluable expressions. e.g., for a NOT IN (SELECT id FROM range(10)),
+        // we cannot infer that the sub query is not null.
+        case p: Unevaluable =>
+          scanNullIntolerantAttribute(p)
+        case other =>
+          Option(scanNullIntolerantAttribute(other)).filter(_.nonEmpty).getOrElse(Seq(other))
+      }
     case _ => Seq.empty[Attribute]
   }
 }
