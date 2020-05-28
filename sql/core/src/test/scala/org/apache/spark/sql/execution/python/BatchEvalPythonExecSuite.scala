@@ -101,7 +101,7 @@ class BatchEvalPythonExecSuite extends SparkPlanTest
     val qualifiedPlanNodes = collect(joinDF.queryExecution.executedPlan) {
       case b: BatchEvalPythonExec => b
     }
-    assert(qualifiedPlanNodes.size == 1)
+    assert(qualifiedPlanNodes.size == 2)
   }
 
   test("SPARK-28422: GROUPED_AGG pandas_udf should work without group by clause") {

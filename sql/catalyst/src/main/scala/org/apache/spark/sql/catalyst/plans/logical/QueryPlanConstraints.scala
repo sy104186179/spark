@@ -113,6 +113,13 @@ trait ConstraintHelper {
       // When the root is IsNotNull, we can push IsNotNull through the child null intolerant
       // expressions
       case IsNotNull(expr) => scanNullIntolerantAttribute(expr).map(IsNotNull(_))
+      // For join condition: CAST(coalesce(t1.a, t1.b) as DECIMAL) = CAST(t2.c AS DECIMAL).
+      // We can infer an additional constraint: CAST(coalesce(t1.a, t1.b) as DECIMAL) IS NOT NULL
+      // to avoid data skew.
+      case e: BinaryComparison if e.isInstanceOf[NullIntolerant] =>
+        e.children.filter(_.references.nonEmpty).flatMap { c =>
+          Option(scanNullIntolerantAttribute(c)).filter(_.nonEmpty).getOrElse(Seq(c))
+        }.map(IsNotNull(_))
       // Constraints always return true for all the inputs. That means, null will never be returned.
       // Thus, we can infer `IsNotNull(constraint)`, and also push IsNotNull through the child
       // null intolerant expressions.
@@ -120,21 +127,12 @@ trait ConstraintHelper {
     }
 
   /**
-   * Recursively explores the expressions which are null intolerant and returns all expressions
+   * Recursively explores the expressions which are null intolerant and returns all attributes
    * in these expressions.
    */
-  private def scanNullIntolerantAttribute(expr: Expression): Seq[Expression] = expr match {
+  private def scanNullIntolerantAttribute(expr: Expression): Seq[Attribute] = expr match {
     case a: Attribute => Seq(a)
-    case _: NullIntolerant =>
-      expr.children.flatMap {
-        // We can infer an IsNotNull for each child of NullIntolerant expression, except for
-        // Unevaluable expressions. e.g., for a NOT IN (SELECT id FROM range(10)),
-        // we cannot infer that the sub query is not null.
-        case p: Unevaluable =>
-          scanNullIntolerantAttribute(p)
-        case other =>
-          Option(scanNullIntolerantAttribute(other)).filter(_.nonEmpty).getOrElse(Seq(other))
-      }
+    case _: NullIntolerant => expr.children.flatMap(scanNullIntolerantAttribute)
     case _ => Seq.empty[Attribute]
   }
 }
