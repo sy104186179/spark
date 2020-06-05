@@ -317,7 +317,7 @@ class InferFiltersFromConstraintsSuite extends PlanTest {
     }
   }
 
-  test("Infer IsNotNull for all children of binary comparison children") {
+  test("Infer IsNotNull for non null-intolerant child of null intolerant join condition") {
     testConstraintsAfterJoin(
       testRelation.subquery('left),
       testRelation.subquery('right),
@@ -327,9 +327,8 @@ class InferFiltersFromConstraintsSuite extends PlanTest {
       Some(Coalesce(Seq("left.a".attr, "left.b".attr)) === "right.c".attr))
   }
 
-  test("Should not infer IsNotNull for non-binary comparison children") {
-    val query = testRelation.where(Not('b.in(ListQuery(testRelation.select('a))))).analyze
-    val optimized = Optimize.execute(query)
-    comparePlans(optimized, query)
+  test("Should not infer IsNotNull for non null-intolerant child from same table") {
+    comparePlans(Optimize.execute(testRelation.where(Coalesce(Seq('a, 'b)) === 'c).analyze),
+      testRelation.where(Coalesce(Seq('a, 'b)) === 'c && IsNotNull('c)).analyze)
   }
 }

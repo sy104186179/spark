@@ -886,9 +886,10 @@ object InferFiltersFromConstraints extends Rule[LogicalPlan]
       left: LogicalPlan,
       right: LogicalPlan,
       conditionOpt: Option[Expression]): Set[Expression] = {
-    val baseConstraints = left.constraints.union(right.constraints)
-      .union(conditionOpt.map(splitConjunctivePredicates).getOrElse(Nil).toSet)
+    val condition = conditionOpt.map(splitConjunctivePredicates).getOrElse(Nil).toSet
+    val baseConstraints = left.constraints.union(right.constraints).union(condition)
     baseConstraints.union(inferAdditionalConstraints(baseConstraints))
+      .union(inferIsNotNullConstraintsForJoinCondition(condition))
   }
 
   private def inferNewFilter(plan: LogicalPlan, constraints: Set[Expression]): LogicalPlan = {

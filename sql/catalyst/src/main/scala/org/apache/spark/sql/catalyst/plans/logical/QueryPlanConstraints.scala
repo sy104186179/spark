@@ -105,6 +105,18 @@ trait ConstraintHelper {
   }
 
   /**
+   * Infers a set of `isNotNull` constraints for non null intolerant child from null intolerant
+   * expressions. For e.g., if an expression is of the form (`coalesce(t1.a, t1.b) = t2.a`),
+   * this returns a constraint of the form `isNotNull(coalesce(t1.a, t1.b))`
+   */
+  def inferIsNotNullConstraintsForJoinCondition(constraints: Set[Expression]): Set[Expression] = {
+    constraints.filter(_.isInstanceOf[NullIntolerant])
+      .flatMap { e =>
+        e.children.filter(_.references.nonEmpty).filter(c => inferIsNotNullConstraints(c).isEmpty)
+      }.map(IsNotNull)
+  }
+
+  /**
    * Infer the Attribute-specific IsNotNull constraints from the null intolerant child expressions
    * of constraints.
    */
@@ -113,13 +125,6 @@ trait ConstraintHelper {
       // When the root is IsNotNull, we can push IsNotNull through the child null intolerant
       // expressions
       case IsNotNull(expr) => scanNullIntolerantAttribute(expr).map(IsNotNull(_))
-      // For join condition: CAST(coalesce(t1.a, t1.b) as DECIMAL) = CAST(t2.c AS DECIMAL).
-      // We can infer an additional constraint: CAST(coalesce(t1.a, t1.b) as DECIMAL) IS NOT NULL
-      // to avoid data skew.
-      case e: BinaryComparison if e.isInstanceOf[NullIntolerant] =>
-        e.children.filter(_.references.nonEmpty).flatMap { c =>
-          Option(scanNullIntolerantAttribute(c)).filter(_.nonEmpty).getOrElse(Seq(c))
-        }.map(IsNotNull(_))
       // Constraints always return true for all the inputs. That means, null will never be returned.
       // Thus, we can infer `IsNotNull(constraint)`, and also push IsNotNull through the child
       // null intolerant expressions.
