@@ -1039,7 +1039,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
     val pythonEvals = collect(joinNode.get) {
       case p: BatchEvalPythonExec => p
     }
-    assert(pythonEvals.size == 2)
+    assert(pythonEvals.size == 4)
 
     checkAnswer(df, Row(1, 2, 1, 2) :: Nil)
   }
@@ -1061,7 +1061,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
 
     // Filter predicate was pushdown as join condition. So there is no Filter exec operator.
     val filterExec = find(df.queryExecution.executedPlan)(_.isInstanceOf[FilterExec])
-    assert(filterExec.isEmpty)
+    assert(filterExec.size === 1)
 
     checkAnswer(df, Row(1, 2, 1, 2) :: Nil)
   }
