@@ -509,6 +509,42 @@ object SimplifyConditionals extends Rule[LogicalPlan] with PredicateHelper {
   }
 }
 
+object SimplificationBasedContainment extends Rule[LogicalPlan] with PredicateHelper {
+
+  private def eval(e: Expression) = e.eval(EmptyRow).toString.toBoolean
+
+  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    case q: LogicalPlan => q transformExpressionsUp {
+      case o @ Or(a1 @ BinaryComparison(a1l, a1r), and: And) =>
+        splitConjunctivePredicates(and).filter(_.isInstanceOf[BinaryComparison])
+          .find { c =>
+            val bc = c.asInstanceOf[BinaryComparison]
+            c.nodeName.equals(a1.nodeName) && bc.left.semanticEquals(a1l) && bc.right.foldable
+          }.map {
+          case LessThan(_, a2r) if eval(GreaterThan(a1r, a2r)) => a1
+          case LessThanOrEqual(_, a2r) if eval(GreaterThanOrEqual(a1r, a2r)) => a1
+          case GreaterThan(_, a2r) if eval(LessThan(a1r, a2r)) => a1
+          case GreaterThanOrEqual(_, a2r) if eval(LessThanOrEqual(a1r, a2r)) => a1
+          case _ => o
+        }.getOrElse(o)
+
+      // a < 10 AND (a < 12 OR b < 6) can be simplified to a < 10
+      case a @ And(a1 @ BinaryComparison(a1l, a1r), or: Or) =>
+        splitDisjunctivePredicates(or).filter(_.isInstanceOf[BinaryComparison])
+          .find { c =>
+            val bc = c.asInstanceOf[BinaryComparison]
+            c.nodeName.equals(a1.nodeName) && bc.left.semanticEquals(a1l) && bc.right.foldable
+          }.map {
+          case LessThan(_, a2r) if eval(LessThan(a1r, a2r)) => a1
+          case LessThanOrEqual(_, a2r) if eval(LessThanOrEqual(a1r, a2r)) => a1
+          case GreaterThan(_, a2r) if eval(GreaterThan(a1r, a2r)) => a1
+          case GreaterThanOrEqual(_, a2r) if eval(GreaterThanOrEqual(a1r, a2r)) => a1
+          case _ => a
+        }.getOrElse(a)
+    }
+  }
+}
+
 
 /**
  * Simplifies LIKE expressions that do not need full regular expressions to evaluate the condition.

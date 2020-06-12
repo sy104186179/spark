@@ -98,6 +98,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
         SimplifyConditionals,
         RemoveDispensableExpressions,
         SimplifyBinaryComparison,
+        SimplificationBasedContainment,
         ReplaceNullWithFalseInPredicate,
         PruneFilters,
         SimplifyCasts,
