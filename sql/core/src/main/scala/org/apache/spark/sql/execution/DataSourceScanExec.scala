@@ -327,10 +327,13 @@ case class FileSourceScanExec(
     }
   }
 
-  @transient
-  private lazy val pushedDownFilters = {
+  private def pushedDownFilters = {
     val supportNestedPredicatePushdown = DataSourceUtils.supportNestedPredicatePushdown(relation)
-    dataFilters.flatMap(DataSourceStrategy.translateFilter(_, supportNestedPredicatePushdown))
+    dataFilters.flatMap {
+      case DynamicPruningExpression(child: MinMaxSubqueryExec) if child.values().nonEmpty =>
+        child.predicate
+      case other => other :: Nil
+    }.flatMap(DataSourceStrategy.translateFilter(_, supportNestedPredicatePushdown))
   }
 
   override lazy val metadata: Map[String, String] = {

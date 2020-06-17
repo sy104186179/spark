@@ -19,12 +19,12 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, DynamicPruningExpression, DynamicPruningSubquery, Expression, ListQuery, Literal, PredicateHelper}
+import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, DynamicPruningExpression, DynamicPruningSubquery, Expression, ListQuery, Literal, PredicateHelper, RuntimeMinMaxPruningSubquery}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{InSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec}
+import org.apache.spark.sql.execution.{InSubqueryExec, MinMaxSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec, SubqueryExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.internal.SQLConf
@@ -85,6 +85,39 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
           val aggregate = Aggregate(Seq(alias), Seq(alias), buildPlan)
           DynamicPruningExpression(expressions.InSubquery(
             Seq(value), ListQuery(aggregate, childOutputs = aggregate.output)))
+        }
+
+      case RuntimeMinMaxPruningSubquery(
+          value, buildPlan, buildKeys, broadcastKeyIndex, onlyInBroadcast, exprId) =>
+        val sparkPlan = QueryExecution.createSparkPlan(
+          sparkSession, sparkSession.sessionState.planner, buildPlan)
+        // Using `sparkPlan` is a little hacky as it is based on the assumption that this rule is
+        // the first to be applied (apart from `InsertAdaptiveSparkPlan`).
+        val canReuseExchange = SQLConf.get.exchangeReuseEnabled && buildKeys.nonEmpty &&
+          plan.find {
+            case BroadcastHashJoinExec(_, _, _, BuildLeft, _, left, _) =>
+              left.sameResult(sparkPlan)
+            case BroadcastHashJoinExec(_, _, _, BuildRight, _, _, right) =>
+              right.sameResult(sparkPlan)
+            case _ => false
+          }.isDefined
+
+        val name = s"MinMaxPruning#${exprId.id}"
+
+        if (canReuseExchange) {
+          val mode = broadcastMode(buildKeys, buildPlan)
+          val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
+          // plan a broadcast exchange of the build side of the join
+          val exchange = BroadcastExchangeExec(mode, executedPlan)
+
+          // place the broadcast adaptor for reusing the broadcast results on the probe side
+          val broadcastValues =
+            SubqueryBroadcastExec(name, broadcastKeyIndex, buildKeys, exchange)
+          DynamicPruningExpression( MinMaxSubqueryExec(value, broadcastValues, exprId))
+        } else {
+          val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
+          DynamicPruningExpression(
+            MinMaxSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
         }
     }
   }

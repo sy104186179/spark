@@ -175,9 +175,13 @@ object FileSourceStrategy extends Strategy with Logging {
       val dataColumns =
         l.resolve(fsRelation.dataSchema, fsRelation.sparkSession.sessionState.analyzer.resolver)
 
+      val minMaxPruningFilters =
+        normalizedFilters.filter(_.isInstanceOf[RuntimeMinMaxPruningSubquery])
+
       // Partition keys are not available in the statistics of the files.
       val dataFilters =
-        normalizedFiltersWithoutSubqueries.filter(_.references.intersect(partitionSet).isEmpty)
+        normalizedFiltersWithoutSubqueries.filter(_.references.intersect(partitionSet).isEmpty) ++
+          minMaxPruningFilters
       val supportNestedPredicatePushdown =
         DataSourceUtils.supportNestedPredicatePushdown(fsRelation)
       val pushedFilters = dataFilters

@@ -78,6 +78,47 @@ case class DynamicPruningSubquery(
   }
 }
 
+case class RuntimeMinMaxPruningSubquery(
+    pruningKey: Expression,
+    buildQuery: LogicalPlan,
+    buildKeys: Seq[Expression],
+    broadcastKeyIndex: Int,
+    onlyInBroadcast: Boolean,
+    exprId: ExprId = NamedExpression.newExprId)
+  extends SubqueryExpression(buildQuery, Seq(pruningKey), exprId)
+    with DynamicPruning
+    with Unevaluable {
+
+  override def withNewPlan(plan: LogicalPlan): RuntimeMinMaxPruningSubquery =
+    copy(buildQuery = plan)
+
+  override def children: Seq[Expression] = Seq(pruningKey)
+
+  override def plan: LogicalPlan = buildQuery
+
+  override def nullable: Boolean = false
+
+  override lazy val resolved: Boolean = {
+    pruningKey.resolved &&
+      buildQuery.resolved &&
+      buildKeys.nonEmpty &&
+      buildKeys.forall(_.resolved) &&
+      broadcastKeyIndex >= 0 &&
+      broadcastKeyIndex < buildKeys.size &&
+      pruningKey.dataType == buildKeys(broadcastKeyIndex).dataType
+  }
+
+  override def toString: String = s"MinMaxPruning#${exprId.id} $conditionString"
+
+  override lazy val canonicalized: DynamicPruning = {
+    copy(
+      pruningKey = pruningKey.canonicalized,
+      buildQuery = buildQuery.canonicalized,
+      buildKeys = buildKeys.map(_.canonicalized),
+      exprId = ExprId(0))
+  }
+}
+
 /**
  * Marker for a planned [[DynamicPruning]] expression.
  * The expression is created during planning, and it defers to its child for evaluation.
