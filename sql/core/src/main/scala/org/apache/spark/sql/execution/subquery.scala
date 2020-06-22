@@ -171,42 +171,46 @@ case class InSubqueryExec(
   }
 }
 
-case class MinMaxValue(min: Any, max: Any)
+case class MinMaxValue(index: Int, min: Any, max: Any)
 
 case class MinMaxSubqueryExec(
-    child: Expression,
+    child: Seq[Expression],
     plan: BaseSubqueryExec,
     exprId: ExprId,
-    private var resultBroadcast: Broadcast[MinMaxValue] = null) extends ExecSubqueryExpression {
+    private var resultBroadcast: Broadcast[Seq[MinMaxValue]] = null)
+  extends ExecSubqueryExpression {
 
-  @transient private var result: MinMaxValue = _
+  @transient private var result: Seq[MinMaxValue] = _
 
   override def dataType: DataType = BooleanType
-  override def children: Seq[Expression] = child :: Nil
-  override def nullable: Boolean = child.nullable
+  override def children: Seq[Expression] = child
+  override def nullable: Boolean = child.forall(_.nullable)
   override def toString: String = s"$child >= ${plan.name} and $child <= ${plan.name}"
   override def withNewPlan(plan: BaseSubqueryExec): MinMaxSubqueryExec = copy(plan = plan)
 
   override def semanticEquals(other: Expression): Boolean = other match {
-    case in: InSubqueryExec => child.semanticEquals(in.child) && plan.sameResult(in.plan)
+    case MinMaxSubqueryExec(c, p, _, _) =>
+      child.zip(c).forall(e => e._1.semanticEquals(e._2)) && plan.sameResult(p)
     case _ => false
   }
 
   override def updateResult(): Unit = {
     val row = plan.executeCollect().head
-    result = child.dataType match {
-      // case _: StructType => rows.toArray
-      case _ => MinMaxValue(row.get(0, child.dataType), row.get(1, child.dataType))
+    result = child.zipWithIndex.map {
+      case (e, index) =>
+        MinMaxValue(index, row.get(2 * index, e.dataType), row.get(2 * index + 1, e.dataType))
     }
     resultBroadcast = plan.sqlContext.sparkContext.broadcast(result)
   }
 
-  def values(): Option[MinMaxValue] = Option(resultBroadcast).map(_.value)
+  def values(): Option[Seq[MinMaxValue]] = Option(resultBroadcast).map(_.value)
 
   def predicate: Seq[Expression] = {
-    assert(values().nonEmpty)
-    Seq(GreaterThanOrEqual(child, Literal(result.min)),
-      LessThanOrEqual(child, Literal(result.max)))
+    result.flatMap { value =>
+      val c = child(value.index)
+        Seq(GreaterThanOrEqual(c, Literal(value.min, c.dataType)),
+          LessThanOrEqual(c, Literal(value.max, c.dataType)))
+    }
   }
 
   private def prepareResult(): Unit = {
@@ -218,24 +222,25 @@ case class MinMaxSubqueryExec(
 
   override def eval(input: InternalRow): Any = {
     prepareResult()
-    val v = child.eval(input)
-    if (v == null) {
-      null
-    } else {
-      And(GreaterThanOrEqual(child, Literal(result.min)),
-        LessThanOrEqual(child, Literal(result.max))).eval(input)
-    }
+    result.map { value =>
+      val c = child(value.index)
+      And(GreaterThanOrEqual(c, Literal(value.min, c.dataType)),
+        LessThanOrEqual(c, Literal(value.max, c.dataType)))
+    }.reduceLeft(And).eval(input)
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     prepareResult()
-    And(GreaterThanOrEqual(child, Literal(result.min)),
-      LessThanOrEqual(child, Literal(result.max))).doGenCode(ctx, ev)
+    result.map { value =>
+      val c = child(value.index)
+      And(GreaterThanOrEqual(c, Literal(value.min, c.dataType)),
+        LessThanOrEqual(c, Literal(value.max, c.dataType)))
+    }.reduceLeft(And).doGenCode(ctx, ev)
   }
 
   override lazy val canonicalized: MinMaxSubqueryExec = {
     copy(
-      child = child.canonicalized,
+      child = child.map(_.canonicalized),
       plan = plan.canonicalized.asInstanceOf[BaseSubqueryExec],
       exprId = ExprId(0),
       resultBroadcast = null)

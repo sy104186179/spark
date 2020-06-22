@@ -87,8 +87,7 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
             Seq(value), ListQuery(aggregate, childOutputs = aggregate.output)))
         }
 
-      case RuntimeMinMaxPruningSubquery(
-          value, buildPlan, buildKeys, broadcastKeyIndex, onlyInBroadcast, exprId) =>
+      case RuntimeMinMaxPruningSubquery(value, buildPlan, buildKeys, exprId) =>
         val sparkPlan = QueryExecution.createSparkPlan(
           sparkSession, sparkSession.sessionState.planner, buildPlan)
         // Using `sparkPlan` is a little hacky as it is based on the assumption that this rule is
@@ -111,9 +110,8 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
           val exchange = BroadcastExchangeExec(mode, executedPlan)
 
           // place the broadcast adaptor for reusing the broadcast results on the probe side
-          val broadcastValues =
-            SubqueryBroadcastExec(name, broadcastKeyIndex, buildKeys, exchange)
-          DynamicPruningExpression( MinMaxSubqueryExec(value, broadcastValues, exprId))
+          val broadcastValues = SubqueryBroadcastExec(name, 0, buildKeys, exchange)
+          DynamicPruningExpression(MinMaxSubqueryExec(value, broadcastValues, exprId))
         } else {
           val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
           DynamicPruningExpression(
