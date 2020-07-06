@@ -78,6 +78,43 @@ case class DynamicPruningSubquery(
   }
 }
 
+case class RuntimeBloomFilterPruningSubquery(
+    pruningKey: Seq[Expression],
+    buildQuery: LogicalPlan,
+    buildKeys: Seq[Expression],
+    exprId: ExprId = NamedExpression.newExprId)
+  extends SubqueryExpression(buildQuery, pruningKey, exprId)
+    with DynamicPruning
+    with Unevaluable {
+
+  override def withNewPlan(plan: LogicalPlan): RuntimeBloomFilterPruningSubquery =
+    copy(buildQuery = plan)
+
+  override def children: Seq[Expression] = pruningKey
+
+  override def plan: LogicalPlan = buildQuery
+
+  override def nullable: Boolean = false
+
+  override lazy val resolved: Boolean = {
+    pruningKey.forall(_.resolved) &&
+      buildQuery.resolved &&
+      buildKeys.nonEmpty &&
+      buildKeys.forall(_.resolved) &&
+      pruningKey.zip(buildKeys).forall(e => e._1.dataType == e._2.dataType)
+  }
+
+  override def toString: String = s"BloomFilterPruning#${exprId.id} $conditionString"
+
+  override lazy val canonicalized: DynamicPruning = {
+    copy(
+      pruningKey = pruningKey.map(_.canonicalized),
+      buildQuery = buildQuery.canonicalized,
+      buildKeys = buildKeys.map(_.canonicalized),
+      exprId = ExprId(0))
+  }
+}
+
 /**
  * Marker for a planned [[DynamicPruning]] expression.
  * The expression is created during planning, and it defers to its child for evaluation.

@@ -19,12 +19,12 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, DynamicPruningExpression, DynamicPruningSubquery, Expression, ListQuery, Literal, PredicateHelper}
+import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, DynamicPruningExpression, DynamicPruningSubquery, Expression, ListQuery, Literal, PredicateHelper, RuntimeBloomFilterPruningSubquery}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{InSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec}
+import org.apache.spark.sql.execution.{BloomFilterSubqueryExec, InSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec, SubqueryExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.internal.SQLConf
@@ -86,6 +86,15 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
           DynamicPruningExpression(expressions.InSubquery(
             Seq(value), ListQuery(aggregate, childOutputs = aggregate.output)))
         }
+
+      case RuntimeBloomFilterPruningSubquery(value, buildPlan, buildKeys, exprId) =>
+        // TODO: BroadcastExchange reuse
+        val sparkPlan = QueryExecution.createSparkPlan(
+          sparkSession, sparkSession.sessionState.planner, buildPlan)
+        val name = s"BloomFilterPruning#${exprId.id}"
+        val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
+        DynamicPruningExpression(
+          BloomFilterSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
     }
   }
 }

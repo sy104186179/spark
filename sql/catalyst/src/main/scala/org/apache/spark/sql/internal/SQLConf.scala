@@ -282,6 +282,22 @@ object SQLConf {
       .booleanConf
       .createWithDefault(true)
 
+  val DYNAMIC_FILTER_PRUNING_ENABLED =
+    buildConf("spark.sql.optimizer.dynamicFilterPruning.enabled")
+      .doc("When true, we will generate predicate for filter column when it's used as join key")
+      .version("3.1.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val DYNAMIC_FILTER_PRUNING_SMALLER_RATIO =
+    buildConf("spark.sql.optimizer.dynamicFilterPruning.smallerRatio")
+      .internal()
+      .doc("Specifies the lower limit of the ratio between the join side for a " +
+        "dynamic filter pruning to be considered.")
+      .version("3.1.0")
+      .longConf
+      .createWithDefault(1000000000)
+
   val COMPRESS_CACHED = buildConf("spark.sql.inMemoryColumnarStorage.compressed")
     .doc("When set to true Spark SQL will automatically select a compression codec for each " +
       "column based on statistics of the data.")
@@ -2780,6 +2796,10 @@ class SQLConf extends Serializable with Logging {
 
   def dynamicPartitionPruningReuseBroadcastOnly: Boolean =
     getConf(DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY)
+
+  def dynamicFilterPruningEnabled: Boolean = getConf(DYNAMIC_FILTER_PRUNING_ENABLED)
+
+  def dynamicFilterPruningSmallerRatio: Long = getConf(DYNAMIC_FILTER_PRUNING_SMALLER_RATIO)
 
   def stateStoreProviderClass: String = getConf(STATE_STORE_PROVIDER_CLASS)
 

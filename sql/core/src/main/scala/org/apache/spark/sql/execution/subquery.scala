@@ -23,11 +23,11 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{expressions, InternalRow}
-import org.apache.spark.sql.catalyst.expressions.{AttributeSeq, CreateNamedStruct, Expression, ExprId, InSet, ListQuery, Literal, PlanExpression}
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodegenFallback, ExprCode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BooleanType, DataType, StructType}
+import org.apache.spark.sql.types.{BinaryType, BooleanType, DataType, StructType}
 
 /**
  * The base class for subquery that is used in SparkPlan.
@@ -165,6 +165,61 @@ case class InSubqueryExec(
   override lazy val canonicalized: InSubqueryExec = {
     copy(
       child = child.canonicalized,
+      plan = plan.canonicalized.asInstanceOf[BaseSubqueryExec],
+      exprId = ExprId(0),
+      resultBroadcast = null)
+  }
+}
+
+case class BloomFilterSubqueryExec(
+    child: Seq[Expression],
+    plan: BaseSubqueryExec,
+    exprId: ExprId,
+    private var resultBroadcast: Broadcast[Seq[Array[Byte]]] = null)
+  extends ExecSubqueryExpression with CodegenFallback {
+
+  @transient private var result: Seq[Array[Byte]] = _
+  @transient private var exp: Expression = _
+
+  override def dataType: DataType = BooleanType
+  override def children: Seq[Expression] = child
+  override def nullable: Boolean = child.forall(_.nullable)
+  override def toString: String = s"$child in ${plan.name}"
+  override def withNewPlan(plan: BaseSubqueryExec): BloomFilterSubqueryExec = copy(plan = plan)
+
+  override def semanticEquals(other: Expression): Boolean = other match {
+    case BloomFilterSubqueryExec(c, p, _, _) =>
+      child.zip(c).forall(e => e._1.semanticEquals(e._2)) && plan.sameResult(p)
+    case _ => false
+  }
+
+  override def updateResult(): Unit = {
+    val row = plan.executeCollect().head
+    result = child.zipWithIndex.map {
+      case (_, index) => row.getBinary(index)
+    }
+    resultBroadcast = plan.sqlContext.sparkContext.broadcast(result)
+  }
+
+
+  private def prepareResult(): Unit = {
+    require(resultBroadcast != null, s"$this has not finished")
+    if (result == null) {
+      result = resultBroadcast.value
+      exp = child.zip(result).map {
+        case (e, b) => InBloomFilter(Literal(b, BinaryType), e)
+      }.reduceLeft(And)
+    }
+  }
+
+  override def eval(input: InternalRow): Any = {
+    prepareResult()
+    exp.eval(input)
+  }
+
+  override lazy val canonicalized: BloomFilterSubqueryExec = {
+    copy(
+      child = child.map(_.canonicalized),
       plan = plan.canonicalized.asInstanceOf[BaseSubqueryExec],
       exprId = ExprId(0),
       resultBroadcast = null)
