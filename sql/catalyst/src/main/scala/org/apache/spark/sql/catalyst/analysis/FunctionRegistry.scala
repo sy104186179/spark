@@ -321,6 +321,7 @@ object FunctionRegistry {
     expression[BoolOr]("any", true),
     expression[BoolOr]("some", true),
     expression[BoolOr]("bool_or"),
+    expression[BuildBloomFilter]("build_bloom_filter"),
 
     // string functions
     expression[Ascii]("ascii"),
@@ -519,6 +520,7 @@ object FunctionRegistry {
     expression[In]("in"),
     expression[Not]("not"),
     expression[Or]("or"),
+    expression[InBloomFilter]("in_bloom_filter"),
 
     // comparison operators
     expression[EqualNullSafe]("<=>"),
