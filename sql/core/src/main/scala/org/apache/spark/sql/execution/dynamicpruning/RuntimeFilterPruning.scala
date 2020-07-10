@@ -27,27 +27,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.internal.SQLConf
 
-/**
- * Dynamic partition pruning optimization is performed based on the type and
- * selectivity of the join operation. During query optimization, we insert a
- * predicate on the partitioned table using the filter from the other side of
- * the join and a custom wrapper called DynamicPruning.
- *
- * The basic mechanism for DPP inserts a duplicated subquery with the filter from the other side,
- * when the following conditions are met:
- *    (1) the table to prune is partitioned by the JOIN key
- *    (2) the join operation is one of the following types: INNER, LEFT SEMI (partitioned on left),
- *    LEFT OUTER (partitioned on right), or RIGHT OUTER (partitioned on left)
- *
- * In order to enable partition pruning directly in broadcasts, we use a custom DynamicPruning
- * clause that incorporates the In clause with the subquery and the benefit estimation.
- * During query planning, when the join type is known, we use the following mechanism:
- *    (1) if the join is a broadcast hash join, we replace the duplicated subquery with the reused
- *    results of the broadcast,
- *    (2) else if the estimated benefit of partition pruning outweighs the overhead of running the
- *    subquery query twice, we keep the duplicated subquery
- *    (3) otherwise, we drop the subquery.
- */
 object RuntimeFilterPruning
   extends Rule[LogicalPlan] with PredicateHelper with JoinSelectionHelper {
 
@@ -61,15 +40,6 @@ object RuntimeFilterPruning
     }
   }
 
-  /**
-   * Insert a dynamic partition pruning predicate on one side of the join using the filter on the
-   * other side of the join.
-   *  - to be able to identify this filter during query planning, we use a custom
-   *    DynamicPruning expression that wraps a regular In expression
-   *  - we also insert a flag that indicates if the subquery duplication is worthwhile and it
-   *  should run regardless of the join strategy, or is too expensive and it should be run only if
-   *  we can reuse the results of a broadcast
-   */
   private def insertPredicate(
       pruningKey: Expression,
       pruningPlan: LogicalPlan,
@@ -83,22 +53,16 @@ object RuntimeFilterPruning
       }.map(e => Alias(e, e.toString)())
       val filterPlan = Aggregate(Nil, namedExpressions, filteringPlan)
       val index = joinKeys.indexOf(filteringKey)
-      // insert a DynamicPruning wrapper to identify the subquery during query planning
       Filter(
         RuntimeBloomFilterPruningSubquery(pruningKey, filterPlan, joinKeys, index),
         pruningPlan)
     } else {
-      // abort dynamic partition pruning
       pruningPlan
     }
   }
 
   /**
-   * Given an estimated filtering ratio we assume the partition pruning has benefit if
-   * the size in bytes of the partitioned plan after filtering is greater than the size
-   * in bytes of the plan on the other side of the join. We estimate the filtering ratio
-   * using column statistics if they are available, otherwise we use the config value of
-   * `spark.sql.optimizer.joinFilterRatio`.
+   * We only improve prunPlan has shuffle.
    */
   private def pruningHasBenefit(
       prunExpr: Expression,
@@ -108,20 +72,14 @@ object RuntimeFilterPruning
       case j @ Join(left, right, _, _, _) if !canBroadcastBySize(left, SQLConf.get)
         && !canBroadcastBySize(right, SQLConf.get) => j
       case a: Aggregate => a
-      case d: Distinct => d
     }
 
     maybeHasShuffle.flatMap(_.collectLeaves())
       .find(l => prunExpr.references.subsetOf(l.outputSet)) match {
       case Some(plan) => canBroadcastBySize(plan, SQLConf.get)
-        val ret = plan.stats.sizeInBytes >= SQLConf.get.dynamicFilterPruningLargerSideThreshold &&
+        plan.stats.sizeInBytes >= SQLConf.get.dynamicFilterPruningLargerSideThreshold &&
           canBroadcastBySize(otherPlan, SQLConf.get) &&
           canBroadcastBySize(otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes), SQLConf.get)
-        // otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes) to fix tpcds-v2.7.0_q64.
-        // scalastyle:off
-        println(s"maybeHasShuffleSideSize: ${plan.stats.sizeInBytes}: ${otherPlan.stats.sizeInBytes}: " +
-          s"${otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes).stats.sizeInBytes}, ${ret}")
-        ret
       case None => false
     }
   }
@@ -169,8 +127,6 @@ object RuntimeFilterPruning
               b -> a
             }
 
-            // there should be a partitioned table and a filter on the dimension table,
-            // otherwise the pruning will not trigger
             if (canPruneLeft(joinType) && canPruningColumn(l, left)) {
               val hasBenefit = pruningHasBenefit(l, newLeft, right)
               newLeft = insertPredicate(l, newLeft, r, right, rightKeys, hasBenefit)
@@ -190,6 +146,8 @@ object RuntimeFilterPruning
   //  1. BuildBloomFilter and InBloomFilter support codegen.
   //  2. Split Filter to DynamicFilter and Filter, and DynamicFilter should support filter pushdown.
   //  3. BroadcastExchange reuse.
+  //  4. Replace BloomFilter to In predicate if values
+  //     less than spark.sql.parquet.pushdown.inFilterThreshold
   override def apply(plan: LogicalPlan): LogicalPlan = plan match {
     // Do not rewrite subqueries.
     case s: Subquery if s.correlated => plan
