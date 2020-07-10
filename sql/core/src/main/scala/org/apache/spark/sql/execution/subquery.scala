@@ -172,32 +172,29 @@ case class InSubqueryExec(
 }
 
 case class BloomFilterSubqueryExec(
-    child: Seq[Expression],
+    child: Expression,
     plan: BaseSubqueryExec,
     exprId: ExprId,
-    private var resultBroadcast: Broadcast[Seq[Array[Byte]]] = null)
+    private var resultBroadcast: Broadcast[Array[Byte]] = null)
   extends ExecSubqueryExpression with CodegenFallback {
 
-  @transient private var result: Seq[Array[Byte]] = _
+  @transient private var result: Array[Byte] = _
   @transient private var exp: Expression = _
 
   override def dataType: DataType = BooleanType
-  override def children: Seq[Expression] = child
-  override def nullable: Boolean = child.forall(_.nullable)
+  override def children: Seq[Expression] = Seq(child)
+  override def nullable: Boolean = child.nullable
   override def toString: String = s"$child in ${plan.name}"
   override def withNewPlan(plan: BaseSubqueryExec): BloomFilterSubqueryExec = copy(plan = plan)
 
   override def semanticEquals(other: Expression): Boolean = other match {
-    case BloomFilterSubqueryExec(c, p, _, _) =>
-      child.zip(c).forall(e => e._1.semanticEquals(e._2)) && plan.sameResult(p)
+    case in: BloomFilterSubqueryExec => child.semanticEquals(in.child) && plan.sameResult(in.plan)
     case _ => false
   }
 
   override def updateResult(): Unit = {
     val row = plan.executeCollect().head
-    result = child.zipWithIndex.map {
-      case (_, index) => row.getBinary(index)
-    }
+    result = row.getBinary(0)
     resultBroadcast = plan.sqlContext.sparkContext.broadcast(result)
   }
 
@@ -206,9 +203,7 @@ case class BloomFilterSubqueryExec(
     require(resultBroadcast != null, s"$this has not finished")
     if (result == null) {
       result = resultBroadcast.value
-      exp = child.zip(result).map {
-        case (e, b) => InBloomFilter(Literal(b, BinaryType), e)
-      }.reduceLeft(And)
+      exp = InBloomFilter(Literal(result, BinaryType), child)
     }
   }
 
@@ -219,7 +214,7 @@ case class BloomFilterSubqueryExec(
 
   override lazy val canonicalized: BloomFilterSubqueryExec = {
     copy(
-      child = child.map(_.canonicalized),
+      child = child.canonicalized,
       plan = plan.canonicalized.asInstanceOf[BaseSubqueryExec],
       exprId = ExprId(0),
       resultBroadcast = null)

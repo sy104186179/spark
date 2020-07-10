@@ -19,12 +19,12 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BuildBloomFilter
+import org.apache.spark.sql.catalyst.optimizer.JoinSelectionHelper
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
-import org.apache.spark.sql.execution.dynamicpruning.PartitionPruning.findExpressionAndTrackLineageDown
 import org.apache.spark.sql.internal.SQLConf
 
 /**
@@ -48,14 +48,15 @@ import org.apache.spark.sql.internal.SQLConf
  *    subquery query twice, we keep the duplicated subquery
  *    (3) otherwise, we drop the subquery.
  */
-object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
+object RuntimeFilterPruning
+  extends Rule[LogicalPlan] with PredicateHelper with JoinSelectionHelper {
 
-  def filterPartitionColumn(col: Expression, plan: LogicalPlan): Boolean = {
+  def canPruningColumn(col: Expression, plan: LogicalPlan): Boolean = {
     findExpressionAndTrackLineageDown(col, plan).exists {
-      case (resExp, l@LogicalRelation(fs: HadoopFsRelation, _, _, _)) =>
+      case (resExp, l @ LogicalRelation(fs: HadoopFsRelation, _, _, _)) =>
         val partitionColumns = AttributeSet(
           l.resolve(fs.partitionSchema, fs.sparkSession.sessionState.analyzer.resolver))
-        resExp.references.subsetOf(partitionColumns)
+        !resExp.references.subsetOf(partitionColumns)
       case _ => false
     }
   }
@@ -70,9 +71,9 @@ object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
    *  we can reuse the results of a broadcast
    */
   private def insertPredicate(
-      pruningKey: Seq[Expression],
+      pruningKey: Expression,
       pruningPlan: LogicalPlan,
-      filteringKey: Seq[Expression],
+      filteringKey: Expression,
       filteringPlan: LogicalPlan,
       joinKeys: Seq[Expression],
       hasBenefit: Boolean): LogicalPlan = {
@@ -81,8 +82,11 @@ object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
         new BuildBloomFilter(e).toAggregateExpression()
       }.map(e => Alias(e, e.toString)())
       val filterPlan = Aggregate(Nil, namedExpressions, filteringPlan)
+      val index = joinKeys.indexOf(filteringKey)
       // insert a DynamicPruning wrapper to identify the subquery during query planning
-      Filter(RuntimeBloomFilterPruningSubquery(pruningKey, filterPlan, joinKeys), pruningPlan)
+      Filter(
+        RuntimeBloomFilterPruningSubquery(pruningKey, filterPlan, joinKeys, index),
+        pruningPlan)
     } else {
       // abort dynamic partition pruning
       pruningPlan
@@ -97,28 +101,29 @@ object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
    * `spark.sql.optimizer.joinFilterRatio`.
    */
   private def pruningHasBenefit(
-      partExpr: Seq[Expression],
-      partPlan: LogicalPlan,
-      otherExpr: Seq[Expression],
+      prunExpr: Expression,
+      prunPlan: LogicalPlan,
       otherPlan: LogicalPlan): Boolean = {
+    val maybeHasShuffle = prunPlan.collect {
+      case j @ Join(left, right, _, _, _) if !canBroadcastBySize(left, SQLConf.get)
+        && !canBroadcastBySize(right, SQLConf.get) => j
+      case a: Aggregate => a
+      case d: Distinct => d
+    }
 
-    // scalastyle:off
-    println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-    println(s"partExpr: ${partExpr.mkString(".")}")
-    println(s"partPlan.stats.sizeInBytes: ${partPlan.stats.sizeInBytes}")
-    println(s"partPlan.collectLeaves().map(_.stats.sizeInBytes).sum: ${partPlan.collectLeaves().map(_.stats.sizeInBytes).sum}")
-    println(s"partPlan.collectLeaves().map(_.stats.sizeInBytes).max: ${partPlan.collectLeaves().map(_.stats.sizeInBytes).max}")
-
-    println(s"otherExpr: ${otherExpr.mkString(",")}")
-    println(s"otherPlan.stats.sizeInBytes: ${otherPlan.stats.sizeInBytes}")
-    println(s"otherPlan.collectLeaves().map(_.stats.sizeInBytes).sum: ${otherPlan.collectLeaves().map(_.stats.sizeInBytes).sum}")
-    println(s"otherPlan.collectLeaves().map(_.stats.sizeInBytes).max: ${otherPlan.collectLeaves().map(_.stats.sizeInBytes).max}")
-
-    val optimized3 = partPlan.collectLeaves().map(_.stats.sizeInBytes).sum / otherPlan.stats.sizeInBytes
-    val ret = optimized3 > SQLConf.get.dynamicFilterPruningSmallerRatio
-    println(s"optimized3: ${optimized3}, ${ret}")
-    println("#######################################")
-    ret
+    maybeHasShuffle.flatMap(_.collectLeaves())
+      .find(l => prunExpr.references.subsetOf(l.outputSet)) match {
+      case Some(plan) => canBroadcastBySize(plan, SQLConf.get)
+        val ret = plan.stats.sizeInBytes >= SQLConf.get.dynamicFilterPruningLargerSideThreshold &&
+          canBroadcastBySize(otherPlan, SQLConf.get) &&
+          canBroadcastBySize(otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes), SQLConf.get)
+        // otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes) to fix tpcds-v2.7.0_q64.
+        // scalastyle:off
+        println(s"maybeHasShuffleSideSize: ${plan.stats.sizeInBytes}: ${otherPlan.stats.sizeInBytes}: " +
+          s"${otherPlan.collectLeaves().maxBy(_.stats.sizeInBytes).stats.sizeInBytes}, ${ret}")
+        ret
+      case None => false
+    }
   }
 
   private def canPruneLeft(joinType: JoinType): Boolean = joinType match {
@@ -133,7 +138,7 @@ object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
 
   private def prune(plan: LogicalPlan): LogicalPlan = {
     plan transformUp {
-      // skip this rule if there's already a DPP subquery on the LHS of a join
+      // skip this rule if there's already a RuntimeBloomFilter subquery on the LHS of a join
       case j @ Join(Filter(_: RuntimeBloomFilterPruningSubquery, _), _, _, _, _) => j
       case j @ Join(_, Filter(_: RuntimeBloomFilterPruningSubquery, _), _, _, _) => j
       case j @ Join(left, right, joinType, Some(condition), hint) =>
@@ -154,32 +159,37 @@ object RuntimeFilterPruning extends Rule[LogicalPlan] with PredicateHelper {
           fromLeftRight(x, y) || fromLeftRight(y, x)
         }
 
-        val (leftList, rightList) = splitConjunctivePredicates(condition).flatMap {
-          case EqualTo(a: Expression, b: Expression) if fromDifferentSides(a, b) => Seq(a, b)
-          case _ => Nil
-        }.partition(_.references.subsetOf(left.outputSet))
+        splitConjunctivePredicates(condition).foreach {
+          case EqualTo(a: Expression, b: Expression)
+            if fromDifferentSides(a, b) =>
+            val (l, r) = if (a.references.subsetOf(left.outputSet) &&
+              b.references.subsetOf(right.outputSet)) {
+              a -> b
+            } else {
+              b -> a
+            }
 
-        val nonLeftListCols = leftList.filterNot(c => filterPartitionColumn(c, left))
-        val nonRightListCols = rightList.filterNot(c => filterPartitionColumn(c, right))
-        // there should be a partitioned table and a filter on the dimension table,
-        // otherwise the pruning will not trigger
-        if (canPruneLeft(joinType) && nonLeftListCols.nonEmpty) {
-          val hasBenefit = pruningHasBenefit(nonLeftListCols, left, rightList, right)
-          newLeft = insertPredicate(nonLeftListCols, newLeft, rightList, right, rightKeys, hasBenefit)
-        } else {
-          if (canPruneRight(joinType) && nonRightListCols.nonEmpty) {
-            val hasBenefit = pruningHasBenefit(nonRightListCols, right, leftList, left)
-            newRight = insertPredicate(nonRightListCols, newRight, leftList, left, leftKeys, hasBenefit)
-          }
+            // there should be a partitioned table and a filter on the dimension table,
+            // otherwise the pruning will not trigger
+            if (canPruneLeft(joinType) && canPruningColumn(l, left)) {
+              val hasBenefit = pruningHasBenefit(l, newLeft, right)
+              newLeft = insertPredicate(l, newLeft, r, right, rightKeys, hasBenefit)
+            } else {
+              if (canPruneRight(joinType) && canPruningColumn(r, right)) {
+                val hasBenefit = pruningHasBenefit(r, newRight, left)
+                newRight = insertPredicate(r, newRight, l, left, leftKeys, hasBenefit)
+              }
+            }
+          case _ =>
         }
         Join(newLeft, newRight, joinType, Some(condition), hint)
     }
   }
 
   // TODO:
-  //   1. BuildBloomFilter and InBloomFilter support codegen.
-  //   2. Split Filter to DynamicFilter and Filter, and DynamicFilter should support filter pushdown.
-  //   3. BroadcastExchange reuse.
+  //  1. BuildBloomFilter and InBloomFilter support codegen.
+  //  2. Split Filter to DynamicFilter and Filter, and DynamicFilter should support filter pushdown.
+  //  3. BroadcastExchange reuse.
   override def apply(plan: LogicalPlan): LogicalPlan = plan match {
     // Do not rewrite subqueries.
     case s: Subquery if s.correlated => plan

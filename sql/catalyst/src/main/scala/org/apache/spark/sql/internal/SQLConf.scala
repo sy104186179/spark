@@ -289,14 +289,14 @@ object SQLConf {
       .booleanConf
       .createWithDefault(true)
 
-  val DYNAMIC_FILTER_PRUNING_SMALLER_RATIO =
-    buildConf("spark.sql.optimizer.dynamicFilterPruning.smallerRatio")
+  val DYNAMIC_FILTER_PRUNING_LARGER_SIDE_THRESHOLD =
+    buildConf("spark.sql.optimizer.dynamicFilterPruning.LargerSideThreshold")
       .internal()
       .doc("Specifies the lower limit of the ratio between the join side for a " +
         "dynamic filter pruning to be considered.")
       .version("3.1.0")
-      .longConf
-      .createWithDefault(1000000000)
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("10GB")
 
   val COMPRESS_CACHED = buildConf("spark.sql.inMemoryColumnarStorage.compressed")
     .doc("When set to true Spark SQL will automatically select a compression codec for each " +
@@ -2799,7 +2799,8 @@ class SQLConf extends Serializable with Logging {
 
   def dynamicFilterPruningEnabled: Boolean = getConf(DYNAMIC_FILTER_PRUNING_ENABLED)
 
-  def dynamicFilterPruningSmallerRatio: Long = getConf(DYNAMIC_FILTER_PRUNING_SMALLER_RATIO)
+  def dynamicFilterPruningLargerSideThreshold: Long =
+    getConf(DYNAMIC_FILTER_PRUNING_LARGER_SIDE_THRESHOLD)
 
   def stateStoreProviderClass: String = getConf(STATE_STORE_PROVIDER_CLASS)
 

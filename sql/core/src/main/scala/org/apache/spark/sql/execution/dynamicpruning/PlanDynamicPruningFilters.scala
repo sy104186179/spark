@@ -87,11 +87,12 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
             Seq(value), ListQuery(aggregate, childOutputs = aggregate.output)))
         }
 
-      case RuntimeBloomFilterPruningSubquery(value, buildPlan, buildKeys, exprId) =>
+      case RuntimeBloomFilterPruningSubquery(
+          value, buildPlan, buildKeys, broadcastKeyIndex, exprId) =>
         // TODO: BroadcastExchange reuse
         val sparkPlan = QueryExecution.createSparkPlan(
           sparkSession, sparkSession.sessionState.planner, buildPlan)
-        val name = s"BloomFilterPruning#${exprId.id}"
+        val name = s"#${broadcastKeyIndex}#BloomFilterPruning#${exprId.id}"
         val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
         DynamicPruningExpression(
           BloomFilterSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
