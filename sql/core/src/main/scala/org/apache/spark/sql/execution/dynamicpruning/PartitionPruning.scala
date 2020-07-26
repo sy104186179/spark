@@ -19,9 +19,7 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -46,7 +44,7 @@ import org.apache.spark.sql.internal.SQLConf
  *    subquery query twice, we keep the duplicated subquery
  *    (3) otherwise, we drop the subquery.
  */
-object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
+object PartitionPruning extends DynamicPruningBase {
 
   /**
    * Search the partitioned table scan for a given partition column in a logical plan
@@ -79,7 +77,7 @@ object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
    *  should run regardless of the join strategy, or is too expensive and it should be run only if
    *  we can reuse the results of a broadcast
    */
-  private def insertPredicate(
+  override def insertPredicate(
       pruningKey: Expression,
       pruningPlan: LogicalPlan,
       filteringKey: Expression,
@@ -91,7 +89,7 @@ object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
     if (hasBenefit || reuseEnabled) {
       // insert a DynamicPruning wrapper to identify the subquery during query planning
       Filter(
-        DynamicPruningSubquery(
+        PartitionPruningSubquery(
           pruningKey,
           filteringPlan,
           joinKeys,
@@ -111,7 +109,7 @@ object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
    * using column statistics if they are available, otherwise we use the config value of
    * `spark.sql.optimizer.joinFilterRatio`.
    */
-  private def pruningHasBenefit(
+  override def pruningHasBenefit(
       partExpr: Expression,
       partPlan: LogicalPlan,
       otherExpr: Expression,
@@ -186,21 +184,11 @@ object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
     !plan.isStreaming && hasSelectivePredicate(plan)
   }
 
-  private def canPruneLeft(joinType: JoinType): Boolean = joinType match {
-    case Inner | LeftSemi | RightOuter => true
-    case _ => false
-  }
-
-  private def canPruneRight(joinType: JoinType): Boolean = joinType match {
-    case Inner | LeftOuter => true
-    case _ => false
-  }
-
-  private def prune(plan: LogicalPlan): LogicalPlan = {
+  override def prune(plan: LogicalPlan): LogicalPlan = {
     plan transformUp {
       // skip this rule if there's already a DPP subquery on the LHS of a join
-      case j @ Join(Filter(_: DynamicPruningSubquery, _), _, _, _, _) => j
-      case j @ Join(_, Filter(_: DynamicPruningSubquery, _), _, _, _) => j
+      case j @ Join(Filter(_: PartitionPruningSubquery, _), _, _, _, _) => j
+      case j @ Join(_, Filter(_: PartitionPruningSubquery, _), _, _, _) => j
       case j @ Join(left, right, joinType, Some(condition), hint) =>
         var newLeft = left
         var newRight = right
@@ -211,17 +199,8 @@ object PartitionPruning extends Rule[LogicalPlan] with PredicateHelper {
           case _ => (Nil, Nil)
         }
 
-        // checks if two expressions are on opposite sides of the join
-        def fromDifferentSides(x: Expression, y: Expression): Boolean = {
-          def fromLeftRight(x: Expression, y: Expression) =
-            !x.references.isEmpty && x.references.subsetOf(left.outputSet) &&
-              !y.references.isEmpty && y.references.subsetOf(right.outputSet)
-          fromLeftRight(x, y) || fromLeftRight(y, x)
-        }
-
         splitConjunctivePredicates(condition).foreach {
-          case EqualTo(a: Expression, b: Expression)
-              if fromDifferentSides(a, b) =>
+          case EqualTo(a: Expression, b: Expression) if fromDifferentSides(a, left, b, right) =>
             val (l, r) = if (a.references.subsetOf(left.outputSet) &&
               b.references.subsetOf(right.outputSet)) {
               a -> b
