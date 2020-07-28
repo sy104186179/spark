@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import java.io.ByteArrayInputStream
-
 import scala.collection.immutable.TreeSet
 import scala.collection.mutable
 
@@ -34,8 +32,6 @@ import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LeafNode, Logical
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.types.UTF8String
-import org.apache.spark.util.sketch.BloomFilter
 
 
 /**
@@ -1001,53 +997,6 @@ object IsNotUnknown {
     new IsNotNull(child) with ExpectsInputTypes {
       override def inputTypes: Seq[DataType] = Seq(BooleanType)
       override def sql: String = s"(${child.sql} IS NOT UNKNOWN)"
-    }
-  }
-}
-
-case class InBloomFilter(bloomFilterExp: Expression, value: Expression)
-  extends Predicate with CodegenFallback with ExpectsInputTypes {
-
-  override def children: Seq[Expression] = Seq(bloomFilterExp, value)
-
-  override def nullable: Boolean = children.exists(_.nullable)
-  override def foldable: Boolean = children.forall(_.foldable)
-
-  override def inputTypes: Seq[AbstractDataType] = {
-    Seq(BinaryType, TypeCollection(IntegralType, StringType, BinaryType,
-      FloatType, DoubleType, DateType, TimestampType))
-  }
-
-  override def toString: String = s"InBloomFilter($bloomFilterExp, $value)"
-
-  @transient private var initializedBloomFilter: Boolean = false
-  @volatile private var bloomFilter: BloomFilter = _
-
-  override def eval(input: InternalRow): Any = {
-    if (!initializedBloomFilter) {
-      val bfVal = bloomFilterExp.eval(input)
-      bloomFilter = if (bfVal == null) {
-        null
-      } else {
-        BloomFilter.readFrom(new ByteArrayInputStream(bfVal.asInstanceOf[Array[Byte]]))
-      }
-      initializedBloomFilter = true
-    }
-    if (bloomFilter == null) {
-      null
-    } else {
-      val values = value.eval(input)
-      if (values == null) {
-        null
-      } else {
-        values match {
-          case d: Float => bloomFilter.mightContainLong(java.lang.Float.floatToIntBits(d).toLong)
-          case d: Double => bloomFilter.mightContainLong(java.lang.Double.doubleToLongBits(d))
-          case i: Number => bloomFilter.mightContainLong(i.longValue())
-          case s: UTF8String => bloomFilter.mightContainBinary(s.getBytes)
-          case a: Array[Byte] => bloomFilter.mightContainBinary(a)
-        }
-      }
     }
   }
 }

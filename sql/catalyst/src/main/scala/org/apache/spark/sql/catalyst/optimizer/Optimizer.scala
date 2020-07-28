@@ -50,7 +50,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
 
   override protected val excludedOnceBatches: Set[String] =
     Set(
-      "PartitionPruning",
+      "DynamicPruning",
       "Extract Python UDFs")
 
   protected def fixedPoint =

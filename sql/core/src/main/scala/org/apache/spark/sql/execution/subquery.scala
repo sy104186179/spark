@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution
 
+import java.lang.{Boolean => JBoolean, Double => JDouble, Float => JFloat}
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -24,10 +26,13 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{expressions, InternalRow}
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodegenFallback, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BinaryType, BooleanType, DataType, StructType}
+import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.util.sketch.BloomFilter
 
 /**
  * The base class for subquery that is used in SparkPlan.
@@ -175,41 +180,116 @@ case class BloomFilterSubqueryExec(
     child: Expression,
     plan: BaseSubqueryExec,
     exprId: ExprId,
-    private var resultBroadcast: Broadcast[Array[Byte]] = null)
-  extends ExecSubqueryExpression with CodegenFallback {
+    private var resultBroadcast: Broadcast[BloomFilter] = null) extends ExecSubqueryExpression {
 
-  @transient private var result: Array[Byte] = _
-  @transient private var exp: Expression = _
+  @transient private var bloomFilter: BloomFilter = _
 
   override def dataType: DataType = BooleanType
   override def children: Seq[Expression] = Seq(child)
   override def nullable: Boolean = child.nullable
-  override def toString: String = s"$child in ${plan.name}"
+  override def toString: String = s"$child BloomFilter ${plan.name}"
   override def withNewPlan(plan: BaseSubqueryExec): BloomFilterSubqueryExec = copy(plan = plan)
 
   override def semanticEquals(other: Expression): Boolean = other match {
-    case in: BloomFilterSubqueryExec => child.semanticEquals(in.child) && plan.sameResult(in.plan)
+    case bf: BloomFilterSubqueryExec => child.semanticEquals(bf.child) && plan.sameResult(bf.plan)
     case _ => false
   }
 
   override def updateResult(): Unit = {
-    val row = plan.executeCollect().head
-    result = row.getBinary(0)
-    resultBroadcast = plan.sqlContext.sparkContext.broadcast(result)
-  }
+    val rows = plan.executeCollect().filterNot(_.anyNull)
+    bloomFilter = BloomFilter.create(math.max(1, rows.length))
 
+    child.dataType match {
+      case BooleanType =>
+        rows.foreach(r => bloomFilter.putLong(JBoolean.compare(r.getBoolean(0), false).toLong))
+      case ByteType =>
+        rows.foreach(r => bloomFilter.putLong(r.getByte(0).toLong))
+      case ShortType =>
+        rows.foreach(r => bloomFilter.putLong(r.getShort(0).toLong))
+      case IntegerType | DateType =>
+        rows.foreach(r => bloomFilter.putLong(r.getInt(0).toLong))
+      case LongType | TimestampType =>
+        rows.foreach(r => bloomFilter.putLong(r.getLong(0)))
+      case FloatType =>
+        rows.foreach(r => bloomFilter.putLong(JFloat.floatToIntBits(r.getFloat(0)).toLong))
+      case DoubleType =>
+        rows.foreach(r => bloomFilter.putLong(JDouble.doubleToLongBits(r.getDouble(0))))
+      case StringType =>
+        rows.foreach(r => bloomFilter.putBinary(r.getUTF8String(0).getBytes))
+      case BinaryType =>
+        rows.foreach(r => bloomFilter.putBinary(r.getBinary(0)))
+      case d: DecimalType =>
+        rows.foreach(r => bloomFilter.putBinary(r.getDecimal(0, d.precision, d.scale)
+          .toJavaBigDecimal.unscaledValue().toByteArray))
+      case _ =>
+    }
+
+    resultBroadcast = plan.sqlContext.sparkContext.broadcast(bloomFilter)
+  }
 
   private def prepareResult(): Unit = {
     require(resultBroadcast != null, s"$this has not finished")
-    if (result == null) {
-      result = resultBroadcast.value
-      exp = InBloomFilter(Literal(result, BinaryType), child)
+    if (bloomFilter == null) {
+      bloomFilter = resultBroadcast.value
     }
   }
 
   override def eval(input: InternalRow): Any = {
     prepareResult()
-    exp.eval(input)
+    val v = child.eval(input)
+    if (v == null) {
+      null
+    } else {
+      child.dataType match {
+        case BooleanType =>
+          bloomFilter.mightContainLong(JBoolean.compare(v.asInstanceOf[Boolean], false).toLong)
+        case _: IntegralType | DateType | TimestampType =>
+          bloomFilter.mightContainLong(v.asInstanceOf[Number].longValue())
+        case FloatType =>
+          bloomFilter.mightContainLong(JFloat.floatToIntBits(v.asInstanceOf[Float]).toLong)
+        case DoubleType =>
+          bloomFilter.mightContainLong(JDouble.doubleToLongBits(v.asInstanceOf[Double]))
+        case StringType =>
+          bloomFilter.mightContainBinary(v.asInstanceOf[UTF8String].getBytes)
+        case BinaryType =>
+          bloomFilter.mightContainBinary(v.asInstanceOf[Array[Byte]])
+        case _: DecimalType =>
+          bloomFilter.mightContainBinary(v.asInstanceOf[Decimal]
+            .toJavaBigDecimal.unscaledValue().toByteArray)
+        case _ =>
+          // Always return true for unsupported data type.
+          true
+      }
+    }
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    prepareResult()
+
+    val childCode = child.genCode(ctx)
+    val input = childCode.value
+
+    val bf = ctx.addReferenceObj("bloomFilter", bloomFilter)
+    val testCode = child.dataType match {
+      case BooleanType => s"$bf.mightContainLong((long)Boolean.compare($input, false))"
+      case _: IntegralType | DateType | TimestampType => s"$bf.mightContainLong((long)$input)"
+      case FloatType => s"$bf.mightContainLong((long)Float.floatToIntBits($input))"
+      case DoubleType => s"$bf.mightContainLong(Double.doubleToLongBits($input))"
+      case StringType => s"$bf.mightContainBinary($input.getBytes())"
+      case BinaryType => s"$bf.mightContainBinary($input)"
+      case _: DecimalType =>
+        s"$bf.mightContainBinary($input.toJavaBigDecimal().unscaledValue().toByteArray())"
+      case _ => true.toString
+    }
+
+    ev.copy(code = childCode.code +
+      code"""
+            |boolean ${ev.value} = true;
+            |boolean ${ev.isNull} = ${childCode.isNull};
+            |if (!${childCode.isNull}) {
+            |  ${ev.value} = $testCode;
+            |}
+      """.stripMargin)
   }
 
   override lazy val canonicalized: BloomFilterSubqueryExec = {

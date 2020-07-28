@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, DynamicPruningExpression, DynamicPruningSubquery, Expression, ListQuery, Literal, PredicateHelper, RuntimeBloomFilterPruningSubquery}
+import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, BloomFilterPruningSubquery, DynamicPruningExpression, Expression, ListQuery, Literal, PartitionPruningSubquery, PredicateHelper}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
@@ -51,7 +51,7 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
     }
 
     plan transformAllExpressions {
-      case DynamicPruningSubquery(
+      case PartitionPruningSubquery(
           value, buildPlan, buildKeys, broadcastKeyIndex, onlyInBroadcast, exprId) =>
         val sparkPlan = QueryExecution.createSparkPlan(
           sparkSession, sparkSession.sessionState.planner, buildPlan)
@@ -87,15 +87,34 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
             Seq(value), ListQuery(aggregate, childOutputs = aggregate.output)))
         }
 
-      case RuntimeBloomFilterPruningSubquery(
-          value, buildPlan, buildKeys, broadcastKeyIndex, exprId) =>
-        // TODO: BroadcastExchange reuse
+      case BloomFilterPruningSubquery(value, buildPlan, buildKeys, broadcastKeyIndex, exprId) =>
         val sparkPlan = QueryExecution.createSparkPlan(
           sparkSession, sparkSession.sessionState.planner, buildPlan)
-        val name = s"#${broadcastKeyIndex}#BloomFilterPruning#${exprId.id}"
-        val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
-        DynamicPruningExpression(
-          BloomFilterSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
+        // Using `sparkPlan` is a little hacky as it is based on the assumption that this rule is
+        // the first to be applied (apart from `InsertAdaptiveSparkPlan`).
+        val canReuseExchange = SQLConf.get.exchangeReuseEnabled && buildKeys.nonEmpty &&
+          plan.find {
+            case BroadcastHashJoinExec(_, _, _, BuildLeft, _, left, _) =>
+              left.sameResult(sparkPlan)
+            case BroadcastHashJoinExec(_, _, _, BuildRight, _, _, right) =>
+              right.sameResult(sparkPlan)
+            case _ => false
+          }.isDefined
+        val name = s"dynamicpruning#${exprId.id}"
+        if (canReuseExchange) {
+          val mode = broadcastMode(buildKeys, buildPlan)
+          val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
+          val exchange = BroadcastExchangeExec(mode, executedPlan)
+          // place the broadcast adaptor for reusing the broadcast results on the probe side
+          val broadcastValues = SubqueryBroadcastExec(name, broadcastKeyIndex, buildKeys, exchange)
+          DynamicPruningExpression(BloomFilterSubqueryExec(value, broadcastValues, exprId))
+        } else {
+          val alias = Alias(buildKeys(broadcastKeyIndex), buildKeys(broadcastKeyIndex).toString)()
+          val aggregate = Aggregate(Seq(alias), Seq(alias), buildPlan)
+          val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, aggregate)
+          DynamicPruningExpression(
+            BloomFilterSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
+        }
     }
   }
 }
