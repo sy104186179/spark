@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.adaptive
 import scala.collection.mutable
 
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, ListQuery, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruning, ListQuery, SubqueryExpression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.UnspecifiedDistribution
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -103,7 +103,7 @@ case class InsertAdaptiveSparkPlan(
     // TODO migrate dynamic-partition-pruning onto adaptive execution.
     sanityCheck(plan) &&
       !plan.logicalLink.exists(_.isStreaming) &&
-      !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
+      !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruning]).isDefined) &&
     plan.children.forall(supportAdaptive)
   }
 

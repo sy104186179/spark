@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.dynamicpruning
 
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruning, PredicateHelper}
+import org.apache.spark.sql.catalyst.expressions.{PartitionPruningSubquery, PredicateHelper}
 import org.apache.spark.sql.catalyst.expressions.Literal.TrueLiteral
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
@@ -43,7 +43,7 @@ object CleanupDynamicPruningFilters extends Rule[LogicalPlan] with PredicateHelp
       // remove any Filters with DynamicPruning that didn't get pushed down to PhysicalOperation.
       case f @ Filter(condition, _) =>
         val newCondition = condition.transform {
-          case _: DynamicPruning => TrueLiteral
+          case _: PartitionPruningSubquery => TrueLiteral
         }
         f.copy(condition = newCondition)
     }

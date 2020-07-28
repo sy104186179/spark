@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 trait DynamicPruning extends Predicate
 
 /**
- * The DynamicPruningSubquery expression is only used in join operations to prune one side of the
+ * The PartitionPruningSubquery expression is only used in join operations to prune one side of the
  * join with a filter from the other side of the join. It is inserted in cases where partition
  * pruning can be applied.
  *
@@ -37,7 +37,7 @@ trait DynamicPruning extends Predicate
  *  can reuse the results of the broadcast through ReuseExchange
  * @param broadcastKeyIndex the index of the filtering key collected from the broadcast
  */
-case class DynamicPruningSubquery(
+case class PartitionPruningSubquery(
     pruningKey: Expression,
     buildQuery: LogicalPlan,
     buildKeys: Seq[Expression],
@@ -45,8 +45,8 @@ case class DynamicPruningSubquery(
     onlyInBroadcast: Boolean,
     exprId: ExprId = NamedExpression.newExprId)
   extends SubqueryExpression(buildQuery, Seq(pruningKey), exprId)
-  with DynamicPruning
-  with Unevaluable {
+    with DynamicPruning
+    with Unevaluable {
 
   override def children: Seq[Expression] = Seq(pruningKey)
 
@@ -54,7 +54,7 @@ case class DynamicPruningSubquery(
 
   override def nullable: Boolean = false
 
-  override def withNewPlan(plan: LogicalPlan): DynamicPruningSubquery = copy(buildQuery = plan)
+  override def withNewPlan(plan: LogicalPlan): PartitionPruningSubquery = copy(buildQuery = plan)
 
   override lazy val resolved: Boolean = {
     pruningKey.resolved &&
@@ -67,7 +67,7 @@ case class DynamicPruningSubquery(
       pruningKey.dataType == buildKeys(broadcastKeyIndex).dataType
   }
 
-  override def toString: String = s"dynamicpruning#${exprId.id} $conditionString"
+  override def toString: String = s"partitionpruning#${exprId.id} $conditionString"
 
   override lazy val canonicalized: DynamicPruning = {
     copy(
@@ -78,7 +78,17 @@ case class DynamicPruningSubquery(
   }
 }
 
-case class RuntimeBloomFilterPruningSubquery(
+/**
+ * The BloomFilterPruningSubquery expression is only used in join operations to prune one side of
+ * the join with a filter from the other side of the join. It is inserted in cases where shuffle
+ * pruning can be applied.
+ *
+ * @param pruningKey the filtering key of the plan to be pruned.
+ * @param buildQuery the build side of the join.
+ * @param buildKeys the join keys corresponding to the build side of the join
+ * @param broadcastKeyIndex the index of the filtering key collected from the broadcast
+ */
+case class BloomFilterPruningSubquery(
     pruningKey: Expression,
     buildQuery: LogicalPlan,
     buildKeys: Seq[Expression],
@@ -88,14 +98,16 @@ case class RuntimeBloomFilterPruningSubquery(
     with DynamicPruning
     with Unevaluable {
 
-  override def withNewPlan(plan: LogicalPlan): RuntimeBloomFilterPruningSubquery =
-    copy(buildQuery = plan)
-
   override def children: Seq[Expression] = Seq(pruningKey)
 
   override def plan: LogicalPlan = buildQuery
 
   override def nullable: Boolean = false
+
+  override def withNewPlan(plan: LogicalPlan): BloomFilterPruningSubquery =
+    copy(buildQuery = plan)
+
+  override def toString: String = s"bloomfilterpruning#${exprId.id} $conditionString"
 
   override lazy val resolved: Boolean = {
     pruningKey.resolved &&
@@ -107,8 +119,6 @@ case class RuntimeBloomFilterPruningSubquery(
       buildKeys.forall(_.references.subsetOf(buildQuery.outputSet)) &&
       pruningKey.dataType == buildKeys(broadcastKeyIndex).dataType
   }
-
-  override def toString: String = s"BloomFilterPruning#${exprId.id} $conditionString"
 
   override lazy val canonicalized: DynamicPruning = {
     copy(
