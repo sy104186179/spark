@@ -556,6 +556,17 @@ abstract class ShufflePruningSuiteBase
       }
     }
   }
+
+  test("Test bloom filter for sort merge join") {
+    withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
+      spark.range(2000000000).selectExpr("id as a", "id as b", "id as c").write.saveAsTable("t1")
+      spark.range(200000000).selectExpr("id as x", "id as y", "id as z").write.saveAsTable("t2")
+
+      val df = spark.sql("select t1.* from t1 join t2 on t1.a = t2.x and t2.y < 500000")
+      df.explain()
+      df.show
+    }
+  }
 }
 
 class ShufflePruningSuiteAEOff extends ShufflePruningSuiteBase {

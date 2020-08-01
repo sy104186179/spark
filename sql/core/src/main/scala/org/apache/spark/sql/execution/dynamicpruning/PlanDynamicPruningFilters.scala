@@ -19,12 +19,12 @@ package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, BloomFilterPruningSubquery, DynamicPruningExpression, Expression, ListQuery, Literal, PartitionPruningSubquery, PredicateHelper}
+import org.apache.spark.sql.catalyst.expressions.{Alias, BindReferences, BloomFilterPruningSubquery, DynamicPruningExpression, Expression, ListQuery, Literal, PartitionPruningSubquery, PredicateHelper, RuntimeBloomFilterPruningSubquery}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BloomFilterSubqueryExec, InSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec, SubqueryExec}
+import org.apache.spark.sql.execution.{BloomFilter2SubqueryExec, BloomFilterSubqueryExec, InSubqueryExec, QueryExecution, SparkPlan, SubqueryBroadcastExec, SubqueryExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.internal.SQLConf
@@ -115,6 +115,16 @@ case class PlanDynamicPruningFilters(sparkSession: SparkSession)
           DynamicPruningExpression(
             BloomFilterSubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
         }
+
+      case RuntimeBloomFilterPruningSubquery(
+          value, buildPlan, buildKeys, broadcastKeyIndex, exprId) =>
+        // TODO: BroadcastExchange reuse
+        val sparkPlan = QueryExecution.createSparkPlan(
+          sparkSession, sparkSession.sessionState.planner, buildPlan)
+        val name = s"#${broadcastKeyIndex}#BloomFilterPruning#${exprId.id}"
+        val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, sparkPlan)
+        DynamicPruningExpression(
+          BloomFilter2SubqueryExec(value, SubqueryExec(name, executedPlan), exprId))
     }
   }
 }

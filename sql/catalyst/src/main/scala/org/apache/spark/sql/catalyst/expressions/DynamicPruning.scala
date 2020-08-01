@@ -78,6 +78,12 @@ case class PartitionPruningSubquery(
   }
 }
 
+abstract class BloomFilterSubqueryExpression(
+    pruningKey: LogicalPlan,
+    children: Seq[Expression],
+    exprId: ExprId = NamedExpression.newExprId)
+  extends SubqueryExpression(pruningKey, children, exprId)
+
 /**
  * The BloomFilterPruningSubquery expression is only used in join operations to prune one side of
  * the join with a filter from the other side of the join. It is inserted in cases where shuffle
@@ -94,7 +100,7 @@ case class BloomFilterPruningSubquery(
     buildKeys: Seq[Expression],
     broadcastKeyIndex: Int,
     exprId: ExprId = NamedExpression.newExprId)
-  extends SubqueryExpression(buildQuery, Seq(pruningKey), exprId)
+  extends BloomFilterSubqueryExpression(buildQuery, Seq(pruningKey), exprId)
     with DynamicPruning
     with Unevaluable {
 
@@ -119,6 +125,47 @@ case class BloomFilterPruningSubquery(
       buildKeys.forall(_.references.subsetOf(buildQuery.outputSet)) &&
       pruningKey.dataType == buildKeys(broadcastKeyIndex).dataType
   }
+
+  override lazy val canonicalized: DynamicPruning = {
+    copy(
+      pruningKey = pruningKey.canonicalized,
+      buildQuery = buildQuery.canonicalized,
+      buildKeys = buildKeys.map(_.canonicalized),
+      exprId = ExprId(0))
+  }
+}
+
+case class RuntimeBloomFilterPruningSubquery(
+      pruningKey: Expression,
+      buildQuery: LogicalPlan,
+      buildKeys: Seq[Expression],
+      broadcastKeyIndex: Int,
+      exprId: ExprId = NamedExpression.newExprId)
+  extends BloomFilterSubqueryExpression(buildQuery, Seq(pruningKey), exprId)
+    with DynamicPruning
+    with Unevaluable {
+
+  override def withNewPlan(plan: LogicalPlan): RuntimeBloomFilterPruningSubquery =
+    copy(buildQuery = plan)
+
+  override def children: Seq[Expression] = Seq(pruningKey)
+
+  override def plan: LogicalPlan = buildQuery
+
+  override def nullable: Boolean = false
+
+  override lazy val resolved: Boolean = true || {
+    pruningKey.resolved &&
+      buildQuery.resolved &&
+      buildKeys.nonEmpty &&
+      buildKeys.forall(_.resolved) &&
+      broadcastKeyIndex >= 0 &&
+      broadcastKeyIndex < buildKeys.size &&
+      buildKeys.forall(_.references.subsetOf(buildQuery.outputSet)) &&
+      pruningKey.dataType == buildKeys(broadcastKeyIndex).dataType
+  }
+
+  override def toString: String = s"BloomFilterPruning#${exprId.id} $conditionString"
 
   override lazy val canonicalized: DynamicPruning = {
     copy(

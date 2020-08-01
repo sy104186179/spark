@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.dynamicpruning
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.BuildBloomFilter
 import org.apache.spark.sql.catalyst.optimizer.JoinSelectionHelper
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -61,14 +62,48 @@ object ShufflePruning extends DynamicPruningBase with JoinSelectionHelper {
       filteringKey: Expression,
       filteringPlan: LogicalPlan,
       joinKeys: Seq[Expression],
-      hasBenefit: Boolean): LogicalPlan = {
-    if (hasBenefit) {
+      hasBenefit2: Boolean): LogicalPlan = {
+
+    val shuffleStages = pruningPlan.collect {
+      case j @ Join(left, right, _, _, hint)
+        if !canBroadcastBySize(left, SQLConf.get) && !canBroadcastBySize(right, SQLConf.get)
+          && !hintToBroadcastLeft(hint) && !hintToBroadcastRight(hint) => j
+      case a: Aggregate => a
+    }
+
+    val broadcastHasBenefit = shuffleStages.flatMap(_.collectLeaves())
+      .find(l => pruningKey.references.subsetOf(l.outputSet)) match {
+      case Some(plan) =>
+        plan.stats.sizeInBytes >= SQLConf.get.dynamicShufflePruningSideThreshold &&
+          canBroadcastBySize(filteringPlan, SQLConf.get) &&
+          canBroadcastBySize(filteringPlan.collectLeaves().maxBy(_.stats.sizeInBytes), SQLConf.get)
+      case None => false
+    }
+
+
+    val filterRatio = SQLConf.get.getConfString("spark.sql.filterRatio", "1").toFloat
+    val overhead = filteringPlan.collectLeaves().map(_.stats.sizeInBytes).sum.toFloat
+    val a = filterRatio * pruningPlan.stats.sizeInBytes.toFloat
+    val shuffleHasBenefit = a > overhead.toFloat
+    // scalastyle:off
+    println(s"filterRatio: ${filterRatio}, ${a}, ${overhead}")
+
+    if (broadcastHasBenefit) {
       Filter(
         BloomFilterPruningSubquery(
           pruningKey,
           filteringPlan,
           joinKeys,
           joinKeys.indexOf(filteringKey)),
+        pruningPlan)
+    } else if (shuffleHasBenefit) {
+      val namedExpressions = filteringKey.map { e =>
+        new BuildBloomFilter(e).toAggregateExpression()
+      }.map(e => Alias(e, e.toString)())
+      val filterPlan = Aggregate(Nil, namedExpressions, RepartitionByExpression(joinKeys, filteringPlan, None))
+      val index = joinKeys.indexOf(filteringKey)
+      Filter(
+        RuntimeBloomFilterPruningSubquery(pruningKey, filterPlan, joinKeys, index),
         pruningPlan)
     } else {
       pruningPlan
@@ -103,10 +138,10 @@ object ShufflePruning extends DynamicPruningBase with JoinSelectionHelper {
   }
 
   override def prune(plan: LogicalPlan): LogicalPlan = {
-    plan transformUp {
+    plan transform {
       // skip this rule if there's already a RuntimeBloomFilter subquery on the LHS of a join.
-      case j @ Join(Filter(_: BloomFilterPruningSubquery, _), _, _, _, _) => j
-      case j @ Join(_, Filter(_: BloomFilterPruningSubquery, _), _, _, _) => j
+      case j @ Join(Filter(_: BloomFilterSubqueryExpression, _), _, _, _, _) => j
+      case j @ Join(_, Filter(_: BloomFilterSubqueryExpression, _), _, _, _) => j
       case j @ Join(left, right, joinType, Some(condition), hint) =>
         var newLeft = left
         var newRight = right
